@@ -1,0 +1,40 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "NekoShare Desktop",
+  "version": "0.1.0",
+  "identifier": "com.thiratt.nekosharedesktop",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:7783",
+    "beforeDevCommand": "pnpm dev-x",
+    "beforeBuildCommand": "pnpm build-x"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "NekoShare Desktop",
+        "minWidth": 1200,
+        "minHeight": 700,
+        "resizable": true,
+        "decorations": false,
+        "center": true,
+        "userAgent": "NekoShare/0.0.1 (American Curl; Platform:Desktop; +https://nekoshare.com)"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+{
+	"name": "@workspace/app-config",
+	"version": "0.0.1",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"packageManager": "pnpm@10.4.1",
+	"devDependencies": {
+		"typescript": "^5.9.2"
+	},
+	"exports": {
+		"./app/*": "./src/*.ts"
+	}
+}

@@ -1,0 +1,20 @@
+{
+	"extends": "@workspace/typescript-config/nextjs.json",
+	"compilerOptions": {
+		"baseUrl": ".",
+		"paths": {
+			"@workspace/app-ui/*": ["./src/*"]
+		}
+		// "moduleResolution": "node"
+	},
+	// "include": [
+	// 	".",
+	// 	"src/components/home/.history.tsx",
+	// 	"src/components/settings/.account.tsx",
+	// 	"src/components/home/.index.tsx",
+	// 	"src/components/home/.index2.tsx",
+	// 	"../ui/src/hooks/useToast.ts",
+	// 	"src/components/home/.index3.tsx"
+	// ],
+	"exclude": ["node_modules", "dist"]
+}

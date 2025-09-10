@@ -1,0 +1,44 @@
+name: nekoshare
+
+services:
+    database:
+        image: mysql:8.4.6
+        restart: always
+        env_file:
+            - .env.prod
+        volumes:
+            - mysql-data:/var/lib/mysql
+        networks:
+            - nekoshare-net
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+
+    redis:
+        image: bitnami/redis:8.2.1
+        restart: unless-stopped
+        env_file:
+            - .env.prod
+        volumes:
+            - redis-data:/bitnami/redis/data
+        networks:
+            - nekoshare-net
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+
+volumes:
+    mysql-data:
+    redis-data:
+
+networks:
+    nekoshare-net:
+        driver: bridge
+        name: nekoshare-net
+        driver_opts:
+            com.docker.network.bridge.enable_ip_masquerade: "true"
