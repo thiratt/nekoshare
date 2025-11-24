@@ -1,0 +1,43 @@
+name: nekoshare-dev
+
+services:
+    database:
+        image: mysql:8.4.6
+        restart: always
+        env_file:
+            - .env.dev
+        volumes:
+            - mysql-data:/var/lib/mysql
+        networks:
+            - nekoshare-net-dev
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+        ports:
+            - 7770:3306
+
+    phpmyadmin:
+        image: phpmyadmin
+        restart: always
+        ports:
+            - 7771:80
+        environment:
+            - PMA_HOST=database
+            - PMA_ARBITRARY=1
+        depends_on:
+            database:
+                condition: service_healthy
+        networks:
+            - nekoshare-net-dev
+
+volumes:
+    mysql-data:
+
+networks:
+    nekoshare-net-dev:
+        driver: bridge
+        name: nekoshare-net-dev
+        driver_opts:
+            com.docker.network.bridge.enable_ip_masquerade: "true"
