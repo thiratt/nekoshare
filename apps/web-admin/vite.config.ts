@@ -9,7 +9,7 @@ import { fileURLToPath, URL } from 'node:url'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    devtools(),
+    devtools({ eventBusConfig: { port: 7791 } }),
     tanstackRouter({
       target: 'react',
       autoCodeSplitting: true,
