@@ -1,15 +1,29 @@
-import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
+import { serve, type ServerType } from "@hono/node-server";
+import { createApp } from "./app";
+import { env } from "./config/env";
 
-const app = new Hono()
+function createServer(): ServerType {
+	const app = createApp();
 
-app.get('/', (c) => {
-  return c.text('Hello Hono!')
-})
+	return serve({ fetch: app.fetch, port: env.PORT }, (info) => {
+		console.log(`🚀 Server running at http://localhost:${info.port}`);
+	});
+}
 
-serve({
-  fetch: app.fetch,
-  port: 7780
-}, (info) => {
-  console.log(`Server is running on http://localhost:${info.port}`)
-})
+const server = createServer();
+
+process.on("SIGINT", async () => {
+	console.log("Shutting down server...");
+	server.close();
+	process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+	server.close((err) => {
+		if (err) {
+			console.error(err);
+			process.exit(1);
+		}
+		process.exit(0);
+	});
+});
