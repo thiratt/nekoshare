@@ -1,4 +1,4 @@
-import { JSX, useCallback, useState } from "react";
+import { type JSX, useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { FaGoogle } from "react-icons/fa";
 import { LuLoader } from "react-icons/lu";
@@ -9,8 +9,8 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Form } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
 import { CardTransition } from "@workspace/app-ui/components/ext/transition-view";
-import { IncludeLinkComponentProps } from "@workspace/app-ui/types";
-import { TLoginSchema } from "@workspace/app-ui/types/schema";
+import { type IncludeLinkComponentProps } from "@workspace/app-ui/types/index";
+import { type TLoginSchema } from "@workspace/app-ui/types/schema";
 import { loginFormSchema } from "@workspace/app-ui/schemas/login";
 import { ExtendLink } from "@workspace/app-ui/components/ext/link";
 
