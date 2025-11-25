@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:fire="http://schemas.microsoft.com/wix/FirewallExtension">
+  <Fragment>
+    <DirectoryRef Id="TARGETDIR">
+      <Component Id="FirewallExceptions" Guid="92fdda1a-fdfa-4d0b-99bb-8ae6ccd04dfd">
+        <fire:FirewallException Id="NekoshareTCP" Name="Nekoshare TCP" Program="[!Path]" Profile="all" Protocol="tcp" Scope="any" />
+        <fire:FirewallException Id="NekoshareUDP" Name="Nekoshare UDP" Program="[!Path]" Profile="all" Protocol="udp" Scope="any" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>
