@@ -1,9 +1,6 @@
+import { DesktopTitlebar } from "@/components/navbar";
 import { authClient } from "@/lib/auth";
-import {
-  createFileRoute,
-  Outlet,
-  redirect,
-} from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/(auth)")({
   async beforeLoad() {
@@ -17,5 +14,10 @@ export const Route = createFileRoute("/(auth)")({
 });
 
 function RouteComponent() {
-  return <Outlet />;
+  return (
+    <div className="h-screen">
+      <DesktopTitlebar onlyControl />
+      <Outlet />
+    </div>
+  );
 }
