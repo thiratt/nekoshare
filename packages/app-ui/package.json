@@ -7,12 +7,15 @@
 		"lint": "eslint . --max-warnings 0"
 	},
 	"dependencies": {
+		"@hookform/resolvers": "^5.2.2",
 		"@workspace/ui": "workspace:*",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
+		"react-hook-form": "^7.66.1",
 		"react-icons": "^5.5.0",
 		"tailwind-merge": "^3.3.1",
-		"tw-animate-css": "^1.3.6"
+		"tw-animate-css": "^1.3.6",
+		"zod": "^3.25.76"
 	},
 	"devDependencies": {
 		"@tailwindcss/postcss": "^4.1.11",
@@ -27,8 +30,11 @@
 		"typescript": "^5.9.2"
 	},
 	"exports": {
-		"./lib/*": "./src/lib/*.ts",
 		"./components/*": "./src/components/*.tsx",
-		"./hooks/*": "./src/hooks/*.ts"
+		"./context/*": "./src/context/*.tsx",
+		"./hooks/*": "./src/hooks/*.ts",
+		"./lib/*": "./src/lib/*.ts",
+		"./types/*": "./src/types/*.ts",
+		"./schemas/*": "./src/schemas/*.ts"
 	}
 }
