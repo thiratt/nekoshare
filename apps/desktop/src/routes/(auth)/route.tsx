@@ -15,9 +15,11 @@ export const Route = createFileRoute("/(auth)")({
 
 function RouteComponent() {
   return (
-    <div className="h-screen">
+    <div className="h-screen flex flex-col">
       <DesktopTitlebar onlyControl />
-      <Outlet />
+      <div className="flex-1 flex items-center justify-center">
+        <Outlet />
+      </div>
     </div>
   );
 }
