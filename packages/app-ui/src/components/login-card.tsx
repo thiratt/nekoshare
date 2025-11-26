@@ -11,7 +11,7 @@ import { Input } from "@workspace/ui/components/input";
 import { CardTransition } from "@workspace/app-ui/components/ext/transition-view";
 import { type IncludeLinkComponentProps } from "@workspace/app-ui/types/index";
 import { type TLoginSchema } from "@workspace/app-ui/types/schema";
-import { loginFormSchema } from "@workspace/app-ui/schemas/login";
+import { loginFormSchema } from "@workspace/app-ui/schemas/auth";
 import { ExtendLink } from "@workspace/app-ui/components/ext/link";
 
 interface ExampleDataLoginProps {
@@ -19,18 +19,13 @@ interface ExampleDataLoginProps {
 	password: string;
 }
 
-interface LoginCardProps {
+interface LoginCardProps extends IncludeLinkComponentProps {
 	data?: ExampleDataLoginProps;
 	onGoogle: () => Promise<void>;
 	onSubmit: (data: TLoginSchema) => Promise<void>;
 }
 
-export function LoginCard({
-	data,
-	linkComponent,
-	onGoogle,
-	onSubmit,
-}: LoginCardProps & IncludeLinkComponentProps): JSX.Element {
+export function LoginCard({ data, linkComponent, onGoogle, onSubmit }: LoginCardProps): JSX.Element {
 	const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 	const form = useForm<TLoginSchema>({
 		mode: "onChange",
@@ -126,7 +121,7 @@ export function LoginCard({
 								</Button>
 								<div className="flex gap-1 justify-center items-center text-sm">
 									ยังไม่มีบัญชี?{" "}
-									<ExtendLink linkComponent={linkComponent} href="/auth/signup">
+									<ExtendLink linkComponent={linkComponent} href="/signup">
 										{authMessage("สมัครเลย")}
 									</ExtendLink>
 								</div>
@@ -135,7 +130,7 @@ export function LoginCard({
 						</CardContent>
 					</form>
 				</Form>
-				<div className="grid grid-cols-[65%_auto]">{/* <AuthLoginWithQrCode t={() => ""} /> */}</div>
+				{/* <div className="grid grid-cols-[65%_auto]"><AuthLoginWithQrCode t={() => ""} /></div> */}
 			</CardTransition>
 			{/* <AuthFooter /> */}
 		</div>
