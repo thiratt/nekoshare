@@ -1,5 +1,6 @@
 import { DesktopTitlebar } from "@/components/navbar";
 import { authClient } from "@/lib/auth";
+import { useTheme } from "@/lib/theme-provider";
 import {
   createFileRoute,
   Link,
@@ -11,7 +12,7 @@ import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import { useMemo } from "react";
-import { LuBell, LuSettings } from "react-icons/lu";
+import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 
 export const Route = createFileRoute("/home")({
   // TODO: Do not forget to enable authentication
@@ -27,9 +28,15 @@ export const Route = createFileRoute("/home")({
 
 function RouteComponent() {
   const { notification, toggleNotification } = useNekoShare();
+  const { theme, setTheme } = useTheme();
 
   const titlebarHelperActions = useMemo(
     () => [
+      // TODO: Remove when on production
+      {
+        icon: theme === "dark" ? <LuMoon /> : <LuSun />,
+        onClick: () => setTheme(theme === "dark" ? "light" : "dark"),
+      },
       {
         icon: <LuBell />,
         onClick: () => toggleNotification(),
@@ -43,7 +50,7 @@ function RouteComponent() {
         },
       },
     ],
-    [toggleNotification],
+    [notification, theme],
   );
   return (
     <div className="min-h-svh flex flex-col">
