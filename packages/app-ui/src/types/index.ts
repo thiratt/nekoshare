@@ -9,3 +9,11 @@ export type LinkComponent = React.ComponentType<LinkComponentProps>;
 export interface IncludeLinkComponentProps {
 	linkComponent: LinkComponent;
 }
+
+export type ParticipantKind = "device" | "buddy";
+
+export interface Participant {
+	id: string;
+	kind: ParticipantKind;
+	name: string;
+}
