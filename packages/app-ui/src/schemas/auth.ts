@@ -44,14 +44,22 @@ export const loginFormSchema = z.object({
 		.max(16, "Password must be no more than 16 characters long."),
 });
 
-export const signupFormSchema = z.object({
-	username: z.string().min(2, { message: "Username must be at least 2 characters long." }),
-	email: z.string().email({ message: "Please enter a valid email address." }).trim(),
-	password: z
-		.string()
-		.min(8, { message: "Password must be at least 8 characters long." })
-		.max(16, { message: "Password must be at most 16 characters long." }),
-});
+export const signupFormSchema = z
+	.object({
+		username: z.string().min(2, { message: "Username must be at least 2 characters long." }),
+		email: z.string().email({ message: "Please enter a valid email address." }).trim(),
+		password: z
+			.string()
+			.min(8, { message: "Password must be at least 8 characters long." })
+			.max(16, { message: "Password must be at most 16 characters long." }),
+		confirmPassword: z
+			.string()
+			.min(8, { message: "Confirm Password must be at least 8 characters long." })
+			.max(16, { message: "Confirm Password must be at most 16 characters long." }),
+	})
+	.refine((data) => data.password === data.confirmPassword, {
+		message: "Passwords do not match.",
+	});
 
 export const resetPasswordFormSchema = z.object({
 	email: z.string().email({ message: "Please enter a valid email address." }).trim(),
