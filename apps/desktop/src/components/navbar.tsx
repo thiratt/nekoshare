@@ -14,20 +14,20 @@ function DesktopTitlebar({ onlyControl = false }: NavigationBarProps) {
   return (
     <div
       className={cn(
-        "flex items-center w-full h-10",
+        "flex items-center w-full h-10 bg-primary dark:bg-primary/20",
         !onlyControl && "border-b",
       )}
     >
       <div data-tauri-drag-region className="flex-1 h-full flex items-center">
         {!onlyControl && (
-          <h1 className="pointer-events-none select-none pl-3 font-semibold text-primary text-sm lg:text-base">
+          <h1 className="pointer-events-none select-none pl-3 font-semibold text-background text-sm lg:text-base">
             Nekoshare Desktop
           </h1>
         )}
       </div>
-      <div className="flex items-center h-full">
+      <div className="flex items-center h-full text-background">
         <Button
-          className="h-full w-12 rounded-none"
+          className="h-full w-12 rounded-none hover:bg-muted/20 hover:text-background"
           variant="ghost"
           size="icon"
           title="Minimize"
@@ -38,7 +38,7 @@ function DesktopTitlebar({ onlyControl = false }: NavigationBarProps) {
         </Button>
 
         <Button
-          className="h-full w-12 rounded-none right-0 focus:ring-0 focus-visible:ring-0"
+          className="h-full w-12 rounded-none right-0 focus:ring-0 focus-visible:ring-0 hover:bg-muted/20 hover:text-background"
           variant="ghost"
           size="icon"
           title={isMaximized ? "Restore" : "Maximize"}
