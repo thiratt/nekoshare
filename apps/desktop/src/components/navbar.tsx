@@ -27,26 +27,28 @@ function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
         </h1>
       </div>
       <div className="flex items-center h-full text-background">
-        {helperActions?.map((action, index) => (
-          <div className="relative" key={index}>
-            <Button
-              className={cn(
-                "hover:bg-muted/20 hover:text-background dark:hover:bg-muted/20 size-6",
-                index === helperActions?.length - 1 && "mr-1",
-                action.actived && "bg-muted/20",
-              )}
-              variant="ghost"
-              title={action.title}
-              onClick={action.onClick}
-              tabIndex={-1}
-            >
-              {action.icon}
-            </Button>
-            {action.badge && (
-              <span className="absolute top-0.5 right-1 h-2 w-2 rounded-full bg-destructive" />
-            )}
+        {helperActions && (
+          <div className="space-x-1 mr-1">
+            {helperActions.map((action, index) => (
+              <Button
+                key={index}
+                className={cn(
+                  "relative hover:bg-muted/20 hover:text-background dark:hover:bg-muted/20 size-6",
+                  action.actived && "bg-muted/20",
+                )}
+                variant="ghost"
+                title={action.title}
+                onClick={action.onClick}
+                tabIndex={-1}
+              >
+                {action.icon}
+                {action.badge && (
+                  <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-destructive" />
+                )}
+              </Button>
+            ))}
           </div>
-        ))}
+        )}
         <Button
           className="h-full w-12 rounded-none hover:bg-muted/20 hover:text-background dark:hover:bg-muted/20"
           variant="ghost"
