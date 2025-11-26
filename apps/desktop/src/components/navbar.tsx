@@ -61,7 +61,7 @@ function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
         </Button>
 
         <Button
-          className="h-full w-12 rounded-none right-0 focus:ring-0 focus-visible:ring-0 hover:bg-muted/20 hover:text-background"
+          className="h-full w-12 rounded-none right-0 focus:ring-0 focus-visible:ring-0 hover:bg-muted/20 hover:text-backgroun dark:hover:bg-muted/20"
           variant="ghost"
           size="icon"
           title={isMaximized ? "Restore" : "Maximize"}
