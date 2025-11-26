@@ -35,7 +35,8 @@
 		"./components/*": "./src/components/*.tsx",
 		"./context/*": "./src/context/*.tsx",
 		"./hooks/*": "./src/hooks/*.ts",
-		"./lib/*": "./src/lib/*",
+		"./lib/*": "./src/lib/*.ts",
+		"./providers/*": "./src/providers/*.tsx",
 		"./types/*": "./src/types/*.ts",
 		"./schemas/*": "./src/schemas/*.ts"
 	}
