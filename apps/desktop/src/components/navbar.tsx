@@ -4,30 +4,51 @@ import { cn } from "@workspace/ui/lib/utils";
 import { LuMaximize, LuMinus, LuX } from "react-icons/lu";
 import { TiTabsOutline } from "react-icons/ti";
 
-interface NavigationBarProps {
-  onlyControl?: boolean;
+interface DesktopTitlebarHelperActionsProps {
+  icon: React.ReactNode;
+  onClick: () => void;
+  title?: string;
+  actived?: boolean;
+  badge?: boolean;
 }
 
-function DesktopTitlebar({ onlyControl = false }: NavigationBarProps) {
+interface DesktopTitlebarProps {
+  helperActions?: DesktopTitlebarHelperActionsProps[];
+}
+
+function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
   const { isMaximized, minimize, toggleMaximize, close } = useTitlebarControl();
 
   return (
-    <div
-      className={cn(
-        "flex items-center w-full h-10 bg-primary dark:bg-primary/20",
-        !onlyControl && "border-b",
-      )}
-    >
+    <div className="flex items-center w-full h-10 bg-primary">
       <div data-tauri-drag-region className="flex-1 h-full flex items-center">
-        {!onlyControl && (
-          <h1 className="pointer-events-none select-none pl-3 font-semibold text-background text-sm lg:text-base">
-            Nekoshare Desktop
-          </h1>
-        )}
+        <h1 className="pointer-events-none select-none pl-3 font-semibold text-background text-sm lg:text-base">
+          Nekoshare Desktop
+        </h1>
       </div>
       <div className="flex items-center h-full text-background">
+        {helperActions?.map((action, index) => (
+          <div className="relative" key={index}>
+            <Button
+              className={cn(
+                "hover:bg-muted/20 hover:text-background dark:hover:bg-muted/20 size-6",
+                index === helperActions?.length - 1 && "mr-1",
+                action.actived && "bg-muted/20",
+              )}
+              variant="ghost"
+              title={action.title}
+              onClick={action.onClick}
+              tabIndex={-1}
+            >
+              {action.icon}
+            </Button>
+            {action.badge && (
+              <span className="absolute top-0.5 right-1 h-2 w-2 rounded-full bg-destructive" />
+            )}
+          </div>
+        ))}
         <Button
-          className="h-full w-12 rounded-none hover:bg-muted/20 hover:text-background"
+          className="h-full w-12 rounded-none hover:bg-muted/20 hover:text-background dark:hover:bg-muted/20"
           variant="ghost"
           size="icon"
           title="Minimize"
