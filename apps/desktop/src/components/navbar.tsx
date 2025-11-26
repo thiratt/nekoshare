@@ -1,7 +1,8 @@
 import { useTitlebarControl } from "@/hooks/useTitlebarControl";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
-import { LuMaximize, LuMinimize, LuMinus, LuX } from "react-icons/lu";
+import { LuMaximize, LuMinus, LuX } from "react-icons/lu";
+import { TiTabsOutline } from "react-icons/ti";
 
 interface NavigationBarProps {
   onlyControl?: boolean;
@@ -44,7 +45,7 @@ function DesktopTitlebar({ onlyControl = false }: NavigationBarProps) {
           onClick={toggleMaximize}
           tabIndex={-1}
         >
-          {isMaximized ? <LuMinimize /> : <LuMaximize />}
+          {isMaximized ? <TiTabsOutline /> : <LuMaximize />}
         </Button>
 
         <Button
