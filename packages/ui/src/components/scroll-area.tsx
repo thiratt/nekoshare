@@ -31,6 +31,8 @@ function ScrollBar({
 			orientation={orientation}
 			className={cn(
 				"flex touch-none p-px transition-colors select-none",
+				"data-[state=visible]:animate-in data-[state=visible]:slide-in-from-right-1 data-[state=visible]:fade-in-0",
+				"data-[state=hidden]:animate-out data-[state=hidden]:slide-out-to-right-1 data-[state=hidden]:fade-out-0",
 				orientation === "vertical" && "h-full w-2.5 border-l border-l-transparent",
 				orientation === "horizontal" && "h-2.5 flex-col border-t border-t-transparent",
 				className
@@ -39,7 +41,7 @@ function ScrollBar({
 		>
 			<ScrollAreaPrimitive.ScrollAreaThumb
 				data-slot="scroll-area-thumb"
-				className="bg-border relative flex-1 rounded-full"
+				className="bg-primary/80 relative flex-1 rounded-full "
 			/>
 		</ScrollAreaPrimitive.ScrollAreaScrollbar>
 	);
