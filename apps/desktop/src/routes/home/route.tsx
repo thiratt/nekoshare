@@ -1,6 +1,5 @@
 import { DesktopTitlebar } from "@/components/navbar";
 import { authClient } from "@/lib/auth";
-import { useTheme } from "@/lib/theme-provider";
 import {
   createFileRoute,
   Link,
@@ -11,6 +10,7 @@ import {
 import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
+import { useTheme } from "@workspace/app-ui/providers/theme-provider";
 import { useMemo } from "react";
 import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/home")({
 });
 
 function RouteComponent() {
-  const { notification, toggleNotification } = useNekoShare();
+  const { notification, toggleNotification, setMode } = useNekoShare();
   const { theme, setTheme } = useTheme();
 
   const titlebarHelperActions = useMemo(
@@ -45,9 +45,7 @@ function RouteComponent() {
       },
       {
         icon: <LuSettings />,
-        onClick: () => {
-          console.log("Settings clicked");
-        },
+        onClick: () => setMode("settings"),
       },
     ],
     [notification, theme],
