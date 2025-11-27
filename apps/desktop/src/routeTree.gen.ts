@@ -13,6 +13,7 @@ import { Route as HomeRouteRouteImport } from './routes/home/route'
 import { Route as authRouteRouteImport } from './routes/(auth)/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HomeIndexRouteImport } from './routes/home/index'
+import { Route as HomeTextRouteImport } from './routes/home/text'
 import { Route as authSignupRouteImport } from './routes/(auth)/signup'
 import { Route as authLoginRouteImport } from './routes/(auth)/login'
 
@@ -35,6 +36,11 @@ const HomeIndexRoute = HomeIndexRouteImport.update({
   path: '/',
   getParentRoute: () => HomeRouteRoute,
 } as any)
+const HomeTextRoute = HomeTextRouteImport.update({
+  id: '/text',
+  path: '/text',
+  getParentRoute: () => HomeRouteRoute,
+} as any)
 const authSignupRoute = authSignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -51,12 +57,14 @@ export interface FileRoutesByFullPath {
   '/home': typeof HomeRouteRouteWithChildren
   '/login': typeof authLoginRoute
   '/signup': typeof authSignupRoute
+  '/home/text': typeof HomeTextRoute
   '/home/': typeof HomeIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof authLoginRoute
   '/signup': typeof authSignupRoute
+  '/home/text': typeof HomeTextRoute
   '/home': typeof HomeIndexRoute
 }
 export interface FileRoutesById {
@@ -66,13 +74,14 @@ export interface FileRoutesById {
   '/home': typeof HomeRouteRouteWithChildren
   '/(auth)/login': typeof authLoginRoute
   '/(auth)/signup': typeof authSignupRoute
+  '/home/text': typeof HomeTextRoute
   '/home/': typeof HomeIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/home' | '/login' | '/signup' | '/home/'
+  fullPaths: '/' | '/home' | '/login' | '/signup' | '/home/text' | '/home/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/signup' | '/home'
+  to: '/' | '/login' | '/signup' | '/home/text' | '/home'
   id:
     | '__root__'
     | '/'
@@ -80,6 +89,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/(auth)/login'
     | '/(auth)/signup'
+    | '/home/text'
     | '/home/'
   fileRoutesById: FileRoutesById
 }
@@ -119,6 +129,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HomeIndexRouteImport
       parentRoute: typeof HomeRouteRoute
     }
+    '/home/text': {
+      id: '/home/text'
+      path: '/text'
+      fullPath: '/home/text'
+      preLoaderRoute: typeof HomeTextRouteImport
+      parentRoute: typeof HomeRouteRoute
+    }
     '/(auth)/signup': {
       id: '/(auth)/signup'
       path: '/signup'
@@ -151,10 +168,12 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
 )
 
 interface HomeRouteRouteChildren {
+  HomeTextRoute: typeof HomeTextRoute
   HomeIndexRoute: typeof HomeIndexRoute
 }
 
 const HomeRouteRouteChildren: HomeRouteRouteChildren = {
+  HomeTextRoute: HomeTextRoute,
   HomeIndexRoute: HomeIndexRoute,
 }
 

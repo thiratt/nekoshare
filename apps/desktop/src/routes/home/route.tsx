@@ -5,6 +5,7 @@ import {
   Link,
   Outlet,
   redirect,
+  useLocation,
 } from "@tanstack/react-router";
 
 import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/home")({
 });
 
 function RouteComponent() {
+  const location = useLocation();
   const { notification, toggleNotification, setMode } = useNekoShare();
   const { theme, setTheme } = useTheme();
 
