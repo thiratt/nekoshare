@@ -20,7 +20,7 @@ import {
 	DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
-import { LuChevronLeft, LuHouse, LuLogOut, LuMonitorSmartphone, LuPackage2 } from "react-icons/lu";
+import { LuChevronLeft, LuHouse, LuLogOut, LuMonitorSmartphone, LuType } from "react-icons/lu";
 
 interface HomeSidebarProps extends IncludeLinkComponentProps {
 	pathname: string;
@@ -76,8 +76,8 @@ export function HomeSidebar({ linkComponent, pathname, mode = "website", onSigno
 			},
 			{
 				label: "ข้อความ",
-				link: "/home/items",
-				icon: LuPackage2,
+				link: "/home/text",
+				icon: LuType,
 			},
 			{
 				label: "เพื่อน",
