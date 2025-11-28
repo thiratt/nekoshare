@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { RiUserShared2Line } from "react-icons/ri";
+import { LuChevronLeft, LuHouse, LuLogOut, LuMonitorSmartphone, LuType, LuUsers } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@workspace/ui/components/tooltip";
@@ -20,7 +20,6 @@ import {
 	DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
-import { LuChevronLeft, LuHouse, LuLogOut, LuMonitorSmartphone, LuType } from "react-icons/lu";
 
 interface HomeSidebarProps extends IncludeLinkComponentProps {
 	pathname: string;
@@ -76,8 +75,8 @@ export function HomeSidebar({ linkComponent, pathname, mode = "website", onSigno
 			},
 			{
 				label: "เพื่อน",
-				link: "/home/buddy-share",
-				icon: RiUserShared2Line,
+				link: "/home/friends",
+				icon: LuUsers,
 			},
 			{
 				label: "อุปกรณ์",
