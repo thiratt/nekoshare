@@ -75,11 +75,6 @@ export function HomeSidebar({ linkComponent, pathname, mode = "website", onSigno
 				icon: LuHouse,
 			},
 			{
-				label: "ข้อความ",
-				link: "/home/text",
-				icon: LuType,
-			},
-			{
 				label: "เพื่อน",
 				link: "/home/buddy-share",
 				icon: RiUserShared2Line,
