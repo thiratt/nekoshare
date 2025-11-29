@@ -11,7 +11,7 @@ import { Input } from "@workspace/ui/components/input";
 import { IncludeLinkComponentProps } from "@workspace/app-ui/types/index";
 import { TSignupSchema } from "@workspace/app-ui/types/schema";
 import { signupFormSchema } from "@workspace/app-ui/schemas/auth";
-import { CardTransition } from "./ext/transition-view";
+import { CardTransition } from "./ext/card-transition";
 import { ExtendLink } from "./ext/link";
 
 interface ExampleDataSignupProps {

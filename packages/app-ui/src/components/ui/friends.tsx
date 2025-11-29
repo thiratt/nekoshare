@@ -63,7 +63,7 @@ import { SearchInput } from "@workspace/ui/components/search-input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
 
-import { CardTransition } from "@workspace/app-ui/components/ext/transition-view";
+import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
 
 type Status = "active" | "pending";
 
