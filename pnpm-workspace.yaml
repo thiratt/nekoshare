@@ -3,6 +3,8 @@ packages:
   - packages/*
 
 onlyBuiltDependencies:
+  - argon2
   - core-js-pure
   - esbuild
+  - msw
   - unrs-resolver
