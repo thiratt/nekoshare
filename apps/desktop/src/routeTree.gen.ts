@@ -14,6 +14,7 @@ import { Route as authRouteRouteImport } from './routes/(auth)/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HomeIndexRouteImport } from './routes/home/index'
 import { Route as HomeFriendsRouteImport } from './routes/home/friends'
+import { Route as HomeDevicesRouteImport } from './routes/home/devices'
 import { Route as authSignupRouteImport } from './routes/(auth)/signup'
 import { Route as authLoginRouteImport } from './routes/(auth)/login'
 
@@ -41,6 +42,11 @@ const HomeFriendsRoute = HomeFriendsRouteImport.update({
   path: '/friends',
   getParentRoute: () => HomeRouteRoute,
 } as any)
+const HomeDevicesRoute = HomeDevicesRouteImport.update({
+  id: '/devices',
+  path: '/devices',
+  getParentRoute: () => HomeRouteRoute,
+} as any)
 const authSignupRoute = authSignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/home': typeof HomeRouteRouteWithChildren
   '/login': typeof authLoginRoute
   '/signup': typeof authSignupRoute
+  '/home/devices': typeof HomeDevicesRoute
   '/home/friends': typeof HomeFriendsRoute
   '/home/': typeof HomeIndexRoute
 }
@@ -64,6 +71,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof authLoginRoute
   '/signup': typeof authSignupRoute
+  '/home/devices': typeof HomeDevicesRoute
   '/home/friends': typeof HomeFriendsRoute
   '/home': typeof HomeIndexRoute
 }
@@ -74,14 +82,22 @@ export interface FileRoutesById {
   '/home': typeof HomeRouteRouteWithChildren
   '/(auth)/login': typeof authLoginRoute
   '/(auth)/signup': typeof authSignupRoute
+  '/home/devices': typeof HomeDevicesRoute
   '/home/friends': typeof HomeFriendsRoute
   '/home/': typeof HomeIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/home' | '/login' | '/signup' | '/home/friends' | '/home/'
+  fullPaths:
+    | '/'
+    | '/home'
+    | '/login'
+    | '/signup'
+    | '/home/devices'
+    | '/home/friends'
+    | '/home/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/signup' | '/home/friends' | '/home'
+  to: '/' | '/login' | '/signup' | '/home/devices' | '/home/friends' | '/home'
   id:
     | '__root__'
     | '/'
@@ -89,6 +105,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/(auth)/login'
     | '/(auth)/signup'
+    | '/home/devices'
     | '/home/friends'
     | '/home/'
   fileRoutesById: FileRoutesById
@@ -136,6 +153,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HomeFriendsRouteImport
       parentRoute: typeof HomeRouteRoute
     }
+    '/home/devices': {
+      id: '/home/devices'
+      path: '/devices'
+      fullPath: '/home/devices'
+      preLoaderRoute: typeof HomeDevicesRouteImport
+      parentRoute: typeof HomeRouteRoute
+    }
     '/(auth)/signup': {
       id: '/(auth)/signup'
       path: '/signup'
@@ -168,11 +192,13 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
 )
 
 interface HomeRouteRouteChildren {
+  HomeDevicesRoute: typeof HomeDevicesRoute
   HomeFriendsRoute: typeof HomeFriendsRoute
   HomeIndexRoute: typeof HomeIndexRoute
 }
 
 const HomeRouteRouteChildren: HomeRouteRouteChildren = {
+  HomeDevicesRoute: HomeDevicesRoute,
   HomeFriendsRoute: HomeFriendsRoute,
   HomeIndexRoute: HomeIndexRoute,
 }
