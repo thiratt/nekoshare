@@ -49,6 +49,7 @@ import {
 import { SearchInput } from "@workspace/ui/components/search-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/table";
+import { CardTransition } from "../ext/card-transition";
 
 type Status = "success" | "failed" | "processing";
 
@@ -385,7 +386,7 @@ export function HomeUI({ onItemClick, onItemDownload, data }: HomeProps) {
 
 	return (
 		<div className="h-full">
-			<Card className="h-full gap-4">
+			<CardTransition className="h-full" tag="home-card">
 				<CardHeader>
 					<div className="space-y-1">
 						<CardTitle>ประวัติการแชร์</CardTitle>
@@ -532,7 +533,7 @@ export function HomeUI({ onItemClick, onItemDownload, data }: HomeProps) {
 						</Button>
 					</div>
 				</CardFooter>
-			</Card>
+			</CardTransition>
 
 			{/* Delete confirmation dialog */}
 			<AlertDialog
