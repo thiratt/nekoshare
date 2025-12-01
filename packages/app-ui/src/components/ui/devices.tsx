@@ -110,7 +110,10 @@ function useDevices(localDeviceInfo: DeviceInfo | null) {
 			platform: detectPlatform(localDeviceInfo.os),
 			status: "online",
 			lastSeen: "ตอนนี้",
-			battery: { charging: false, percent: 100 }, // TODO: Get actual battery status
+			battery: {
+				charging: localDeviceInfo.battery?.charging ?? false,
+				percent: localDeviceInfo.battery?.percent ?? 100,
+			},
 			ip: localDeviceInfo.ipv4,
 			os: `${localDeviceInfo.os_version}`,
 			p2p: false,
