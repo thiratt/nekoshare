@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { authClient } from "@/lib/auth";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 
 import { SignupCard } from "@workspace/app-ui/components/signup-card";
 import type { TSignupSchema } from "@workspace/app-ui/types/schema";
@@ -8,9 +9,21 @@ export const Route = createFileRoute("/(auth)/signup")({
 });
 
 function RouteComponent() {
+  const router = useRouter();
   const onSubmit = async (data: TSignupSchema) => {
-    // TODO: Handle signup logic
-    console.log("Signup data:", data);
+    const { error } = await authClient.signUp.email({
+      email: data.email,
+      password: data.password,
+      name: data.username,
+    });
+
+    if (error) {
+      console.error("Signup error:", error);
+      alert(`Signup failed: ${error.message}`);
+      return;
+    }
+
+    router.navigate({ to: "/home", replace: true });
   };
   return <SignupCard linkComponent={Link} onSubmit={onSubmit} />;
 }
