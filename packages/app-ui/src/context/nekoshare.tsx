@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useMemo, useCallback, memo, type R
 import LoadingOverlay from "@workspace/app-ui/components/global-loading";
 import { AnimatePresence, motion, type Transition, type Variants } from "motion/react";
 import { SettingsUI } from "../components/ui/settings/index";
+import { authClient } from "../lib/auth";
 
 type Mode = "home" | "settings";
 type NotificationStatus = "on" | "off";
@@ -51,7 +52,7 @@ const OVERLAY_VARIANTS: Variants = {
 const CONTENT_SCALE_ACTIVE = { scale: 1, y: 0 };
 const CONTENT_SCALE_INACTIVE = { scale: 0.97, y: -10 };
 
-const NekoShareProvider: FC<{ children: ReactNode; authClient: any }> = ({ authClient, children }) => {
+const NekoShareProvider: FC<{ children: ReactNode }> = ({ children }) => {
 	const [isGlobalLoading, setGlobalLoading] = useState(false);
 	const [mode, setMode] = useState<Mode>("home");
 	const [notification, setNotification] = useState<NotificationStatus>("off");
@@ -128,8 +129,11 @@ const NekoShareProvider: FC<{ children: ReactNode; authClient: any }> = ({ authC
 								transition={SPRING_TRANSITION}
 							>
 								<SettingsUI
-									onLogout={() => {
+									onLogout={async () => {
+										await authClient.signOut();
 										setMode("home");
+
+										window.location.reload();
 									}}
 								/>
 							</motion.div>
