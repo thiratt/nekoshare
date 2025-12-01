@@ -24,3 +24,4 @@ log = "0.4"
 tauri = { version = "2.9.2", features = [] }
 tauri-plugin-log = "2"
 sysinfo = "0.36.1"
+starship-battery = "0.10.2"

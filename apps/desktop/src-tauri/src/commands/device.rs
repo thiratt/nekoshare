@@ -1,6 +1,13 @@
 use std::net::{IpAddr, Ipv4Addr, UdpSocket};
 
+use starship_battery::units::ratio::percent;
 use sysinfo::{Networks, System};
+
+#[derive(serde::Serialize)]
+pub struct BatteryInfo {
+    pub charging: bool,
+    pub percent: f32,
+}
 
 #[derive(serde::Serialize)]
 pub struct DeviceInfo {
@@ -8,6 +15,7 @@ pub struct DeviceInfo {
     pub os: String,
     pub os_version: String,
     pub ipv4: String,
+    pub battery: BatteryInfo,
 }
 
 fn get_local_ip_v4() -> Option<Ipv4Addr> {
@@ -40,6 +48,18 @@ fn get_local_ip_v4() -> Option<Ipv4Addr> {
 
 #[tauri::command]
 pub fn get_device_info() -> DeviceInfo {
+    let mut is_charging = true;
+    let mut bat_percent = 100.0;
+
+    if let Ok(manager) = starship_battery::Manager::new() {
+        if let Ok(mut batteries) = manager.batteries() {
+            if let Some(Ok(battery)) = batteries.next() {
+                is_charging = battery.state() == starship_battery::State::Charging;
+                bat_percent = battery.state_of_charge().get::<percent>().round();
+            }
+        }
+    }
+
     let host_name = System::host_name().unwrap_or_else(|| "Unknown".to_string());
     let os = System::name().unwrap_or_else(|| "Unknown".to_string());
     let os_version = System::long_os_version().unwrap_or_else(|| "Unknown".to_string());
@@ -52,5 +72,9 @@ pub fn get_device_info() -> DeviceInfo {
         os,
         os_version,
         ipv4,
+        battery: BatteryInfo {
+            charging: is_charging,
+            percent: bat_percent,
+        },
     }
 }
