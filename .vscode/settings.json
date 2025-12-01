@@ -1,8 +1,9 @@
 {
-  "eslint.workingDirectories": [
-    {
-      "mode": "auto"
-    }
-  ],
-  "tailwindCSS.experimental.configFile": "packages/ui/src/styles/globals.css"
+	"eslint.workingDirectories": [
+		{
+			"mode": "auto"
+		}
+	],
+	"rust-analyzer.linkedProjects": ["apps/desktop/src-tauri/Cargo.toml"],
+	"tailwindCSS.experimental.configFile": "packages/ui/src/styles/globals.css"
 }
