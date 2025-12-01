@@ -63,7 +63,7 @@ export const auth = betterAuth({
 		// 	},
 		// }),
 	],
-	trustedOrigins: ["http://localhost:7780"],
+	trustedOrigins: ["http://localhost:7780", "http://localhost:7783"],
 	// session: {
 	// 	cookieCache: {
 	// 		enabled: true,
