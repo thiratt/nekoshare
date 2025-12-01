@@ -6,29 +6,29 @@ export function SettingShortcutsContent() {
 		<div className="space-y-6">
 			<Card>
 				<CardHeader>
-					<CardTitle>Keyboard Shortcuts</CardTitle>
-					<CardDescription>View and customize keyboard shortcuts</CardDescription>
+					<CardTitle>ทางลัดแป้นพิมพ์</CardTitle>
+					<CardDescription>ดูและปรับแต่งทางลัดแป้นพิมพ์</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div className="space-y-3">
 						<div className="flex justify-between items-center">
-							<span>Open Settings</span>
+							<span>เปิดการตั้งค่า</span>
 							<kbd className="px-2 py-1 text-xs bg-muted rounded">Cmd + ,</kbd>
 						</div>
 						<div className="flex justify-between items-center">
-							<span>Close Settings</span>
+							<span>ปิดการตั้งค่า</span>
 							<kbd className="px-2 py-1 text-xs bg-muted rounded">Esc</kbd>
 						</div>
 						<div className="flex justify-between items-center">
-							<span>Search</span>
+							<span>ค้นหา</span>
 							<kbd className="px-2 py-1 text-xs bg-muted rounded">Cmd + K</kbd>
 						</div>
 						<div className="flex justify-between items-center">
-							<span>New Item</span>
+							<span>รายการใหม่</span>
 							<kbd className="px-2 py-1 text-xs bg-muted rounded">Cmd + N</kbd>
 						</div>
 					</div>
-					<Button variant="outline">Customize Shortcuts</Button>
+					<Button variant="outline">ปรับแต่งทางลัด</Button>
 				</CardContent>
 			</Card>
 		</div>

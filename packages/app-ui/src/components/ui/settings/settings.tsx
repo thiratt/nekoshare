@@ -208,7 +208,7 @@ export function SettingsUI() {
 						</div>
 						<Button className="justify-start gap-2" variant="ghost" onClick={handleLogoutClick}>
 							<LuLogOut aria-hidden />
-							Log Out
+							ออกจากระบบ
 						</Button>
 					</div>
 				</aside>
@@ -250,11 +250,11 @@ export function SettingsUI() {
 			<AlertDialog open={confirmLogout} onOpenChange={handleLogoutDialogChange}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>{t("logout.title")}</AlertDialogTitle>
-						<AlertDialogDescription>{t("logout.description")}</AlertDialogDescription>
+						<AlertDialogTitle>ออกจากระบบ</AlertDialogTitle>
+						<AlertDialogDescription>คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>{t("logout.cancel")}</AlertDialogCancel>
+						<AlertDialogCancel>ยกเลิก</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={() => {
 								// TODO: Implement logout logic
@@ -272,7 +272,7 @@ export function SettingsUI() {
 								// }
 							}}
 						>
-							{t("logout.confirm")}
+							ออกจากระบบ
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

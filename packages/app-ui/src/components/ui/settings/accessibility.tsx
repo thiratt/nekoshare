@@ -7,21 +7,14 @@ export function SettingAccessibilityContent() {
 		<div className="space-y-6">
 			<Card>
 				<CardHeader>
-					<CardTitle>Accessibility</CardTitle>
-					<CardDescription>Customize the app for better accessibility</CardDescription>
+					<CardTitle>ทั่วไป</CardTitle>
+					<CardDescription>ปรับแต่งแอปเพื่อการเข้าถึงที่ดียิ่งขึ้น</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div className="flex items-center justify-between">
 						<div className="space-y-0.5">
-							<Label>Reduced Motion</Label>
-							<p className="text-sm text-muted-foreground">Minimize animations and transitions</p>
-						</div>
-						<Switch />
-					</div>
-					<div className="flex items-center justify-between">
-						<div className="space-y-0.5">
-							<Label>High Contrast</Label>
-							<p className="text-sm text-muted-foreground">Increase contrast for better visibility</p>
+							<Label>ลดการเคลื่อนไหว</Label>
+							<p className="text-sm text-muted-foreground">ลดการเคลื่อนไหวและการเปลี่ยนแปลง</p>
 						</div>
 						<Switch />
 					</div>
