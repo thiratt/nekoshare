@@ -5,41 +5,44 @@ export const authClient: ReturnType<typeof createAuthClient> = createAuthClient(
 	basePath: "/auth",
 });
 
-type SessionData = Awaited<ReturnType<typeof authClient.getSession>>["data"];
+type SessionData = typeof authClient.$Infer.Session;
 
-interface SessionCache {
-	session: SessionData;
-	timestamp: number;
-}
-
-let sessionCache: SessionCache | null = null;
+let sessionPromise: Promise<SessionData | null> | null = null;
+let lastFetchTime = 0;
 const SESSION_CACHE_TTL = 30_000;
 
-export async function getCachedSession(): Promise<{
-	session: SessionData;
-	isAuthenticated: boolean;
-}> {
+export async function getCachedSession() {
+	if (typeof window === "undefined") {
+		const { data } = await authClient.getSession();
+		return { session: data, isAuthenticated: !!data?.user };
+	}
+
 	const now = Date.now();
 
-	if (sessionCache && now - sessionCache.timestamp < SESSION_CACHE_TTL) {
+	if (sessionPromise && now - lastFetchTime < SESSION_CACHE_TTL) {
+		const session = await sessionPromise;
 		return {
-			session: sessionCache.session,
-			isAuthenticated: !!sessionCache.session?.user,
+			session,
+			isAuthenticated: !!session?.user,
 		};
 	}
 
-	const { data: session, error } = await authClient.getSession();
+	sessionPromise = authClient.getSession().then(({ data, error }) => {
+		if (error) return null;
+		return data;
+	});
 
-	if (!error) {
-		sessionCache = { session, timestamp: now };
-	}
+	lastFetchTime = now;
+
+	const session = await sessionPromise;
 
 	return {
-		session: error ? null : session,
-		isAuthenticated: !!session?.user && !error,
+		session,
+		isAuthenticated: !!session?.user,
 	};
 }
 
-export function invalidateSessionCache(): void {
-	sessionCache = null;
+export function invalidateSessionCache() {
+	sessionPromise = null;
+	lastFetchTime = 0;
 }
