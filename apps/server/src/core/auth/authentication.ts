@@ -5,6 +5,7 @@ import { username } from "better-auth/plugins";
 import { db } from "@/adapters/db";
 import { env } from "@/config/env";
 import { hashPassword, verifyPassword } from "@/core/crypto/hash";
+import { userPreference } from "@/adapters/db/schemas";
 // import { sendVerificationEmail } from "./email";
 
 export const auth = betterAuth({
@@ -13,9 +14,22 @@ export const auth = betterAuth({
 	database: drizzleAdapter(db, {
 		provider: "mysql",
 	}),
-	// databaseHooks: {
-	// 	session: {},
-	// },
+	databaseHooks: {
+		user: {
+			create: {
+				after: async (user) => {
+					db.insert(userPreference)
+						.values({
+							userId: user.id,
+							updatedAt: new Date(),
+						})
+						.catch((err) => {
+							console.error("Error creating user preference:", err);
+						});
+				},
+			},
+		},
+	},
 	emailAndPassword: {
 		enabled: true,
 		password: {
