@@ -113,7 +113,7 @@ const CONTENT_COMPONENTS: Record<SettingCategory, FC<ContentComponentProps>> = {
 
 const t = (key: string): string => key;
 
-export function SettingsUI() {
+export function SettingsUI({ onLogout }: { onLogout: () => void }) {
 	const { setMode } = useNekoShare();
 	const [activeCategory, setActiveCategory] = useState<SettingCategory>("account");
 	const [confirmLogout, setConfirmLogout] = useState(false);
@@ -270,6 +270,7 @@ export function SettingsUI() {
 								// 	setMode("home");
 								// 	router.push("/auth/login");
 								// }
+								onLogout();
 							}}
 						>
 							ออกจากระบบ
