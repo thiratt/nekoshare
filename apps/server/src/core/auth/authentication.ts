@@ -22,7 +22,7 @@ export const auth = betterAuth({
 			hash: async (password) => await hashPassword(password),
 			verify: async ({ hash, password }) => await verifyPassword(hash, password),
 		},
-		requireEmailVerification: true,
+		requireEmailVerification: false,
 	},
 	// emailVerification: {
 	// 	sendVerificationEmail: async ({ url, user }) => {
