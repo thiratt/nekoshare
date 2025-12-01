@@ -1,8 +1,10 @@
 import { createAuthClient } from "better-auth/react";
+import { usernameClient } from "better-auth/client/plugins";
 
 export const authClient: ReturnType<typeof createAuthClient> = createAuthClient({
 	baseURL: "http://localhost:7780",
 	basePath: "/auth",
+	plugins: [usernameClient()],
 });
 
 type SessionData = typeof authClient.$Infer.Session;
