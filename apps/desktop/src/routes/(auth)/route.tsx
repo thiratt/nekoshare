@@ -1,11 +1,10 @@
 import { DesktopTitlebar } from "@/components/navbar";
-import { authClient } from "@/lib/auth";
+import { getCachedSession } from "@/lib/auth";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/(auth)")({
   async beforeLoad() {
-    const { data: session, error } = await authClient.getSession();
-    const isAuthenticated = !!session?.user && !error;
+    const { isAuthenticated } = await getCachedSession();
     if (isAuthenticated) {
       throw redirect({ to: "/home" });
     }

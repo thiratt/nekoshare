@@ -1,5 +1,5 @@
 import { DesktopTitlebar } from "@/components/navbar";
-import { authClient } from "@/lib/auth";
+import { getCachedSession } from "@/lib/auth";
 import {
   createFileRoute,
   Link,
@@ -17,8 +17,7 @@ import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 
 export const Route = createFileRoute("/home")({
   async beforeLoad() {
-    const { data: session, error } = await authClient.getSession();
-    const isAuthenticated = !!session?.user && !error;
+    const { isAuthenticated } = await getCachedSession();
     if (!isAuthenticated) {
       throw redirect({ to: "/login" });
     }

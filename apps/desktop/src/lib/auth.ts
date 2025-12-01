@@ -1,1 +1,5 @@
-export { authClient } from "@workspace/app-ui/lib/auth";
+export {
+  authClient,
+  getCachedSession,
+  invalidateSessionCache,
+} from "@workspace/app-ui/lib/auth";
