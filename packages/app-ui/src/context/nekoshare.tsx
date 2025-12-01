@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useMemo, useCallback, memo, type ReactNode, type FC } from "react";
 import LoadingOverlay from "@workspace/app-ui/components/global-loading";
 import { AnimatePresence, motion, type Transition, type Variants } from "motion/react";
-import { SettingsUI } from "../components/ui/settings/index";
-import { authClient } from "../lib/auth";
+import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
+import { authClient, invalidateSessionCache } from "@workspace/app-ui/lib/auth";
 
 type Mode = "home" | "settings";
 type NotificationStatus = "on" | "off";
@@ -131,8 +131,8 @@ const NekoShareProvider: FC<{ children: ReactNode }> = ({ children }) => {
 								<SettingsUI
 									onLogout={async () => {
 										await authClient.signOut();
+										invalidateSessionCache();
 										setMode("home");
-
 										window.location.reload();
 									}}
 								/>
