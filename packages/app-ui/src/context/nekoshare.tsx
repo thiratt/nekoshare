@@ -51,32 +51,7 @@ const OVERLAY_VARIANTS: Variants = {
 const CONTENT_SCALE_ACTIVE = { scale: 1, y: 0 };
 const CONTENT_SCALE_INACTIVE = { scale: 0.97, y: -10 };
 
-const SettingsOverlay = memo(function SettingsOverlay() {
-	return (
-		<motion.div
-			className="absolute inset-0 z-10"
-			variants={BACKDROP_VARIANTS}
-			initial="hidden"
-			animate="visible"
-			exit="hidden"
-			transition={{ duration: 0.2 }}
-		>
-			<div className="absolute inset-0 bg-background/80 backdrop-blur-xs" />
-			<motion.div
-				className="relative h-full"
-				variants={OVERLAY_VARIANTS}
-				initial="hidden"
-				animate="visible"
-				exit="exit"
-				transition={SPRING_TRANSITION}
-			>
-				<SettingsUI />
-			</motion.div>
-		</motion.div>
-	);
-});
-
-const NekoShareProvider: FC<{ children: ReactNode }> = ({ children }) => {
+const NekoShareProvider: FC<{ children: ReactNode; authClient: any }> = ({ authClient, children }) => {
 	const [isGlobalLoading, setGlobalLoading] = useState(false);
 	const [mode, setMode] = useState<Mode>("home");
 	const [notification, setNotification] = useState<NotificationStatus>("off");
@@ -132,7 +107,35 @@ const NekoShareProvider: FC<{ children: ReactNode }> = ({ children }) => {
 				>
 					{children}
 				</motion.div>
-				<AnimatePresence mode="wait">{!isHome && <SettingsOverlay key="settings-overlay" />}</AnimatePresence>
+				<AnimatePresence mode="wait">
+					{!isHome && (
+						<motion.div
+							key="settings-overlay"
+							className="absolute inset-0 z-10"
+							variants={BACKDROP_VARIANTS}
+							initial="hidden"
+							animate="visible"
+							exit="hidden"
+							transition={{ duration: 0.2 }}
+						>
+							<div className="absolute inset-0 bg-background/80 backdrop-blur-xs" />
+							<motion.div
+								className="relative h-full"
+								variants={OVERLAY_VARIANTS}
+								initial="hidden"
+								animate="visible"
+								exit="exit"
+								transition={SPRING_TRANSITION}
+							>
+								<SettingsUI
+									onLogout={() => {
+										setMode("home");
+									}}
+								/>
+							</motion.div>
+						</motion.div>
+					)}
+				</AnimatePresence>
 			</div>
 			<LoadingOverlay loading={isGlobalLoading} />
 		</NekoShareContext.Provider>
