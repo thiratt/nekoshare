@@ -2,7 +2,8 @@ import { createAuthClient } from "better-auth/react";
 // import { inferAdditionalFields } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
-  basePath: "http://localhost:7780",
+  baseURL: "http://localhost:7780",
+  basePath: "/auth",
 });
 
 // export const {
