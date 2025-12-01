@@ -42,7 +42,7 @@ fn get_local_ip_v4() -> Option<Ipv4Addr> {
 pub fn get_device_info() -> DeviceInfo {
     let host_name = System::host_name().unwrap_or_else(|| "Unknown".to_string());
     let os = System::name().unwrap_or_else(|| "Unknown".to_string());
-    let os_version = System::os_version().unwrap_or_else(|| "Unknown".to_string());
+    let os_version = System::long_os_version().unwrap_or_else(|| "Unknown".to_string());
     let ipv4 = get_local_ip_v4()
         .map(|ip| ip.to_string())
         .unwrap_or_else(|| "Unknown".to_string());
