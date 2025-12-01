@@ -15,6 +15,13 @@
       "when": 1764606298505,
       "tag": "0001_thick_vulcan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1764607794020,
+      "tag": "0002_hesitant_marvel_boy",
+      "breakpoints": true
     }
   ]
 }

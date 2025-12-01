@@ -8,7 +8,7 @@ export const userPreference = mysqlTable("user_preference", {
 		.primaryKey()
 		.references(() => user.id, { onDelete: "cascade" }),
 	theme: mysqlEnum("theme", ["light", "dark", "system"]).default("system").notNull(),
-	language: mysqlEnum("language", ["en", "th"]).default("en").notNull(),
+	language: mysqlEnum("language", ["en", "th"]).default("th").notNull(),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
 
