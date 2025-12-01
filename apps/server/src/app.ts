@@ -15,7 +15,17 @@ import { nekoShareLogger } from "./core/logger";
 export function createApp() {
 	const app = new Hono();
 
-	app.use("*", cors());
+	app.use(
+		"*",
+		cors({
+			origin: "http://localhost:7783",
+			allowHeaders: ["Content-Type", "Authorization"],
+			allowMethods: ["POST", "GET", "OPTIONS"],
+			exposeHeaders: ["Content-Length"],
+			maxAge: 600,
+			credentials: true,
+		})
+	);
 	app.use(authMiddleWare);
 
 	app.use(logger(nekoShareLogger));
