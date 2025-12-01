@@ -8,6 +8,13 @@
       "when": 1764015053199,
       "tag": "0000_hesitant_eternity",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1764606298505,
+      "tag": "0001_thick_vulcan",
+      "breakpoints": true
     }
   ]
 }

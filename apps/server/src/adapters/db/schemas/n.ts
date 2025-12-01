@@ -1,0 +1,141 @@
+import { relations } from "drizzle-orm";
+import { mysqlTable, varchar, text, timestamp, boolean, mysqlEnum, bigint, unique } from "drizzle-orm/mysql-core";
+import { account, session, user } from "./auth";
+
+// --- CUSTOM TABLES ---
+export const userPreference = mysqlTable("user_preference", {
+	userId: varchar("user_id", { length: 36 })
+		.primaryKey()
+		.references(() => user.id, { onDelete: "cascade" }),
+	theme: mysqlEnum("theme", ["light", "dark", "system"]).default("system").notNull(),
+	language: mysqlEnum("language", ["en", "th"]).default("en").notNull(),
+	updatedAt: timestamp("updated_at").onUpdateNow(),
+});
+
+export const device = mysqlTable("device", {
+	id: varchar("id", { length: 36 }).primaryKey(),
+	userId: varchar("user_id", { length: 36 })
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
+	name: varchar("name", { length: 255 }).notNull(),
+	platform: mysqlEnum("platform", ["android", "windows", "web", "other"]).notNull(),
+	publicKey: text("public_key").notNull(),
+	batterySupported: boolean("battery_supported").default(false).notNull(),
+	batteryCharging: boolean("battery_charging").default(false).notNull(),
+	batteryPercent: bigint("battery_percent", { mode: "number" }).default(100).notNull(),
+	lastIp: text("last_ip"),
+	lastActiveAt: timestamp("last_active_at").defaultNow(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const friendship = mysqlTable(
+	"friendship",
+	{
+		id: varchar("id", { length: 36 }).primaryKey(),
+		requesterId: varchar("requester_id", { length: 36 })
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		receiverId: varchar("receiver_id", { length: 36 })
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		status: mysqlEnum("status", ["pending", "accepted", "blocked"]).default("pending").notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [unique("friendship_unique_pair").on(table.requesterId, table.receiverId)]
+);
+
+export const flashShare = mysqlTable("flash_share", {
+	id: varchar("id", { length: 36 }).primaryKey(),
+	uploaderId: varchar("uploader_id", { length: 36 })
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
+	fileName: varchar("file_name", { length: 255 }).notNull(),
+	fileSize: bigint("file_size", { mode: "number" }).notNull(),
+	mimeType: varchar("mime_type", { length: 100 }),
+	storageKey: text("storage_key").notNull(),
+	downloadCount: bigint("download_count", { mode: "number" }).default(0),
+	maxDownloads: bigint("max_downloads", { mode: "number" }),
+	expiresAt: timestamp("expires_at").notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const transferHistory = mysqlTable("transfer_history", {
+	id: varchar("id", { length: 36 }).primaryKey(),
+	senderId: varchar("sender_id", { length: 36 })
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
+	receiverId: varchar("receiver_id", { length: 36 }),
+	fileName: varchar("file_name", { length: 255 }).notNull(),
+	fileSize: bigint("file_size", { mode: "number" }).notNull(),
+	transferMethod: mysqlEnum("transfer_method", ["local", "relay", "flash_share"]).notNull(),
+	status: mysqlEnum("status", ["completed", "failed", "cancelled", "expired"]).notNull(),
+
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const notification = mysqlTable("notification", {
+	id: varchar("id", { length: 36 }).primaryKey(),
+	userId: varchar("user_id", { length: 36 })
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
+	type: mysqlEnum("type", ["security_alert", "friend_request", "incoming_share", "system"]).notNull(),
+	title: varchar("title", { length: 255 }).notNull(),
+	message: text("message"),
+	isRead: boolean("is_read").default(false).notNull(),
+	relatedId: varchar("related_id", { length: 36 }),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// --- RELATIONS DEFINITIONS ---
+export const userRelations = relations(user, ({ many, one }) => ({
+	sessions: many(session),
+	accounts: many(account),
+	devices: many(device),
+	preference: one(userPreference),
+	sentTransfers: many(transferHistory, { relationName: "sender" }),
+	receivedTransfers: many(transferHistory, { relationName: "receiver" }),
+	notifications: many(notification),
+	flashShares: many(flashShare),
+}));
+
+export const deviceRelations = relations(device, ({ one }) => ({
+	user: one(user, {
+		fields: [device.userId],
+		references: [user.id],
+	}),
+}));
+
+export const userPreferenceRelations = relations(userPreference, ({ one }) => ({
+	user: one(user, {
+		fields: [userPreference.userId],
+		references: [user.id],
+	}),
+}));
+
+export const flashShareRelations = relations(flashShare, ({ one }) => ({
+	uploader: one(user, {
+		fields: [flashShare.uploaderId],
+		references: [user.id],
+	}),
+}));
+
+export const transferHistoryRelations = relations(transferHistory, ({ one }) => ({
+	sender: one(user, {
+		fields: [transferHistory.senderId],
+		references: [user.id],
+		relationName: "sender",
+	}),
+	receiver: one(user, {
+		fields: [transferHistory.receiverId],
+		references: [user.id],
+		relationName: "receiver",
+	}),
+}));
+
+export const notificationRelations = relations(notification, ({ one }) => ({
+	user: one(user, {
+		fields: [notification.userId],
+		references: [user.id],
+	}),
+}));

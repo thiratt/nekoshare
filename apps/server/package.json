@@ -3,6 +3,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "tsx watch src/index.ts",
+		"dz:g": "drizzle-kit generate --config ./drizzle.config.ts",
+		"dz:m": "drizzle-kit migrate --config ./drizzle.config.ts",
 		"build": "tsc",
 		"start": "node dist/index.js"
 	},
