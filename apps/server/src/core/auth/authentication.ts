@@ -44,9 +44,6 @@ export const auth = betterAuth({
 	},
 	plugins: [
 		username({
-			schema: {
-				user: {},
-			},
 			usernameValidator(username) {
 				switch (username) {
 					case "admin":
