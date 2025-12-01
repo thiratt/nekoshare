@@ -1,4 +1,4 @@
-import { authClient } from "@/lib/auth";
+import { authClient, invalidateSessionCache } from "@/lib/auth";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 
 import { SignupCard } from "@workspace/app-ui/components/signup-card";
@@ -15,6 +15,7 @@ function RouteComponent() {
       email: data.email,
       password: data.password,
       name: data.username,
+      username: data.username,
     });
 
     if (error) {
@@ -22,6 +23,7 @@ function RouteComponent() {
       alert(`Signup failed: ${error.message}`);
       return;
     }
+    invalidateSessionCache();
 
     router.navigate({ to: "/home", replace: true });
   };
