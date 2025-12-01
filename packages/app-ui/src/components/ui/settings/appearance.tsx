@@ -1,13 +1,48 @@
-import { memo, useCallback, type FC, type ReactNode } from "react";
+import { memo, useCallback, useState, type FC, type ReactNode } from "react";
 import { LuCheck, LuMonitorSmartphone, LuMoon, LuSun } from "react-icons/lu";
 import type { IconType } from "react-icons";
 
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
 import { cn } from "@workspace/ui/lib/utils";
+
 import { useTheme } from "@workspace/app-ui/providers/theme-provider";
+import { ThaiFlagSvg } from "@workspace/app-ui/components/svgs/thai";
+import { EnglishFlagSvg } from "@workspace/app-ui/components/svgs/english";
 
 type Theme = "dark" | "light" | "system";
+type Language = "th" | "en" | "ja" | "zh";
+
+interface LanguageOption {
+	id: Language;
+	label: string;
+	nativeLabel: string;
+	flag?: ReactNode;
+}
+
+const LANGUAGE_OPTIONS: readonly LanguageOption[] = [
+	{
+		id: "th",
+		label: "Thai",
+		nativeLabel: "ไทย",
+		flag: <ThaiFlagSvg />,
+	},
+	{ id: "en", label: "English", nativeLabel: "English", flag: <EnglishFlagSvg /> },
+] as const;
+
+// TODO: Replace with actual i18n implementation
+function useLanguage() {
+	const [language, setLanguage] = useState<Language>("th");
+
+	const changeLanguage = useCallback((newLanguage: Language) => {
+		setLanguage(newLanguage);
+		// TODO: Implement actual language change logic
+		console.log("Language changed to:", newLanguage);
+	}, []);
+
+	return { language, setLanguage: changeLanguage } as const;
+}
 
 interface ThemeOption {
 	id: Theme;
@@ -117,6 +152,7 @@ const ThemeButton = memo<ThemeButtonProps>(function ThemeButton({
 
 export const SettingAppearanceContent = memo(function SettingAppearanceContent() {
 	const { theme, setTheme } = useTheme();
+	const { language, setLanguage } = useLanguage();
 
 	const handleThemeChange = useCallback(
 		(newTheme: Theme) => {
@@ -126,9 +162,17 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent()
 	);
 
 	const handleSave = useCallback(() => {
-		// TODO: Theme is already saved via setTheme, this could trigger additional actions
-		// like showing a toast notification or syncing to server
+		// TODO: Implement save logic if needed
 	}, []);
+
+	const handleLanguageChange = useCallback(
+		(value: string) => {
+			setLanguage(value as Language);
+		},
+		[setLanguage]
+	);
+
+	const selectedLanguage = LANGUAGE_OPTIONS.find((opt) => opt.id === language);
 
 	return (
 		<div className="space-y-4">
@@ -150,6 +194,40 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent()
 							/>
 						))}
 					</div>
+				</CardContent>
+				<CardFooter className="ms-auto">
+					<Button onClick={handleSave}>บันทึก</Button>
+				</CardFooter>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>ภาษา</CardTitle>
+					<CardDescription>เลือกภาษาที่ต้องการใช้งานในแอปพลิเคชัน</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<Select value={language} onValueChange={handleLanguageChange}>
+						<SelectTrigger className="w-full max-w-xs">
+							<SelectValue>
+								{selectedLanguage && (
+									<span className="flex gap-1">
+										{selectedLanguage.flag}
+										{selectedLanguage.nativeLabel}
+										<span className="text-muted-foreground">({selectedLanguage.label})</span>
+									</span>
+								)}
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							{LANGUAGE_OPTIONS.map((option) => (
+								<SelectItem key={option.id} value={option.id} className="flex gap-1">
+									{option.flag}
+									{option.nativeLabel}
+									<span className="text-muted-foreground">({option.label})</span>
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</CardContent>
 				<CardFooter className="ms-auto">
 					<Button onClick={handleSave}>บันทึก</Button>
