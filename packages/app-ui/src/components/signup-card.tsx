@@ -27,7 +27,7 @@ interface SignupCardProps extends IncludeLinkComponentProps {
 
 export function SignupCard({ data, linkComponent, onSubmit }: SignupCardProps) {
 	const form = useForm<TSignupSchema>({
-		mode: "onChange",
+		mode: "onSubmit",
 		resolver: zodResolver(signupFormSchema),
 		defaultValues: {
 			username: data ? data.username : "",
