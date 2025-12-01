@@ -46,6 +46,7 @@ import { SearchInput } from "@workspace/ui/components/search-input";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
 import { cn } from "@workspace/ui/lib/utils";
+import { DeviceInfo } from "@workspace/app-ui/types/device";
 
 type DevicePlatform = "web" | "windows" | "linux" | "android";
 type DeviceStatus = "online" | "offline";
@@ -88,9 +89,40 @@ const STATUS_CONFIG: Record<DeviceStatus, { variant: "default" | "destructive"; 
 
 const capitalize = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1);
 
-function useDevices() {
-	const [items, setItems] = useState<Device[]>([]);
+function detectPlatform(os: string): DevicePlatform {
+	const osLower = os.toLowerCase();
+	if (osLower.includes("windows")) return "windows";
+	if (osLower.includes("linux") || osLower.includes("ubuntu")) return "linux";
+	if (osLower.includes("android")) return "android";
+	return "web";
+}
+
+function useDevices(localDeviceInfo: DeviceInfo | null) {
+	const [remoteDevices, setRemoteDevices] = useState<Device[]>([]);
 	const [loading, setLoading] = useState(true);
+
+	const localDevice = useMemo<Device | null>(() => {
+		if (!localDeviceInfo) return null;
+		return {
+			id: 0,
+			name: localDeviceInfo.host_name,
+			current: true,
+			platform: detectPlatform(localDeviceInfo.os),
+			status: "online",
+			lastSeen: "ตอนนี้",
+			battery: { charging: false, percent: 100 }, // TODO: Get actual battery status
+			ip: localDeviceInfo.ipv4,
+			os: `${localDeviceInfo.os_version}`,
+			p2p: false,
+		};
+	}, [localDeviceInfo]);
+
+	const items = useMemo(() => {
+		if (localDevice) {
+			return [localDevice, ...remoteDevices];
+		}
+		return remoteDevices;
+	}, [localDevice, remoteDevices]);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -101,19 +133,8 @@ function useDevices() {
 
 			if (controller.signal.aborted) return;
 
-			const mockDevices: Device[] = [
-				{
-					id: 1,
-					name: "Acer Nitro V15",
-					current: true,
-					platform: "windows",
-					status: "offline",
-					lastSeen: "ตอนนี้",
-					battery: { charging: false, percent: 12 },
-					ip: "10.45.67.20",
-					os: "Windows 11",
-					p2p: false,
-				},
+			// TODO: Replace with actual API call to fetch remote devices
+			const mockRemoteDevices: Device[] = [
 				{
 					id: 2,
 					name: "Chrome 136",
@@ -164,7 +185,7 @@ function useDevices() {
 				},
 			];
 
-			setItems(mockDevices);
+			setRemoteDevices(mockRemoteDevices);
 			setLoading(false);
 		};
 
@@ -178,11 +199,11 @@ function useDevices() {
 	}, []);
 
 	const remove = useCallback((id: number) => {
-		setItems((prev) => prev.filter((device) => device.id !== id));
+		setRemoteDevices((prev) => prev.filter((device) => device.id !== id));
 	}, []);
 
 	const update = useCallback((id: number, data: Partial<Device>) => {
-		setItems((prev) => prev.map((device) => (device.id === id ? { ...device, ...data } : device)));
+		setRemoteDevices((prev) => prev.map((device) => (device.id === id ? { ...device, ...data } : device)));
 	}, []);
 
 	return { items, loading, refresh, remove, update } as const;
@@ -274,7 +295,7 @@ const DeviceCard = memo(function DeviceCard({ device, onManage, onDelete }: Devi
 					</div>
 					<div className="flex justify-between">
 						<span>ระบบปฏิบัติการ</span>
-						<span className="truncate ml-2 max-w-32" title={device.os}>
+						<span className="truncate ml-2 max-w-34 2xl:max-w-60" title={device.os}>
 							{device.os}
 						</span>
 					</div>
@@ -394,8 +415,8 @@ function DeleteDialog({ open, onOpenChange, onConfirm }: DeleteDialogProps) {
 	);
 }
 
-export function DevicesUI() {
-	const { items, loading, refresh, remove, update } = useDevices();
+export function DevicesUI({ deviceInfo }: { deviceInfo: DeviceInfo | null }) {
+	const { items, loading, refresh, remove, update } = useDevices(deviceInfo);
 
 	const [query, setQuery] = useState("");
 	const deferredQuery = useDeferredValue(query);
