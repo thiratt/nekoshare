@@ -16,14 +16,13 @@ import { useMemo } from "react";
 import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 
 export const Route = createFileRoute("/home")({
-  // TODO: Do not forget to enable authentication
-  // async beforeLoad() {
-  //   const { data: session, error } = await authClient.getSession();
-  //   const isAuthenticated = !!session?.user && !error;
-  //   if (!isAuthenticated) {
-  //     throw redirect({ to: "/login" });
-  //   }
-  // },
+  async beforeLoad() {
+    const { data: session, error } = await authClient.getSession();
+    const isAuthenticated = !!session?.user && !error;
+    if (!isAuthenticated) {
+      throw redirect({ to: "/login" });
+    }
+  },
   component: RouteComponent,
 });
 
