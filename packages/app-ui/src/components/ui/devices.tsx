@@ -105,17 +105,17 @@ function useDevices(localDeviceInfo: DeviceInfo | null) {
 		if (!localDeviceInfo) return null;
 		return {
 			id: 0,
-			name: localDeviceInfo.host_name,
+			name: localDeviceInfo.name,
 			current: true,
 			platform: detectPlatform(localDeviceInfo.os),
 			status: "online",
 			lastSeen: "ตอนนี้",
 			battery: {
-				charging: localDeviceInfo.battery?.charging ?? false,
-				percent: localDeviceInfo.battery?.percent ?? 100,
+				charging: localDeviceInfo.battery.charging,
+				percent: localDeviceInfo.battery.percent,
 			},
 			ip: localDeviceInfo.ipv4,
-			os: `${localDeviceInfo.os_version}`,
+			os: localDeviceInfo.os_version,
 			p2p: false,
 		};
 	}, [localDeviceInfo]);
