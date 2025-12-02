@@ -1,12 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  DeviceInfo,
-  DeviceRegistration,
+  LocalDeviceInfo,
+  DeviceRegistrationPayload,
 } from "@workspace/app-ui/types/device";
 import { xfetch } from "@workspace/app-ui/lib/xfetch";
 
-export async function getDeviceInfo(): Promise<DeviceInfo> {
-  return invoke<DeviceInfo>("get_device_info");
+export async function getDeviceInfo(): Promise<LocalDeviceInfo> {
+  return invoke<LocalDeviceInfo>("get_device_info");
 }
 
 /**
@@ -22,15 +22,13 @@ function generatePublicKey(): string {
   );
 }
 
-function toRegistrationPayload(deviceInfo: DeviceInfo): DeviceRegistration {
-  let platform: DeviceRegistration["platform"] = "other";
-  if (deviceInfo.platform === "windows") platform = "windows";
-  else if (deviceInfo.platform === "android") platform = "android";
-
+function toRegistrationPayload(
+  deviceInfo: LocalDeviceInfo,
+): DeviceRegistrationPayload {
   return {
     id: deviceInfo.id,
     name: deviceInfo.name,
-    platform,
+    platform: deviceInfo.platform,
     publicKey: generatePublicKey(),
     batterySupported: deviceInfo.battery.supported,
     batteryCharging: deviceInfo.battery.charging,
