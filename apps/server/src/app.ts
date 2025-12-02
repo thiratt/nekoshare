@@ -9,6 +9,7 @@ import authMiddleWare from "./core/middleware/auth";
 
 import authRouter from "@/routes/auth";
 import accountRouter from "@/routes/account";
+import devicesRouter from "@/routes/devices";
 
 import { nekoShareLogger } from "./core/logger";
 
@@ -34,6 +35,7 @@ export function createApp() {
 
 	app.route("/auth", authRouter);
 	app.route("/account", accountRouter);
+	app.route("/devices", devicesRouter);
 
 	return app;
 }
