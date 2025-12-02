@@ -1,4 +1,4 @@
-import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useDeferredValue, useMemo, useState, useEffect } from "react";
 
 import {
 	LuBatteryCharging,
@@ -12,7 +12,6 @@ import {
 	LuSettings,
 	LuSmartphone,
 	LuTrash2,
-	LuUnplug,
 	LuUserCheck,
 } from "react-icons/lu";
 import { MdLaptopWindows } from "react-icons/md";
@@ -43,37 +42,17 @@ import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { SearchInput } from "@workspace/ui/components/search-input";
+import { cn } from "@workspace/ui/lib/utils";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
-import { cn } from "@workspace/ui/lib/utils";
-import { DeviceInfo } from "@workspace/app-ui/types/device";
-
-type DevicePlatform = "web" | "windows" | "linux" | "android";
-type DeviceStatus = "online" | "offline";
-
-interface BatteryStatus {
-	percent: number;
-	charging: boolean;
-}
-
-interface Device {
-	id: number;
-	name: string;
-	current: boolean;
-	platform: DevicePlatform;
-	status: DeviceStatus;
-	lastSeen: string;
-	battery: BatteryStatus;
-	ip: string;
-	os: string;
-	p2p: boolean;
-}
+import { useDevices } from "@workspace/app-ui/hooks/use-devices";
+import type { Device, DevicePlatform, DeviceStatus, LocalDeviceInfo } from "@workspace/app-ui/types/device";
 
 const PLATFORM_ICONS: Record<DevicePlatform, React.ComponentType<{ size?: number }>> = {
-	linux: MdLaptopWindows,
 	windows: MdLaptopWindows,
 	android: LuSmartphone,
 	web: LuEarth,
+	other: MdLaptopWindows,
 } as const;
 
 const STATUS_CONFIG: Record<DeviceStatus, { variant: "default" | "destructive"; className: string }> = {
@@ -88,129 +67,6 @@ const STATUS_CONFIG: Record<DeviceStatus, { variant: "default" | "destructive"; 
 } as const;
 
 const capitalize = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1);
-
-function detectPlatform(os: string): DevicePlatform {
-	const osLower = os.toLowerCase();
-	if (osLower.includes("windows")) return "windows";
-	if (osLower.includes("linux") || osLower.includes("ubuntu")) return "linux";
-	if (osLower.includes("android")) return "android";
-	return "web";
-}
-
-function useDevices(localDeviceInfo: DeviceInfo | null) {
-	const [remoteDevices, setRemoteDevices] = useState<Device[]>([]);
-	const [loading, setLoading] = useState(true);
-
-	const localDevice = useMemo<Device | null>(() => {
-		if (!localDeviceInfo) return null;
-		return {
-			id: 0,
-			name: localDeviceInfo.name,
-			current: true,
-			platform: detectPlatform(localDeviceInfo.os),
-			status: "online",
-			lastSeen: "ตอนนี้",
-			battery: {
-				charging: localDeviceInfo.battery.charging,
-				percent: localDeviceInfo.battery.percent,
-			},
-			ip: localDeviceInfo.ipv4,
-			os: localDeviceInfo.os_version,
-			p2p: false,
-		};
-	}, [localDeviceInfo]);
-
-	const items = useMemo(() => {
-		if (localDevice) {
-			return [localDevice, ...remoteDevices];
-		}
-		return remoteDevices;
-	}, [localDevice, remoteDevices]);
-
-	useEffect(() => {
-		const controller = new AbortController();
-
-		const fetchDevices = async () => {
-			setLoading(true);
-			await new Promise((resolve) => setTimeout(resolve, 350));
-
-			if (controller.signal.aborted) return;
-
-			// TODO: Replace with actual API call to fetch remote devices
-			const mockRemoteDevices: Device[] = [
-				{
-					id: 2,
-					name: "Chrome 136",
-					current: false,
-					platform: "web",
-					status: "online",
-					lastSeen: "2 นาทีที่แล้ว",
-					battery: { charging: false, percent: 50 },
-					ip: "161.156.127.72",
-					os: "Brave on Windows",
-					p2p: false,
-				},
-				{
-					id: 3,
-					name: "Redmi Note 12 4G",
-					current: false,
-					platform: "android",
-					status: "offline",
-					lastSeen: "40 นาทีที่แล้ว",
-					battery: { charging: false, percent: 100 },
-					ip: "211.226.130.51",
-					os: "Android 13",
-					p2p: false,
-				},
-				{
-					id: 4,
-					name: "Asus TUF FX505DD",
-					current: false,
-					platform: "linux",
-					status: "online",
-					lastSeen: "ตอนนี้",
-					battery: { charging: true, percent: 80 },
-					ip: "10.45.67.45",
-					os: "Ubuntu 22.04",
-					p2p: true,
-				},
-				{
-					id: 5,
-					name: "Gigabyte Aero 17X",
-					current: false,
-					platform: "windows",
-					status: "online",
-					lastSeen: "ตอนนี้",
-					battery: { charging: true, percent: 20 },
-					ip: "203.56.120.78",
-					os: "Windows 10",
-					p2p: false,
-				},
-			];
-
-			setRemoteDevices(mockRemoteDevices);
-			setLoading(false);
-		};
-
-		fetchDevices();
-		return () => controller.abort();
-	}, []);
-
-	const refresh = useCallback(() => {
-		setLoading(true);
-		setTimeout(() => setLoading(false), 500);
-	}, []);
-
-	const remove = useCallback((id: number) => {
-		setRemoteDevices((prev) => prev.filter((device) => device.id !== id));
-	}, []);
-
-	const update = useCallback((id: number, data: Partial<Device>) => {
-		setRemoteDevices((prev) => prev.map((device) => (device.id === id ? { ...device, ...data } : device)));
-	}, []);
-
-	return { items, loading, refresh, remove, update } as const;
-}
 
 const DeviceIcon = memo(function DeviceIcon({ platform, size = 24 }: { platform: DevicePlatform; size?: number }) {
 	const IconComponent = PLATFORM_ICONS[platform];
@@ -227,8 +83,13 @@ const DeviceStatusBadge = memo(function DeviceStatusBadge({ status }: { status: 
 	);
 });
 
-const DeviceBatteryIcon = memo(function DeviceBatteryIcon({ status }: { status: BatteryStatus }) {
-	const { charging, percent } = status;
+const DeviceBatteryIcon = memo(function DeviceBatteryIcon({
+	charging,
+	percent,
+}: {
+	charging: boolean;
+	percent: number;
+}) {
 	const className = "w-4 h-4";
 
 	if (charging) return <LuBatteryCharging className={className} />;
@@ -239,8 +100,8 @@ const DeviceBatteryIcon = memo(function DeviceBatteryIcon({ status }: { status: 
 
 interface DeviceCardProps {
 	device: Device;
-	onManage: (deviceId: number) => void;
-	onDelete: (deviceId: number) => void;
+	onManage: (deviceId: string) => void;
+	onDelete: (deviceId: string) => void;
 }
 
 const DeviceCard = memo(function DeviceCard({ device, onManage, onDelete }: DeviceCardProps) {
@@ -256,7 +117,7 @@ const DeviceCard = memo(function DeviceCard({ device, onManage, onDelete }: Devi
 					<div className="space-y-1">
 						<CardTitle>{device.name}</CardTitle>
 						<CardDescription>{platformLabel}</CardDescription>
-						{device.current ? (
+						{device.isCurrent ? (
 							<Badge className="bg-amber-500 text-white dark:bg-amber-600" variant="secondary">
 								<LuUserCheck className="fill-current" />
 								เครื่องนี้
@@ -264,25 +125,18 @@ const DeviceCard = memo(function DeviceCard({ device, onManage, onDelete }: Devi
 						) : (
 							<div className="flex gap-1">
 								<DeviceStatusBadge status={device.status} />
-								{device.p2p && (
-									<Badge
-										className="[&>svg]:size-2 bg-blue-500 text-white dark:bg-blue-600"
-										variant="secondary"
-									>
-										<LuUnplug className="fill-current" />
-										Direct Share
-									</Badge>
-								)}
 							</div>
 						)}
 					</div>
 				</div>
-				<div className="space-y-1">
-					<div className="flex items-center gap-1 text-muted-foreground justify-end">
-						<DeviceBatteryIcon status={device.battery} />
-						<span>{device.battery.percent}%</span>
+				{device.battery.supported && (
+					<div className="space-y-1">
+						<div className="flex items-center gap-1 text-muted-foreground justify-end">
+							<DeviceBatteryIcon charging={device.battery.charging} percent={device.battery.percent} />
+							<span>{device.battery.percent}%</span>
+						</div>
 					</div>
-				</div>
+				)}
 			</CardHeader>
 			<CardContent>
 				<div className="space-y-1 text-sm text-muted-foreground">
@@ -310,7 +164,7 @@ const DeviceCard = memo(function DeviceCard({ device, onManage, onDelete }: Devi
 						<LuSettings />
 						แก้ไข
 					</Button>
-					{!device.current && (
+					{!device.isCurrent && (
 						<Button variant="destructive" size="sm" onClick={() => onDelete(device.id)}>
 							<LuTrash2 />
 							ลบ
@@ -341,20 +195,28 @@ interface ManageDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	device: Device | null;
-	onSave: (id: number, name: string) => void;
+	onSave: (id: string, name: string) => Promise<void>;
 }
 
 function ManageDialog({ open, onOpenChange, device, onSave }: ManageDialogProps) {
 	const [name, setName] = useState("");
+	const [saving, setSaving] = useState(false);
 
 	useEffect(() => {
 		if (device) setName(device.name);
 	}, [device]);
 
-	const handleSave = useCallback(() => {
-		if (device && name.trim()) {
-			onSave(device.id, name.trim());
+	const handleSave = useCallback(async () => {
+		if (!device || !name.trim()) return;
+
+		setSaving(true);
+		try {
+			await onSave(device.id, name.trim());
 			onOpenChange(false);
+		} catch (error) {
+			console.error("Failed to save device:", error);
+		} finally {
+			setSaving(false);
 		}
 	}, [device, name, onSave, onOpenChange]);
 
@@ -379,10 +241,12 @@ function ManageDialog({ open, onOpenChange, device, onSave }: ManageDialogProps)
 				</div>
 				<DialogFooter>
 					<DialogClose asChild>
-						<Button variant="outline">ยกเลิก</Button>
+						<Button variant="outline" disabled={saving}>
+							ยกเลิก
+						</Button>
 					</DialogClose>
-					<Button type="submit" onClick={handleSave} disabled={!name.trim()}>
-						บันทึก
+					<Button type="submit" onClick={handleSave} disabled={!name.trim() || saving}>
+						{saving ? "กำลังบันทึก..." : "บันทึก"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
@@ -393,10 +257,24 @@ function ManageDialog({ open, onOpenChange, device, onSave }: ManageDialogProps)
 interface DeleteDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onConfirm: () => void;
+	onConfirm: () => Promise<void>;
 }
 
 function DeleteDialog({ open, onOpenChange, onConfirm }: DeleteDialogProps) {
+	const [deleting, setDeleting] = useState(false);
+
+	const handleConfirm = useCallback(async () => {
+		setDeleting(true);
+		try {
+			await onConfirm();
+			onOpenChange(false);
+		} catch (error) {
+			console.error("Failed to delete device:", error);
+		} finally {
+			setDeleting(false);
+		}
+	}, [onConfirm, onOpenChange]);
+
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
@@ -408,9 +286,13 @@ function DeleteDialog({ open, onOpenChange, onConfirm }: DeleteDialogProps) {
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
-					<AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-					<AlertDialogAction className={buttonVariants({ variant: "destructive" })} onClick={onConfirm}>
-						ใช่ ลบเลย
+					<AlertDialogCancel disabled={deleting}>ยกเลิก</AlertDialogCancel>
+					<AlertDialogAction
+						className={buttonVariants({ variant: "destructive" })}
+						onClick={handleConfirm}
+						disabled={deleting}
+					>
+						{deleting ? "กำลังลบ..." : "ใช่ ลบเลย"}
 					</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
@@ -418,8 +300,14 @@ function DeleteDialog({ open, onOpenChange, onConfirm }: DeleteDialogProps) {
 	);
 }
 
-export function DevicesUI({ deviceInfo }: { deviceInfo: DeviceInfo | null }) {
-	const { items, loading, refresh, remove, update } = useDevices(deviceInfo);
+interface DevicesUIProps {
+	localDeviceInfo: LocalDeviceInfo | null;
+}
+
+export function DevicesUI({ localDeviceInfo }: DevicesUIProps) {
+	const { devices, loading, error, refresh, updateDevice, deleteDevice } = useDevices({
+		localDeviceInfo,
+	});
 
 	const [query, setQuery] = useState("");
 	const deferredQuery = useDeferredValue(query);
@@ -430,53 +318,56 @@ export function DevicesUI({ deviceInfo }: { deviceInfo: DeviceInfo | null }) {
 
 	const filteredDevices = useMemo(() => {
 		const normalizedQuery = deferredQuery.trim().toLowerCase();
-		if (!normalizedQuery) return items;
-		return items.filter(
+		if (!normalizedQuery) return devices;
+		return devices.filter(
 			(device) =>
 				device.name.toLowerCase().includes(normalizedQuery) ||
 				device.os.toLowerCase().includes(normalizedQuery) ||
 				device.ip.toLowerCase().includes(normalizedQuery)
 		);
-	}, [items, deferredQuery]);
+	}, [devices, deferredQuery]);
 
 	const hasDevices = filteredDevices.length > 0;
 
 	const handleManage = useCallback(
-		(deviceId: number) => {
-			const device = items.find((d) => d.id === deviceId);
+		(deviceId: string) => {
+			const device = devices.find((d) => d.id === deviceId);
 			if (device) {
 				setSelectedDevice(device);
 				setManageDialogOpen(true);
 			}
 		},
-		[items]
+		[devices]
 	);
 
 	const handleDelete = useCallback(
-		(deviceId: number) => {
-			const device = items.find((d) => d.id === deviceId);
+		(deviceId: string) => {
+			const device = devices.find((d) => d.id === deviceId);
 			if (device) {
 				setSelectedDevice(device);
 				setDeleteDialogOpen(true);
 			}
 		},
-		[items]
+		[devices]
 	);
 
 	const handleSaveDevice = useCallback(
-		(id: number, name: string) => {
-			update(id, { name });
+		async (id: string, name: string) => {
+			await updateDevice(id, { name });
 		},
-		[update]
+		[updateDevice]
 	);
 
-	const handleConfirmDelete = useCallback(() => {
+	const handleConfirmDelete = useCallback(async () => {
 		if (selectedDevice) {
-			remove(selectedDevice.id);
-			setDeleteDialogOpen(false);
+			await deleteDevice(selectedDevice.id);
 			setSelectedDevice(null);
 		}
-	}, [selectedDevice, remove]);
+	}, [selectedDevice, deleteDevice]);
+
+	const handleRefresh = useCallback(async () => {
+		await refresh();
+	}, [refresh]);
 
 	return (
 		<CardTransition className="h-full gap-4 overflow-hidden" tag="device-card">
@@ -487,7 +378,7 @@ export function DevicesUI({ deviceInfo }: { deviceInfo: DeviceInfo | null }) {
 				</div>
 				<div className="flex">
 					<div className="flex items-center gap-2">
-						<Button variant="outline" onClick={refresh} disabled={loading}>
+						<Button variant="outline" onClick={handleRefresh} disabled={loading}>
 							<LuRefreshCcw className={cn(loading && "animate-spin")} />
 						</Button>
 						<SearchInput
@@ -502,6 +393,8 @@ export function DevicesUI({ deviceInfo }: { deviceInfo: DeviceInfo | null }) {
 			</CardHeader>
 
 			<CardContent className="pt-0">
+				{error && <div className="mb-4 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">{error}</div>}
+
 				{hasDevices ? (
 					<ScrollArea className="h-[calc(100vh-14rem)]">
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">

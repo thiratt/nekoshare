@@ -4,24 +4,66 @@ export interface BatteryInfo {
 	percent: number;
 }
 
-export interface DeviceInfo {
+export interface LocalDeviceInfo {
 	id: string;
 	name: string;
-	platform: "windows" | "android" | "other";
+	platform: DevicePlatform;
 	os: string;
 	os_version: string;
 	ipv4: string;
 	battery: BatteryInfo;
 }
 
-// Type for registering a device with the server
-export interface DeviceRegistration {
+export type DevicePlatform = "windows" | "android" | "web" | "other";
+export type DeviceStatus = "online" | "offline";
+
+export interface ApiDevice {
+	id: string;
+	userId: string;
+	name: string;
+	platform: DevicePlatform;
+	publicKey: string;
+	batterySupported: boolean;
+	batteryCharging: boolean;
+	batteryPercent: number;
+	lastIp: string | null;
+	lastActiveAt: Date | null;
+	createdAt: Date;
+}
+
+export interface DeviceRegistrationPayload {
 	id: string;
 	name: string;
-	platform: "windows" | "linux" | "android" | "web" | "other";
+	platform: DevicePlatform;
 	publicKey: string;
 	batterySupported: boolean;
 	batteryCharging: boolean;
 	batteryPercent: number;
 	lastIp: string;
+}
+
+export interface Device {
+	id: string;
+	name: string;
+	isCurrent: boolean;
+	platform: DevicePlatform;
+	status: DeviceStatus;
+	lastSeen: string;
+	battery: {
+		supported: boolean;
+		charging: boolean;
+		percent: number;
+	};
+	ip: string;
+	os: string;
+}
+
+export interface DeviceListResponse {
+	devices: ApiDevice[];
+	total: number;
+}
+
+export interface DeviceRegistrationResponse {
+	device: ApiDevice;
+	isNew: boolean;
 }
