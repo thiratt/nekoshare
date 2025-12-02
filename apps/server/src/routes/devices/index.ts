@@ -94,4 +94,48 @@ app.post("/register", async (c) => {
 	);
 });
 
+app.patch("/:id", async (c) => {
+	const user = c.get("user");
+	const deviceId = c.req.param("id");
+	const body = await c.req.json<{ name?: string }>();
+
+	const existingDevice = await db.query.device.findFirst({
+		where: and(eq(device.id, deviceId), eq(device.userId, user.id)),
+	});
+
+	if (!existingDevice) {
+		return c.json(error("NOT_FOUND", "Device not found"), 404);
+	}
+
+	await db
+		.update(device)
+		.set({
+			...(body.name && { name: body.name }),
+		})
+		.where(eq(device.id, deviceId));
+
+	const updatedDevice = await db.query.device.findFirst({
+		where: eq(device.id, deviceId),
+	});
+
+	return c.json(success({ device: updatedDevice }));
+});
+
+app.delete("/:id", async (c) => {
+	const user = c.get("user");
+	const deviceId = c.req.param("id");
+
+	const existingDevice = await db.query.device.findFirst({
+		where: and(eq(device.id, deviceId), eq(device.userId, user.id)),
+	});
+
+	if (!existingDevice) {
+		return c.json(error("NOT_FOUND", "Device not found"), 404);
+	}
+
+	await db.delete(device).where(eq(device.id, deviceId));
+
+	return c.json(success({ deleted: true }));
+});
+
 export default app;
