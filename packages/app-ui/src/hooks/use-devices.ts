@@ -83,15 +83,22 @@ export function useDevices({ localDeviceInfo }: UseDevicesOptions): UseDevicesRe
 		}
 	}, []);
 
-	const deleteDevice = useCallback(async (id: string) => {
-		try {
-			await deleteDeviceApi(id);
-			setRemoteDevices((prev) => prev.filter((device) => device.id !== id));
-		} catch (err) {
-			console.error("Failed to delete device:", err);
-			throw err;
-		}
-	}, []);
+	const deleteDevice = useCallback(
+		async (id: string) => {
+			if (localDeviceInfo && id === localDeviceInfo.id) {
+				throw new Error("ไม่สามารถลบอุปกรณ์ที่กำลังใช้งานอยู่ได้");
+			}
+
+			try {
+				await deleteDeviceApi(id);
+				setRemoteDevices((prev) => prev.filter((device) => device.id !== id));
+			} catch (err) {
+				console.error("Failed to delete device:", err);
+				throw err;
+			}
+		},
+		[localDeviceInfo]
+	);
 
 	return {
 		devices,

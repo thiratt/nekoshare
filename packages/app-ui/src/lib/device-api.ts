@@ -37,13 +37,18 @@ function isDeviceOnline(lastActiveAt: Date | string | null): boolean {
 }
 
 export function transformApiDevice(apiDevice: ApiDevice, currentDeviceId?: string): Device {
+	const isCurrent = apiDevice.id === currentDeviceId;
+
+	// TODO: Replace with socket-based real-time status in the future
+	const status = isCurrent ? "online" : isDeviceOnline(apiDevice.lastActiveAt) ? "online" : "offline";
+
 	return {
 		id: apiDevice.id,
 		name: apiDevice.name,
-		isCurrent: apiDevice.id === currentDeviceId,
+		isCurrent,
 		platform: apiDevice.platform,
-		status: isDeviceOnline(apiDevice.lastActiveAt) ? "online" : "offline",
-		lastSeen: formatLastSeen(apiDevice.lastActiveAt),
+		status,
+		lastSeen: isCurrent ? "ตอนนี้" : formatLastSeen(apiDevice.lastActiveAt),
 		battery: {
 			supported: apiDevice.batterySupported,
 			charging: apiDevice.batteryCharging,
@@ -68,7 +73,7 @@ export function transformLocalDevice(localDevice: LocalDeviceInfo): Device {
 			percent: localDevice.battery.percent,
 		},
 		ip: localDevice.ipv4,
-		os: `${localDevice.os} ${localDevice.os_version}`,
+		os: `${localDevice.os_version}`,
 	};
 }
 
