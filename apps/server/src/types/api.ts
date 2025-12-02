@@ -30,3 +30,19 @@ export type DeviceListResponse = {
 	devices: Device[];
 	total: number;
 };
+
+export type DeviceRegistrationRequest = {
+	id: string;
+	name: string;
+	platform: "windows" | "android" | "web" | "other";
+	publicKey: string;
+	batterySupported: boolean;
+	batteryCharging: boolean;
+	batteryPercent: number;
+	lastIp: string;
+};
+
+export type DeviceRegistrationResponse = {
+	device: Device;
+	isNew: boolean;
+};
