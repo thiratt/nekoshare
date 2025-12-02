@@ -6,6 +6,11 @@ const authMiddleWare = createMiddleware<{ Variables: AuthenticatedType }>(async 
 	const session = await auth.api.getSession({ headers: c.req.raw.headers });
 	c.header("Server", "NekoShare");
 
+	// If endpoint is authenticated, return next
+	if (c.req.path.includes("/auth/")) {
+		return next();
+	}
+
 	if (!session) {
 		return c.json(error("Unauthorized", "Please login to access this resource"), 401);
 	}
