@@ -29,7 +29,7 @@ interface LoginCardProps extends IncludeLinkComponentProps {
 export function LoginCard({ data, linkComponent, onGoogle, onSubmit }: LoginCardProps): JSX.Element {
 	const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 	const form = useForm<TLoginSchema>({
-		mode: "onChange",
+		mode: "onSubmit",
 		resolver: zodResolver(loginFormSchema),
 		defaultValues: {
 			identifier: data ? data.identifier : "",
