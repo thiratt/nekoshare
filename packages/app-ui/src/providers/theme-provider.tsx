@@ -14,30 +14,73 @@ export function ThemeProvider({
 	children,
 	defaultTheme = "system",
 	storageKey = STORAGE_KEY,
+	disableTransitionOnChange = true,
 	...props
-}: ThemeProviderProps) {
-	const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(storageKey) as Theme) || defaultTheme);
+}: ThemeProviderProps & { disableTransitionOnChange?: boolean }) {
+	const [theme, setTheme] = useState<Theme>(() => {
+		if (typeof window !== "undefined") {
+			return (localStorage.getItem(storageKey) as Theme) || defaultTheme;
+		}
+		return defaultTheme;
+	});
 
 	useEffect(() => {
 		const root = window.document.documentElement;
 
-		root.classList.remove("light", "dark");
+		const updateDOM = (targetTheme: string) => {
+			let css: HTMLStyleElement | null = null;
+
+			if (disableTransitionOnChange) {
+				css = document.createElement("style");
+				css.appendChild(
+					document.createTextNode(
+						`* {
+              -webkit-transition: none !important;
+              -moz-transition: none !important;
+              -o-transition: none !important;
+              -ms-transition: none !important;
+              transition: none !important;
+            }`
+					)
+				);
+				document.head.appendChild(css);
+
+				(() => window.getComputedStyle(document.body))();
+			}
+
+			root.classList.remove("light", "dark");
+			root.classList.add(targetTheme);
+
+			if (disableTransitionOnChange && css) {
+				setTimeout(() => {
+					if (css) document.head.removeChild(css);
+				}, 1);
+			}
+		};
 
 		if (theme === "system") {
-			const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+			const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-			root.classList.add(systemTheme);
-			return;
+			const handleSystemChange = () => {
+				const systemTheme = mediaQuery.matches ? "dark" : "light";
+				updateDOM(systemTheme);
+			};
+
+			handleSystemChange();
+
+			mediaQuery.addEventListener("change", handleSystemChange);
+
+			return () => mediaQuery.removeEventListener("change", handleSystemChange);
+		} else {
+			updateDOM(theme);
 		}
-
-		root.classList.add(theme);
-	}, [theme]);
+	}, [theme, disableTransitionOnChange]);
 
 	const value = {
 		theme,
-		setTheme: (theme: Theme) => {
-			localStorage.setItem(storageKey, theme);
-			setTheme(theme);
+		setTheme: (newTheme: Theme) => {
+			localStorage.setItem(storageKey, newTheme);
+			setTheme(newTheme);
 		},
 	};
 
@@ -50,8 +93,6 @@ export function ThemeProvider({
 
 export const useTheme = () => {
 	const context = useContext(ThemeProviderContext);
-
 	if (context === undefined) throw new Error("useTheme must be used within a ThemeProvider");
-
 	return context;
 };
