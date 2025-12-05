@@ -27,3 +27,4 @@ sysinfo = "0.36.1"
 starship-battery = "0.10.2"
 machine-uid = "0.5.3"
 uuid = { version = "1.11", features = ["v4"] }
+tauri-plugin-fs = "2"

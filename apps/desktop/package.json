@@ -19,6 +19,7 @@
     "@tanstack/react-router-devtools": "^1.132.0",
     "@tanstack/router-plugin": "^1.132.0",
     "@tauri-apps/api": "^2.9.0",
+    "@tauri-apps/plugin-fs": "~2.4.4",
     "@workspace/app-ui": "workspace:*",
     "@workspace/ui": "workspace:*",
     "lucide-react": "^0.545.0",
