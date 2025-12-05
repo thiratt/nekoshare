@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo, useCallback, memo, type ReactNode, type FC } from "react";
+import { createContext, useContext, useState, useMemo, useCallback, memo, type ReactNode } from "react";
 import LoadingOverlay from "@workspace/app-ui/components/global-loading";
 import { AnimatePresence, motion, type Transition, type Variants } from "motion/react";
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
@@ -11,6 +11,7 @@ interface NekoShareContextType {
 	isGlobalLoading: boolean;
 	mode: Mode;
 	notification: NotificationStatus;
+	router: Router;
 	setGlobalLoading: (loading: boolean) => void;
 	setMode: (mode: Mode) => void;
 	setNotification: (status: NotificationStatus) => void;
@@ -52,7 +53,16 @@ const OVERLAY_VARIANTS: Variants = {
 const CONTENT_SCALE_ACTIVE = { scale: 1, y: 0 };
 const CONTENT_SCALE_INACTIVE = { scale: 0.97, y: -10 };
 
-const NekoShareProvider: FC<{ children: ReactNode }> = ({ children }) => {
+interface Router {
+	navigate: (opts: any) => any;
+}
+
+interface NekoShareProviderProps<TRouter extends Router = Router> {
+	router: TRouter;
+	children: ReactNode;
+}
+
+const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoShareProviderProps<TRouter>) => {
 	const [isGlobalLoading, setGlobalLoading] = useState(false);
 	const [mode, setMode] = useState<Mode>("home");
 	const [notification, setNotification] = useState<NotificationStatus>("off");
@@ -78,6 +88,7 @@ const NekoShareProvider: FC<{ children: ReactNode }> = ({ children }) => {
 			isGlobalLoading,
 			mode,
 			notification,
+			router,
 			setGlobalLoading: handleSetGlobalLoading,
 			setMode: handleSetMode,
 			setNotification: handleSetNotification,
@@ -87,6 +98,7 @@ const NekoShareProvider: FC<{ children: ReactNode }> = ({ children }) => {
 			isGlobalLoading,
 			mode,
 			notification,
+			router,
 			handleSetGlobalLoading,
 			handleSetMode,
 			handleSetNotification,
@@ -128,14 +140,7 @@ const NekoShareProvider: FC<{ children: ReactNode }> = ({ children }) => {
 								exit="exit"
 								transition={SPRING_TRANSITION}
 							>
-								<SettingsUI
-									onLogout={async () => {
-										await authClient.signOut();
-										invalidateSessionCache();
-										setMode("home");
-										window.location.reload();
-									}}
-								/>
+								<SettingsUI />
 							</motion.div>
 						</motion.div>
 					)}

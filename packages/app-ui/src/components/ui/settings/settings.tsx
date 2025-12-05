@@ -24,6 +24,7 @@ import { SettingPrivacyContent } from "./privacy";
 import { SettingStorageContent } from "./storage";
 import { SettingAccessibilityContent } from "./accessibility";
 import { SettingShortcutsContent } from "./shortcuts";
+import { authClient, invalidateSessionCache } from "@workspace/app-ui/lib/auth";
 
 type SettingCategory = "account" | "appearance" | "notifications" | "privacy" | "data" | "accessibility" | "shortcuts";
 
@@ -113,8 +114,8 @@ const CONTENT_COMPONENTS: Record<SettingCategory, FC<ContentComponentProps>> = {
 
 const t = (key: string): string => key;
 
-export function SettingsUI({ onLogout }: { onLogout: () => void }) {
-	const { setMode } = useNekoShare();
+export function SettingsUI() {
+	const { router, setMode } = useNekoShare();
 	const [activeCategory, setActiveCategory] = useState<SettingCategory>("account");
 	const [confirmLogout, setConfirmLogout] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -140,6 +141,15 @@ export function SettingsUI({ onLogout }: { onLogout: () => void }) {
 			const timeoutId = setTimeout(() => setIsEscapeEnabled(true), 100);
 			return () => clearTimeout(timeoutId);
 		}
+	}, []);
+
+	const onLogout = useCallback(async () => {
+		await authClient.signOut();
+		invalidateSessionCache();
+		setMode("home");
+		setIsEscapeEnabled(false);
+
+		router.navigate({ to: "/login" });
 	}, []);
 
 	useEffect(() => {
@@ -255,26 +265,7 @@ export function SettingsUI({ onLogout }: { onLogout: () => void }) {
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={() => {
-								// TODO: Implement logout logic
-								// const deviceUid = await invoke("get_vault_key", { key: "device_uid" });
-								// const res = await authFetch(API_ENDPOINT + "/auth/logout", {
-								// 	method: "POST",
-								// 	body: JSON.stringify({ deviceUid }),
-								// });
-								// if (res.ok) {
-								// 	await invoke("remove_vault_key", { key: "access_token" });
-								// 	await invoke("remove_vault_key", { key: "refresh_token" });
-								// 	await invoke("remove_vault_key", { key: "locale" });
-								// 	setMode("home");
-								// 	router.push("/auth/login");
-								// }
-								onLogout();
-							}}
-						>
-							ออกจากระบบ
-						</AlertDialogAction>
+						<AlertDialogAction onClick={onLogout}>ออกจากระบบ</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
