@@ -9,7 +9,7 @@ export interface LocalDeviceInfo {
 	name: string;
 	platform: DevicePlatform;
 	os: string;
-	os_version: string;
+	long_os_version: string;
 	ipv4: string;
 	battery: BatteryInfo;
 }

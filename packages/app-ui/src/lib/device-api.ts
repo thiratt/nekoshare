@@ -73,7 +73,7 @@ export function transformLocalDevice(localDevice: LocalDeviceInfo): Device {
 			percent: localDevice.battery.percent,
 		},
 		ip: localDevice.ipv4,
-		os: `${localDevice.os_version}`,
+		os: localDevice.long_os_version,
 	};
 }
 
