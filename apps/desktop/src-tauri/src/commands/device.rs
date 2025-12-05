@@ -16,7 +16,7 @@ pub struct DeviceInfo {
     pub name: String,
     pub platform: String,
     pub os: String,
-    pub os_version: String,
+    pub long_os_version: String,
     pub ipv4: String,
     pub battery: BatteryInfo,
 }
@@ -95,7 +95,7 @@ pub fn get_device_info() -> DeviceInfo {
     let name = System::host_name().unwrap_or_else(|| "Unknown".to_string());
     let platform = get_platform();
     let os = System::name().unwrap_or_else(|| "Unknown".to_string());
-    let os_version = System::long_os_version().unwrap_or_else(|| "Unknown".to_string());
+    let long_os_version = System::long_os_version().unwrap_or_else(|| "Unknown".to_string());
     let ipv4 = get_local_ip_v4()
         .map(|ip| ip.to_string())
         .unwrap_or_else(|| "Unknown".to_string());
@@ -105,7 +105,7 @@ pub fn get_device_info() -> DeviceInfo {
         name,
         platform,
         os,
-        os_version,
+        long_os_version,
         ipv4,
         battery: BatteryInfo {
             supported: battery_supported,
