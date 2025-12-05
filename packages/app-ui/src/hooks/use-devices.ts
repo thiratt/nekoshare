@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { Device, LocalDeviceInfo } from "@workspace/app-ui/types/device";
+import type { Device } from "@workspace/app-ui/types/device";
 import {
 	fetchDevices,
 	transformApiDevice,
@@ -8,19 +8,7 @@ import {
 	updateDevice as updateDeviceApi,
 	deleteDevice as deleteDeviceApi,
 } from "@workspace/app-ui/lib/device-api";
-
-interface UseDevicesOptions {
-	localDeviceInfo: LocalDeviceInfo | null;
-}
-
-interface UseDevicesReturn {
-	devices: Device[];
-	loading: boolean;
-	error: string | null;
-	refresh: () => Promise<void>;
-	updateDevice: (id: string, data: { name: string }) => Promise<void>;
-	deleteDevice: (id: string) => Promise<void>;
-}
+import type { UseDevicesOptions, UseDevicesReturn } from "@workspace/app-ui/types/hooks";
 
 export function useDevices({ localDeviceInfo }: UseDevicesOptions): UseDevicesReturn {
 	const [remoteDevices, setRemoteDevices] = useState<Device[]>([]);

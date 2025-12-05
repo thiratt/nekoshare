@@ -64,24 +64,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
-
-type Status = "active" | "pending";
-
-interface FriendProps {
-	id: number;
-	name: string;
-	email: string;
-	avatarUrl?: string;
-	status: Status;
-	sharedCount: number;
-	lastActive: string;
-	invitedAt: string;
-}
+import type {
+	FriendStatus,
+	FriendProps,
+	RowActionsProps,
+	RevokeConfirmDialogProps,
+} from "@workspace/app-ui/types/friends";
 
 const PAGE_SIZE = 8;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const STATUS_CONFIG: Record<Status, { label: string; variant: "default" | "outline" }> = {
+const STATUS_CONFIG: Record<FriendStatus, { label: string; variant: "default" | "outline" }> = {
 	active: { label: "active", variant: "default" },
 	pending: { label: "pending", variant: "outline" },
 };
@@ -542,7 +535,7 @@ export function FriendsUI() {
 	);
 }
 
-const StatusBadge = memo(function StatusBadge({ status }: { status: Status }) {
+const StatusBadge = memo(function StatusBadge({ status }: { status: FriendStatus }) {
 	const config = STATUS_CONFIG[status];
 	return (
 		<Badge variant={config.variant} className="capitalize">
@@ -550,11 +543,6 @@ const StatusBadge = memo(function StatusBadge({ status }: { status: Status }) {
 		</Badge>
 	);
 });
-
-interface RowActionsProps {
-	onCopy: () => void;
-	onRevoke: () => void;
-}
 
 function RowActions({ onCopy, onRevoke }: RowActionsProps) {
 	const [copied, setCopied] = useState(false);
@@ -598,13 +586,6 @@ function RowActions({ onCopy, onRevoke }: RowActionsProps) {
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
-}
-
-interface RevokeConfirmDialogProps {
-	open: boolean;
-	count: number;
-	onConfirm: () => void;
-	onCancel: () => void;
 }
 
 function RevokeConfirmDialog({ open, count, onConfirm, onCancel }: RevokeConfirmDialogProps) {

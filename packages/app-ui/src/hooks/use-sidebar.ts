@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
+import type { SidebarState } from "@workspace/app-ui/types/hooks";
 
-type SidebarState = "on" | "off";
 const LS_KEY = "nekoshare";
 
 export function useSidebar() {

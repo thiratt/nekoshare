@@ -50,8 +50,7 @@ import { SearchInput } from "@workspace/ui/components/search-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/table";
 import { CardTransition } from "../ext/card-transition";
-
-type Status = "success" | "failed" | "processing";
+import type { Status, HomeProps, DeleteItemDialog } from "@workspace/app-ui/types/home";
 
 interface ShareItem {
 	id: number;
@@ -190,17 +189,6 @@ function formatDate(isoString: string) {
 		hour: "2-digit",
 		minute: "2-digit",
 	});
-}
-
-interface HomeProps {
-	onItemClick: (id: number) => void;
-	onItemDownload: (id: number) => void;
-	onBulkDelete: (ids: number[]) => void;
-	data: { filename: string; size: number }[];
-}
-
-interface DeleteItemDialog {
-	id: number;
 }
 
 const ITEMS_PER_PAGE = 10;

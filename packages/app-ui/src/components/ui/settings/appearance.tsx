@@ -10,16 +10,8 @@ import { cn } from "@workspace/ui/lib/utils";
 import { useTheme } from "@workspace/app-ui/providers/theme-provider";
 import { ThaiFlagSvg } from "@workspace/app-ui/components/svgs/thai";
 import { EnglishFlagSvg } from "@workspace/app-ui/components/svgs/english";
-
-type Theme = "dark" | "light" | "system";
-type Language = "th" | "en" | "ja" | "zh";
-
-interface LanguageOption {
-	id: Language;
-	label: string;
-	nativeLabel: string;
-	flag?: ReactNode;
-}
+import type { Theme } from "@workspace/app-ui/types/theme";
+import type { Language, LanguageOption } from "@workspace/app-ui/types/settings";
 
 const LANGUAGE_OPTIONS: readonly LanguageOption[] = [
 	{
@@ -44,7 +36,7 @@ function useLanguage() {
 	return { language, setLanguage: changeLanguage } as const;
 }
 
-interface ThemeOption {
+interface LocalThemeOption {
 	id: Theme;
 	icon: IconType;
 	bgClass: string;
@@ -52,7 +44,7 @@ interface ThemeOption {
 	label: string;
 }
 
-const THEME_OPTIONS: readonly ThemeOption[] = [
+const THEME_OPTIONS: readonly LocalThemeOption[] = [
 	{
 		id: "light",
 		icon: LuSun,
@@ -87,12 +79,12 @@ const CheckIndicator = memo(function CheckIndicator() {
 	);
 });
 
-interface IconElementProps {
+interface LocalIconElementProps {
 	className?: string;
 	children: ReactNode;
 }
 
-const IconElement: FC<IconElementProps> = memo(function IconElement({ className, children }) {
+const IconElement: FC<LocalIconElementProps> = memo(function IconElement({ className, children }) {
 	return (
 		<div
 			className={cn(
@@ -106,8 +98,8 @@ const IconElement: FC<IconElementProps> = memo(function IconElement({ className,
 	);
 });
 
-interface ThemeButtonProps {
-	option: ThemeOption;
+interface LocalThemeButtonProps {
+	option: LocalThemeOption;
 	isSelected: boolean;
 	onThemeSelect: (theme: Theme) => void;
 	className?: string;
@@ -115,7 +107,7 @@ interface ThemeButtonProps {
 	"aria-checked"?: boolean;
 }
 
-const ThemeButton = memo<ThemeButtonProps>(function ThemeButton({
+const ThemeButton = memo<LocalThemeButtonProps>(function ThemeButton({
 	option,
 	isSelected,
 	onThemeSelect,

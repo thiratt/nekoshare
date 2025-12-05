@@ -7,7 +7,7 @@ export const authClient = createAuthClient({
 	plugins: [usernameClient()],
 });
 
-type SessionData = typeof authClient.$Infer.Session;
+export type SessionData = typeof authClient.$Infer.Session;
 
 let sessionPromise: Promise<SessionData | null> | null = null;
 let lastFetchTime = 0;

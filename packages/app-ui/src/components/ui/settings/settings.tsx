@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState, useMemo, memo, type FC } from "react";
 
 import { motion, AnimatePresence, type Transition, type Variants } from "motion/react";
-import type { IconType } from "react-icons";
 import { LuBell, LuDatabase, LuGlobe, LuKeyboard, LuLogOut, LuPalette, LuShield, LuUser, LuX } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
@@ -25,14 +24,7 @@ import { SettingStorageContent } from "./storage";
 import { SettingAccessibilityContent } from "./accessibility";
 import { SettingShortcutsContent } from "./shortcuts";
 import { authClient, invalidateSessionCache } from "@workspace/app-ui/lib/auth";
-
-type SettingCategory = "account" | "appearance" | "notifications" | "privacy" | "data" | "accessibility" | "shortcuts";
-
-interface SettingCategoryConfig {
-	id: SettingCategory;
-	label: string;
-	icon: IconType;
-}
+import type { SettingCategory, SettingCategoryConfig } from "@workspace/app-ui/types/settings";
 
 const SETTING_CATEGORIES: readonly SettingCategoryConfig[] = [
 	{ id: "account", label: "บัญชี", icon: LuUser },
@@ -75,13 +67,13 @@ const OVERLAY_TRANSITION: Transition = {
 	delay: 0.1,
 };
 
-interface CategoryButtonProps {
+interface LocalCategoryButtonProps {
 	category: SettingCategoryConfig;
 	isActive: boolean;
 	onClick: (id: SettingCategory) => void;
 }
 
-const CategoryButton = memo<CategoryButtonProps>(function CategoryButton({ category, isActive, onClick }) {
+const CategoryButton = memo<LocalCategoryButtonProps>(function CategoryButton({ category, isActive, onClick }) {
 	const Icon = category.icon;
 	const handleClick = useCallback(() => onClick(category.id), [onClick, category.id]);
 
@@ -98,12 +90,12 @@ const CategoryButton = memo<CategoryButtonProps>(function CategoryButton({ categ
 	);
 });
 
-interface ContentComponentProps {
+interface LocalContentComponentProps {
 	onDialogActive?: (value: boolean) => void;
 }
 
-const CONTENT_COMPONENTS: Record<SettingCategory, FC<ContentComponentProps>> = {
-	account: SettingAccountContent as FC<ContentComponentProps>,
+const CONTENT_COMPONENTS: Record<SettingCategory, FC<LocalContentComponentProps>> = {
+	account: SettingAccountContent as FC<LocalContentComponentProps>,
 	appearance: SettingAppearanceContent,
 	notifications: SettingNotificationsContent,
 	privacy: SettingPrivacyContent,

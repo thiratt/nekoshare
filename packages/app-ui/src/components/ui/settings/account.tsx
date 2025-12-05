@@ -20,10 +20,7 @@ import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 
 import { cn } from "@workspace/ui/lib/utils";
-
-type DialogKey = "avatar" | "changeEmail" | "deleteAccount" | "changePassword" | "twoFaAuthentication";
-
-type DialogState = Record<DialogKey, boolean>;
+import type { DialogKey, DialogState } from "@workspace/app-ui/types/settings";
 
 const INITIAL_DIALOG_STATE: DialogState = {
 	avatar: false,
@@ -38,11 +35,11 @@ const TAB_ANIMATION_CLASSES = cn(
 	"data-[state='inactive']:animate-out data-[state='inactive']:fade-out data-[state='inactive']:zoom-out-[.97] data-[state='inactive']:slide-out-to-bottom-6 data-[state='inactive']:duration-100"
 );
 
-interface SettingAccountContentProps {
+interface LocalSettingAccountContentProps {
 	onDialogActive: (value: boolean) => void;
 }
 
-export const SettingAccountContent: FC<SettingAccountContentProps> = memo(function SettingAccountContent({
+export const SettingAccountContent: FC<LocalSettingAccountContentProps> = memo(function SettingAccountContent({
 	onDialogActive,
 }) {
 	const [dialogs, setDialogs] = useState<DialogState>(INITIAL_DIALOG_STATE);

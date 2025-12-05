@@ -1,15 +1,6 @@
 import React from "react";
 import { cn } from "@workspace/ui/lib/utils";
-import type { LinkComponent } from "@workspace/app-ui/types/link";
-
-interface ExtendLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
-	href: string;
-	children: React.ReactNode;
-	className?: string;
-	linkComponent: LinkComponent;
-	enableTransition?: boolean;
-	asButton?: boolean;
-}
+import type { ExtendLinkProps } from "@workspace/app-ui/types/link";
 
 export function ExtendLink({
 	href,
