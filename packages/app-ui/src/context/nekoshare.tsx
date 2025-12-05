@@ -1,22 +1,8 @@
-import { createContext, useContext, useState, useMemo, useCallback, memo, type ReactNode } from "react";
+import { createContext, useContext, useState, useMemo, useCallback, type ReactNode } from "react";
 import LoadingOverlay from "@workspace/app-ui/components/global-loading";
 import { AnimatePresence, motion, type Transition, type Variants } from "motion/react";
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
-import { authClient, invalidateSessionCache } from "@workspace/app-ui/lib/auth";
-
-type Mode = "home" | "settings";
-type NotificationStatus = "on" | "off";
-
-interface NekoShareContextType {
-	isGlobalLoading: boolean;
-	mode: Mode;
-	notification: NotificationStatus;
-	router: Router;
-	setGlobalLoading: (loading: boolean) => void;
-	setMode: (mode: Mode) => void;
-	setNotification: (status: NotificationStatus) => void;
-	toggleNotification: () => void;
-}
+import type { Mode, NotificationStatus, NekoShareContextType, Router } from "@workspace/app-ui/types/context";
 
 const NekoShareContext = createContext<NekoShareContextType | null>(null);
 
@@ -52,10 +38,6 @@ const OVERLAY_VARIANTS: Variants = {
 
 const CONTENT_SCALE_ACTIVE = { scale: 1, y: 0 };
 const CONTENT_SCALE_INACTIVE = { scale: 0.97, y: -10 };
-
-interface Router {
-	navigate: (opts: any) => any;
-}
 
 interface NekoShareProviderProps<TRouter extends Router = Router> {
 	router: TRouter;

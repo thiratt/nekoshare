@@ -8,7 +8,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { useSidebar } from "@workspace/app-ui/hooks/use-sidebar";
 
 import { ExtendLink } from "@workspace/app-ui/components/ext/link";
-import { IncludeLinkComponentProps } from "../types";
+import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
 import {
 	DropdownMenu,

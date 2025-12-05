@@ -9,10 +9,11 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Form } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
-import { type IncludeLinkComponentProps } from "@workspace/app-ui/types/index";
-import { type TLoginSchema } from "@workspace/app-ui/types/schema";
-import { loginFormSchema } from "@workspace/app-ui/schemas/auth";
 import { ExtendLink } from "@workspace/app-ui/components/ext/link";
+import { loginFormSchema } from "@workspace/app-ui/schemas/auth";
+
+import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
+import type { TLoginSchema } from "@workspace/app-ui/types/schema";
 
 interface ExampleDataLoginProps {
 	identifier: string;

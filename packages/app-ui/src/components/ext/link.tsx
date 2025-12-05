@@ -1,6 +1,6 @@
 import React from "react";
 import { cn } from "@workspace/ui/lib/utils";
-import { type LinkComponent } from "@workspace/app-ui/types/index";
+import type { LinkComponent } from "@workspace/app-ui/types/link";
 
 interface ExtendLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
 	href: string;

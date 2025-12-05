@@ -8,7 +8,7 @@ import { Button } from "@workspace/ui/components/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Form } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
-import { IncludeLinkComponentProps } from "@workspace/app-ui/types/index";
+import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
 import { TSignupSchema } from "@workspace/app-ui/types/schema";
 import { signupFormSchema } from "@workspace/app-ui/schemas/auth";
 import { CardTransition } from "./ext/card-transition";
