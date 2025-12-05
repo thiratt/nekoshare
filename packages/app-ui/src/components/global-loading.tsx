@@ -9,7 +9,7 @@ export function LoadingAnimate() {
 			{Array.from({ length: numSquares }).map((_, i) => (
 				<div
 					key={i}
-					className="absolute bg-accent-foreground bg-cover bg-center bg-fixed top-0 left-0 w-7 h-7 animate-square-animation"
+					className="absolute bg-primary bg-cover bg-center bg-fixed top-0 left-0 w-7 h-7 animate-square-animation"
 					style={{ animationDelay: `-${i * delayIncrement}s` }}
 				></div>
 			))}

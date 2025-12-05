@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useMemo, useCallback, useRef, type ReactNode } from "react";
 import LoadingOverlay from "@workspace/app-ui/components/global-loading";
 import { AnimatePresence, motion, type Transition, type Variants } from "motion/react";
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
@@ -48,13 +48,28 @@ const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoSha
 	const [isGlobalLoading, setGlobalLoading] = useState(false);
 	const [mode, setMode] = useState<Mode>("home");
 	const [notification, setNotification] = useState<NotificationStatus>("off");
+	const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 	const toggleNotification = useCallback(() => {
 		setNotification((prev) => (prev === "on" ? "off" : "on"));
 	}, []);
 
 	const handleSetGlobalLoading = useCallback((loading: boolean) => {
-		setGlobalLoading(loading);
+		if (loadingTimeoutRef.current) {
+			clearTimeout(loadingTimeoutRef.current);
+			loadingTimeoutRef.current = null;
+		}
+
+		if (loading) {
+			requestAnimationFrame(() => {
+				setGlobalLoading(loading);
+			});
+		} else {
+			loadingTimeoutRef.current = setTimeout(() => {
+				setGlobalLoading(loading);
+				loadingTimeoutRef.current = null;
+			}, 300);
+		}
 	}, []);
 
 	const handleSetMode = useCallback((newMode: Mode) => {
