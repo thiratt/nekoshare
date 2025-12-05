@@ -136,12 +136,17 @@ export function SettingsUI() {
 	}, []);
 
 	const onLogout = useCallback(async () => {
-		await authClient.signOut();
-		invalidateSessionCache();
-		setMode("home");
-		setIsEscapeEnabled(false);
+		await authClient.signOut({
+			fetchOptions: {
+				onSuccess: () => {
+					invalidateSessionCache();
+					setIsEscapeEnabled(false);
+					setMode("home");
 
-		router.navigate({ to: "/login" });
+					router.navigate({ to: "/login" });
+				},
+			},
+		});
 	}, []);
 
 	useEffect(() => {
