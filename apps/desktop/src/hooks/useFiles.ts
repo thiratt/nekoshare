@@ -10,6 +10,7 @@ export interface FileMetadata {
   size: number;
   isFile: boolean;
   isDirectory: boolean;
+  path: string;
   createdAt: Date | null;
   modifiedAt: Date | null;
   accessedAt: Date | null;
@@ -73,6 +74,7 @@ function useFiles(): UseFilesReturn {
           size: fileStat.size,
           isFile: fileStat.isFile,
           isDirectory: fileStat.isDirectory,
+          path: filePath,
           createdAt: fileStat.birthtime ? new Date(fileStat.birthtime) : null,
           modifiedAt: fileStat.mtime ? new Date(fileStat.mtime) : null,
           accessedAt: fileStat.atime ? new Date(fileStat.atime) : null,

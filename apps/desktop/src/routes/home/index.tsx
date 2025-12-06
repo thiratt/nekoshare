@@ -3,7 +3,6 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import { useFiles } from "@/hooks/useFiles";
 import { HomeUI } from "@workspace/app-ui/components/ui/home";
-import { join } from "@tauri-apps/api/path";
 
 export const Route = createFileRoute("/home/")({
   component: RouteComponent,
@@ -20,8 +19,7 @@ function RouteComponent() {
       onItemReveal={async (id) => {
         const file = files.find((_, index) => index + 1 === id);
         if (file && directoryPath) {
-          const filePath = await join(directoryPath, file.name);
-          await revealItemInDir(filePath);
+          await revealItemInDir(file.path);
         }
       }}
       onBulkDelete={(ids) => {
