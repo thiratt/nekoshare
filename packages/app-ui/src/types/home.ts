@@ -1,5 +1,15 @@
 export type Status = "success" | "failed" | "processing";
 
+export interface FileData {
+	name: string;
+	size: number;
+	isFile: boolean;
+	isDirectory: boolean;
+	createdAt: Date | null;
+	modifiedAt: Date | null;
+	accessedAt: Date | null;
+}
+
 export interface ShareItem {
 	id: number;
 	type: "text" | "file";
@@ -13,9 +23,10 @@ export interface ShareItem {
 
 export interface HomeProps {
 	onItemClick: (id: number) => void;
-	onItemDownload: (id: number) => void;
+	onItemReveal: (id: number) => void;
 	onBulkDelete: (ids: number[]) => void;
-	data: { filename: string; size: number }[];
+	data: FileData[];
+	loading?: boolean;
 }
 
 export interface DeleteItemDialog {

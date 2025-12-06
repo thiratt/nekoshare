@@ -50,7 +50,7 @@ import { SearchInput } from "@workspace/ui/components/search-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/table";
 import { CardTransition } from "../ext/card-transition";
-import type { Status, HomeProps, DeleteItemDialog } from "@workspace/app-ui/types/home";
+import type { Status, HomeProps, DeleteItemDialog, FileData } from "@workspace/app-ui/types/home";
 
 interface ShareItem {
 	id: number;
@@ -67,80 +67,83 @@ interface ShareItem {
 	sharedWith?: number;
 }
 
-function useShareData(_data: { filename: string; size: number }[]) {
+// Mock devices
+const MOCK_DEVICES = ["MacBook Pro M2", "Dell XPS 13", "iPhone 15 Pro", "Galaxy S24", "iPad Pro"];
+
+function formatFileSize(bytes: number): string {
+	if (bytes === 0) return "0 B";
+	const k = 1024;
+	const sizes = ["B", "KB", "MB", "GB", "TB"];
+	const i = Math.floor(Math.log(bytes) / Math.log(k));
+	return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
+
+function getFileType(filename: string): string {
+	const ext = filename.split(".").pop()?.toLowerCase() || "";
+	const typeMap: Record<string, string> = {
+		pdf: "pdf",
+		doc: "document",
+		docx: "document",
+		xls: "spreadsheet",
+		xlsx: "spreadsheet",
+		ppt: "presentation",
+		pptx: "presentation",
+		jpg: "image",
+		jpeg: "image",
+		png: "image",
+		gif: "image",
+		webp: "image",
+		mp4: "video",
+		mov: "video",
+		avi: "video",
+		mp3: "audio",
+		wav: "audio",
+		zip: "zip",
+		rar: "archive",
+		"7z": "archive",
+		txt: "text",
+		json: "code",
+		js: "code",
+		ts: "code",
+	};
+	return typeMap[ext] || "file";
+}
+
+function useShareData(data: FileData[], externalLoading?: boolean) {
 	const [items, setItems] = useState<ShareItem[]>([]);
 	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
-		let isMounted = true;
-		setLoading(true);
+		if (externalLoading) {
+			setLoading(true);
+			return;
+		}
 
-		const timer = setTimeout(() => {
-			if (!isMounted) return;
+		// Transform real file data to ShareItem format
+		const transformedItems: ShareItem[] = data.map((file, index) => {
+			// Mock "from" and "device" for now
+			const isFromMe = Math.random() > 0.5;
+			const mockDevice = isFromMe ? MOCK_DEVICES[index % MOCK_DEVICES.length] : null;
 
-			const now = Date.now();
-			setItems([
-				{
-					id: 1,
-					name: "Project Documents.zip",
-					from: "me",
-					device: "MacBook Pro M2",
-					status: "success",
-					uploadedAt: new Date(now - 86400e3 * 1).toISOString(),
-					isReaded: true,
-					canDownload: true,
-					size: "2.5 MB",
-					type: "zip",
-					sharedWith: 3,
-				},
-				{
-					id: 2,
-					name: "Meeting Recording.mp4",
-					from: "buddy",
-					device: null,
-					status: "processing",
-					uploadedAt: new Date(now - 86400e3 * 2).toISOString(),
-					isReaded: false,
-					canDownload: false,
-					size: "128 MB",
-					type: "video",
-					sharedWith: 1,
-				},
-				{
-					id: 3,
-					name: "Design Assets",
-					from: "buddy",
-					device: null,
-					status: "failed",
-					uploadedAt: new Date(now - 86400e3 * 3).toISOString(),
-					isReaded: false,
-					canDownload: false,
-					size: "45 MB",
-					type: "folder",
-					sharedWith: 0,
-				},
-				{
-					id: 4,
-					name: "Report Q4 2024.pdf",
-					from: "me",
-					device: "Dell XPS 13",
-					status: "success",
-					uploadedAt: new Date(now - 86400e3 * 5).toISOString(),
-					isReaded: true,
-					canDownload: true,
-					size: "3.2 MB",
-					type: "pdf",
-					sharedWith: 5,
-				},
-			]);
-			setLoading(false);
-		}, 800);
+			return {
+				id: index + 1,
+				name: file.name,
+				from: isFromMe ? "me" : "buddy",
+				device: mockDevice ?? null,
+				friendName: !isFromMe ? "Friend" : undefined,
+				status: "success" as Status,
+				uploadedAt: (file.modifiedAt || file.createdAt || new Date()).toISOString(),
+				isReaded: true,
+				canDownload: file.isFile,
+				size: formatFileSize(file.size),
+				type: file.isDirectory ? "folder" : getFileType(file.name),
+				sharedWith: Math.floor(Math.random() * 5),
+			};
+		});
 
-		return () => {
-			isMounted = false;
-			clearTimeout(timer);
-		};
-	}, []);
+		setItems(transformedItems);
+		setLoading(false);
+	}, [data, externalLoading]);
 
 	const refreshData = useCallback(() => {
 		setLoading(true);
@@ -193,8 +196,8 @@ function formatDate(isoString: string) {
 
 const ITEMS_PER_PAGE = 10;
 
-export function HomeUI({ onItemClick, onItemDownload, data }: HomeProps) {
-	const { items, loading, refreshData, setItems } = useShareData(data);
+export function HomeUI({ onItemClick, onItemReveal, data, loading: externalLoading }: HomeProps) {
+	const { items, loading, refreshData, setItems } = useShareData(data, externalLoading);
 
 	const [deleteItemDialog, setDeleteItemDialog] = useState<DeleteItemDialog | null>(null);
 	const [deleteBulkDialog, setDeleteBulkDialog] = useState<DeleteItemDialog[]>([]);
@@ -309,7 +312,7 @@ export function HomeUI({ onItemClick, onItemDownload, data }: HomeProps) {
 								className="h-8 w-8 hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary"
 								onClick={(e) => {
 									e.stopPropagation();
-									onItemDownload(row.original.id);
+									onItemReveal(row.original.id);
 								}}
 								aria-label="Download item"
 							>
@@ -332,7 +335,7 @@ export function HomeUI({ onItemClick, onItemDownload, data }: HomeProps) {
 				),
 			},
 		],
-		[onItemDownload]
+		[onItemReveal]
 	);
 
 	const myShareTable = useReactTable({
