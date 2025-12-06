@@ -1,5 +1,6 @@
-import { DesktopTitlebar } from "@/components/navbar";
-import { getCachedSession } from "@/lib/auth";
+import { useEffect, useMemo, useState } from "react";
+
+import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 import {
   createFileRoute,
   Link,
@@ -12,8 +13,11 @@ import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import { useTheme } from "@workspace/app-ui/providers/theme-provider";
-import { useMemo } from "react";
-import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
+
+import { DesktopTitlebar } from "@/components/navbar";
+import { SetupApplicationUI } from "@/components/setup";
+import { getCachedSession } from "@/lib/auth";
+import { useStore } from "@/hooks/useStore";
 
 export const Route = createFileRoute("/home")({
   async beforeLoad() {
@@ -25,10 +29,22 @@ export const Route = createFileRoute("/home")({
   component: RouteComponent,
 });
 
+interface AppConfig {
+  isSetup: boolean;
+  fileLocation: string;
+}
+
 function RouteComponent() {
+  const [isSetup, setIsSetup] = useState<boolean>(false);
   const location = useLocation();
-  const { notification, toggleNotification, setMode } = useNekoShare();
+  const {
+    isGlobalLoading,
+    notification,
+    toggleNotification,
+    setMode,
+  } = useNekoShare();
   const { theme, setTheme } = useTheme();
+  const { get } = useStore();
 
   const titlebarHelperActions = useMemo(
     () => [
@@ -50,20 +66,50 @@ function RouteComponent() {
     ],
     [notification, theme],
   );
+
+  const handleSetupComplete = () => {
+    setIsSetup(true);
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const appConfig = await get<AppConfig>("appConfig");
+        setIsSetup(appConfig?.isSetup ?? false);
+      } catch (error) {
+        console.error("Failed to load app config:", error);
+      }
+    };
+    init();
+  }, [get, isGlobalLoading]);
+
+  if (isGlobalLoading) return;
+
   return (
     <div className="min-h-svh flex flex-col">
-      <DesktopTitlebar helperActions={titlebarHelperActions} />
-      <div className="flex flex-1 divide-x">
-        <HomeSidebar
-          linkComponent={Link}
-          pathname={location.pathname}
-          mode="desktop"
-        />
-        <div className="flex-1 bg-muted p-4">
-          <Outlet />
-        </div>
-        <NotificationSidebar />
-      </div>
+      {isSetup === true ? (
+        <>
+          <DesktopTitlebar helperActions={titlebarHelperActions} />
+          <div className="flex flex-1 divide-x">
+            <HomeSidebar
+              linkComponent={Link}
+              pathname={location.pathname}
+              mode="desktop"
+            />
+            <div className="flex-1 bg-muted p-4">
+              <Outlet />
+            </div>
+            <NotificationSidebar />
+          </div>
+        </>
+      ) : (
+        <>
+          <DesktopTitlebar />
+          <div className="flex flex-1 divide-x items-center justify-center">
+            <SetupApplicationUI onSetupComplete={handleSetupComplete} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
