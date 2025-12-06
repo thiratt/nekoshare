@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo, useCallback, useRef, type ReactNode } from "react";
+import { createContext, useContext, useState, useMemo, useCallback, useRef, type ReactNode, useEffect } from "react";
 import LoadingOverlay from "@workspace/app-ui/components/global-loading";
 import { AnimatePresence, motion, type Transition, type Variants } from "motion/react";
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
@@ -45,7 +45,7 @@ interface NekoShareProviderProps<TRouter extends Router = Router> {
 }
 
 const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoShareProviderProps<TRouter>) => {
-	const [isGlobalLoading, setGlobalLoading] = useState(false);
+	const [isGlobalLoading, setGlobalLoading] = useState(true);
 	const [mode, setMode] = useState<Mode>("home");
 	const [notification, setNotification] = useState<NotificationStatus>("off");
 	const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -106,6 +106,20 @@ const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoSha
 	const isHome = mode === "home";
 	const contentAnimateState = isHome ? CONTENT_SCALE_ACTIVE : CONTENT_SCALE_INACTIVE;
 
+	useEffect(() => {
+		let mounted = true;
+		const init = async () => {
+			await new Promise((resolve) => setTimeout(resolve, 1000));
+			if (mounted) {
+				setGlobalLoading(false);
+			}
+		};
+		init();
+		return () => {
+			mounted = false;
+		};
+	}, []);
+
 	return (
 		<NekoShareContext.Provider value={contextValue}>
 			<div className="relative h-screen overflow-hidden">
@@ -143,7 +157,7 @@ const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoSha
 					)}
 				</AnimatePresence>
 			</div>
-			<LoadingOverlay loading={isGlobalLoading} />
+			<AnimatePresence>{isGlobalLoading && <LoadingOverlay key="global-loading-overlay" />}</AnimatePresence>
 		</NekoShareContext.Provider>
 	);
 };
