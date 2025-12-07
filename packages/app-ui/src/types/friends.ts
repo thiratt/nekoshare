@@ -1,7 +1,7 @@
 export type FriendStatus = "active" | "pending";
 
 export interface FriendProps {
-	id: number;
+	id: string;
 	name: string;
 	email: string;
 	avatarUrl?: string;
@@ -21,4 +21,19 @@ export interface RevokeConfirmDialogProps {
 	count: number;
 	onConfirm: () => void;
 	onCancel: () => void;
+}
+
+export interface FriendListResponse {
+	friends: FriendProps[];
+	total: number;
+}
+
+export interface FriendInviteResponse {
+	friend: FriendProps;
+	isNew: boolean;
+}
+
+export interface FriendRevokeResponse {
+	deleted: string[];
+	count: number;
 }
