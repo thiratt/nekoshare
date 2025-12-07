@@ -152,7 +152,7 @@ const DeviceCard = memo(function DeviceCard({ device, onManage, onDelete }: Devi
 					</div>
 					<div className="flex justify-between">
 						<span>ระบบปฏิบัติการ</span>
-						<span className="truncate ml-2 max-w-34 2xl:max-w-60" title={device.os}>
+						<span className="truncate ml-2" title={device.os}>
 							{device.os}
 						</span>
 					</div>
