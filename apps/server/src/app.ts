@@ -10,6 +10,7 @@ import authMiddleWare from "./core/middleware/auth";
 import authRouter from "@/routes/auth";
 import accountRouter from "@/routes/account";
 import devicesRouter from "@/routes/devices";
+import friendsRouter from "@/routes/friends";
 
 import { nekoShareLogger } from "./core/logger";
 
@@ -21,7 +22,7 @@ export function createApp() {
 		cors({
 			origin: "http://localhost:7783",
 			allowHeaders: ["Content-Type", "Authorization"],
-			allowMethods: ["POST", "GET", "OPTIONS"],
+			allowMethods: ["GET", "HEAD", "PUT", "POST", "PATCH", "DELETE", "OPTIONS"],
 			exposeHeaders: ["Content-Length"],
 			maxAge: 600,
 			credentials: true,
@@ -36,6 +37,7 @@ export function createApp() {
 	app.route("/auth", authRouter);
 	app.route("/account", accountRouter);
 	app.route("/devices", devicesRouter);
+	app.route("/friends", friendsRouter);
 
 	return app;
 }

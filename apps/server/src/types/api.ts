@@ -46,3 +46,40 @@ export type DeviceRegistrationResponse = {
 	device: Device;
 	isNew: boolean;
 };
+
+export type FriendStatus = "active" | "pending";
+
+export type Friend = {
+	id: string;
+	name: string;
+	email: string;
+	avatarUrl?: string;
+	status: FriendStatus;
+	sharedCount: number;
+	lastActive: string;
+	invitedAt: string;
+};
+
+export type FriendListResponse = {
+	friends: Friend[];
+	total: number;
+};
+
+export type FriendInviteRequest = {
+	email: string;
+	message?: string;
+};
+
+export type FriendInviteResponse = {
+	friend: Friend;
+	isNew: boolean;
+};
+
+export type FriendRevokeRequest = {
+	ids: string[];
+};
+
+export type FriendRevokeResponse = {
+	deleted: string[];
+	count: number;
+};
