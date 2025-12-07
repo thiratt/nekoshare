@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { FriendsUI } from "@workspace/app-ui/components/ui/friends";
+import { FriendsUI } from "@workspace/app-ui/components/ui/friends/index";
 
 export const Route = createFileRoute("/home/friends")({
   component: RouteComponent,
