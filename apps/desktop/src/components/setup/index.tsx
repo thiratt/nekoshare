@@ -18,6 +18,7 @@ import { Switch } from "@workspace/ui/components/switch";
 import { AnimatedContainer } from "@workspace/app-ui/components/provide-animate";
 
 import { useStore } from "@/hooks/useStore";
+import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
 const FOLDER_NAME = "Nekoshare";
 const DIALOG_TITLE = "Select Save Location";
@@ -136,6 +137,13 @@ function SetupApplicationUI({
 
     try {
       console.log("Saving settings:", { finalPath, createSubfolder });
+      const isPathExists = await exists(finalPath);
+
+      if (!isPathExists) {
+        // TODO: Request permission if needed
+        await mkdir(finalPath);
+      }
+
       await saveToStore("appConfig", {
         isSetup: true,
         fileLocation: finalPath,
