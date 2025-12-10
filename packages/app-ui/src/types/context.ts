@@ -8,10 +8,10 @@ export interface Router {
 export interface NekoShareContextType {
 	isGlobalLoading: boolean;
 	mode: Mode;
-	notification: NotificationStatus;
+	notificationStatus: NotificationStatus;
 	router: Router;
 	setGlobalLoading: (loading: boolean) => void;
 	setMode: (mode: Mode) => void;
-	setNotification: (status: NotificationStatus) => void;
+	setNotificationStatus: (status: NotificationStatus) => void;
 	toggleNotification: () => void;
 }

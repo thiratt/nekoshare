@@ -39,7 +39,7 @@ function RouteComponent() {
   const location = useLocation();
   const {
     isGlobalLoading,
-    notification,
+    notificationStatus,
     toggleNotification,
     setMode,
   } = useNekoShare();
@@ -57,14 +57,14 @@ function RouteComponent() {
         icon: <LuBell />,
         onClick: () => toggleNotification(),
         badge: true,
-        actived: notification === "on",
+        actived: notificationStatus === "on",
       },
       {
         icon: <LuSettings />,
         onClick: () => setMode("settings"),
       },
     ],
-    [notification, theme],
+    [notificationStatus, theme],
   );
 
   const handleSetupComplete = () => {

@@ -6,10 +6,10 @@ import { AnimatePresence, motion } from "motion/react";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 
 export function NotificationSidebar() {
-	const { notification, setNotification } = useNekoShare();
+	const { notificationStatus, setNotificationStatus } = useNekoShare();
 	return (
 		<AnimatePresence mode="wait">
-			{notification === "on" && (
+			{notificationStatus === "on" && (
 				<motion.div
 					key="sidebar"
 					initial={{ width: 0, opacity: 0 }}
@@ -19,7 +19,7 @@ export function NotificationSidebar() {
 				>
 					<div className="flex items-center justify-between px-4">
 						<h3 className="font-bold text-xl truncate">Notifications</h3>
-						<Button size="icon" onClick={() => setNotification("off")} className="group rounded-full">
+						<Button size="icon" onClick={() => setNotificationStatus("off")} className="group rounded-full">
 							<LuX className="rotate-0 transition-transform group-hover:rotate-90 duration-200" />
 						</Button>
 					</div>

@@ -45,28 +45,28 @@ interface NekoShareProviderProps<TRouter extends Router = Router> {
 }
 
 const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoShareProviderProps<TRouter>) => {
-	const [isGlobalLoading, setGlobalLoading] = useState(true);
+	const [isGlobalLoading, setIsGlobalLoading] = useState(true);
 	const [mode, setMode] = useState<Mode>("home");
-	const [notification, setNotification] = useState<NotificationStatus>("off");
+	const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>("off");
 	const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 	const toggleNotification = useCallback(() => {
-		setNotification((prev) => (prev === "on" ? "off" : "on"));
+		setNotificationStatus((previousStatus) => (previousStatus === "on" ? "off" : "on"));
 	}, []);
 
-	const handleSetGlobalLoading = useCallback((loading: boolean) => {
+	const handleSetGlobalLoading = useCallback((isLoading: boolean) => {
 		if (loadingTimeoutRef.current) {
 			clearTimeout(loadingTimeoutRef.current);
 			loadingTimeoutRef.current = null;
 		}
 
-		if (loading) {
+		if (isLoading) {
 			requestAnimationFrame(() => {
-				setGlobalLoading(loading);
+				setIsGlobalLoading(isLoading);
 			});
 		} else {
 			loadingTimeoutRef.current = setTimeout(() => {
-				setGlobalLoading(loading);
+				setIsGlobalLoading(isLoading);
 				loadingTimeoutRef.current = null;
 			}, 300);
 		}
@@ -77,24 +77,24 @@ const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoSha
 	}, []);
 
 	const handleSetNotification = useCallback((status: NotificationStatus) => {
-		setNotification(status);
+		setNotificationStatus(status);
 	}, []);
 
 	const contextValue = useMemo<NekoShareContextType>(
 		() => ({
 			isGlobalLoading,
 			mode,
-			notification,
+			notificationStatus,
 			router,
 			setGlobalLoading: handleSetGlobalLoading,
 			setMode: handleSetMode,
-			setNotification: handleSetNotification,
+			setNotificationStatus: handleSetNotification,
 			toggleNotification,
 		}),
 		[
 			isGlobalLoading,
 			mode,
-			notification,
+			notificationStatus,
 			router,
 			handleSetGlobalLoading,
 			handleSetMode,
@@ -103,20 +103,20 @@ const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoSha
 		]
 	);
 
-	const isHome = mode === "home";
-	const contentAnimateState = isHome ? CONTENT_SCALE_ACTIVE : CONTENT_SCALE_INACTIVE;
+	const isHomeMode = mode === "home";
+	const contentAnimationState = isHomeMode ? CONTENT_SCALE_ACTIVE : CONTENT_SCALE_INACTIVE;
 
 	useEffect(() => {
-		let mounted = true;
-		const init = async () => {
+		let isMounted = true;
+		const initializeApp = async () => {
 			await new Promise((resolve) => setTimeout(resolve, 1000));
-			if (mounted) {
-				setGlobalLoading(false);
+			if (isMounted) {
+				setIsGlobalLoading(false);
 			}
 		};
-		init();
+		initializeApp();
 		return () => {
-			mounted = false;
+			isMounted = false;
 		};
 	}, []);
 
@@ -126,13 +126,13 @@ const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoSha
 				<motion.div
 					className="h-full will-change-transform"
 					initial={false}
-					animate={contentAnimateState}
+					animate={contentAnimationState}
 					transition={SPRING_TRANSITION}
 				>
 					{children}
 				</motion.div>
 				<AnimatePresence mode="wait">
-					{!isHome && (
+					{!isHomeMode && (
 						<motion.div
 							key="settings-overlay"
 							className="absolute inset-0 z-10"
