@@ -196,7 +196,7 @@ function formatDate(isoString: string) {
 
 const ITEMS_PER_PAGE = 10;
 
-export function HomeUI({ onItemClick, onItemReveal, data, loading: externalLoading }: HomeProps) {
+export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading: externalLoading }: HomeProps) {
 	const { items, loading, refreshData, setItems } = useShareData(data, externalLoading);
 
 	const [deleteItemDialog, setDeleteItemDialog] = useState<DeleteItemDialog | null>(null);
@@ -544,9 +544,9 @@ export function HomeUI({ onItemClick, onItemReveal, data, loading: externalLoadi
 						<AlertDialogCancel>ยกเลิก</AlertDialogCancel>
 						<AlertDialogAction
 							className={buttonVariants({ variant: "destructive" })}
-							onClick={() => {
+							onClick={async () => {
 								if (deleteItemDialog) {
-									setItems((prev) => prev.filter((item) => item.id !== deleteItemDialog.id));
+									await onItemRemove(deleteItemDialog.id);
 									setDeleteItemDialog(null);
 								}
 							}}

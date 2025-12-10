@@ -24,6 +24,7 @@ export interface ShareItem {
 export interface HomeProps {
 	onItemClick: (id: number) => void;
 	onItemReveal: (id: number) => void;
+	onItemRemove: (id: number) => Promise<void>;
 	onBulkDelete: (ids: number[]) => void;
 	data: FileData[];
 	loading?: boolean;
