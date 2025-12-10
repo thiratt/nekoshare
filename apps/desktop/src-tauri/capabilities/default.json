@@ -44,6 +44,14 @@
         }
       ]
     },
+    {
+      "identifier": "fs:allow-remove",
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
+    },
     "store:default",
     "dialog:default",
     "opener:default",

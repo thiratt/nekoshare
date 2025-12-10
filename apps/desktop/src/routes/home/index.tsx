@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { remove } from "@tauri-apps/plugin-fs";
 
 import { useFiles } from "@/hooks/useFiles";
 import { HomeUI } from "@workspace/app-ui/components/ui/home";
@@ -9,7 +10,7 @@ export const Route = createFileRoute("/home/")({
 });
 
 function RouteComponent() {
-  const { files, directoryPath, loading } = useFiles();
+  const { files, directoryPath, loading, refresh } = useFiles();
 
   return (
     <HomeUI
@@ -20,6 +21,17 @@ function RouteComponent() {
         const file = files.find((_, index) => index + 1 === id);
         if (file && directoryPath) {
           await revealItemInDir(file.path);
+        }
+      }}
+      onItemRemove={async (id) => {
+        const file = files.find((_, index) => index + 1 === id);
+        if (file) {
+          try {
+            await remove(file.path, { recursive: file.isDirectory });
+            await refresh();
+          } catch (error) {
+            console.error("Failed to delete file:", error);
+          }
         }
       }}
       onBulkDelete={(ids) => {
