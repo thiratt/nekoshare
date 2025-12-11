@@ -1,6 +1,9 @@
 import { createContext, useContext, useState, useMemo, useCallback, useRef, type ReactNode, useEffect } from "react";
-import LoadingOverlay from "@workspace/app-ui/components/global-loading";
+
 import { AnimatePresence, motion, type Transition, type Variants } from "motion/react";
+
+import { Toaster } from "@workspace/ui/components/sonner";
+import LoadingOverlay from "@workspace/app-ui/components/global-loading";
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
 import type { Mode, NotificationStatus, NekoShareContextType, Router } from "@workspace/app-ui/types/context";
 
@@ -158,6 +161,7 @@ const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoSha
 				</AnimatePresence>
 			</div>
 			<AnimatePresence>{isGlobalLoading && <LoadingOverlay key="global-loading-overlay" />}</AnimatePresence>
+			<Toaster />
 		</NekoShareContext.Provider>
 	);
 };
