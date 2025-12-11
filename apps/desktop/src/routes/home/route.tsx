@@ -37,12 +37,8 @@ interface AppConfig {
 function RouteComponent() {
   const [isSetup, setIsSetup] = useState<boolean>(false);
   const location = useLocation();
-  const {
-    isGlobalLoading,
-    notificationStatus,
-    toggleNotification,
-    setMode,
-  } = useNekoShare();
+  const { isGlobalLoading, notificationStatus, toggleNotification, setMode } =
+    useNekoShare();
   const { theme, setTheme } = useTheme();
   const { get } = useStore();
 
@@ -95,6 +91,7 @@ function RouteComponent() {
               linkComponent={Link}
               pathname={location.pathname}
               mode="desktop"
+              collapseWhenNotificationOpen={notificationStatus === "on"}
             />
             <div className="flex-1 bg-muted p-4">
               <Outlet />
