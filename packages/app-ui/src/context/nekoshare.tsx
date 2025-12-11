@@ -161,7 +161,7 @@ const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoSha
 				</AnimatePresence>
 			</div>
 			<AnimatePresence>{isGlobalLoading && <LoadingOverlay key="global-loading-overlay" />}</AnimatePresence>
-			<Toaster />
+			<Toaster richColors position="top-right" offset={{top: "3rem"}}/>
 		</NekoShareContext.Provider>
 	);
 };
