@@ -3,7 +3,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { remove } from "@tauri-apps/plugin-fs";
 
 import { useFiles } from "@/hooks/useFiles";
-import { HomeUI } from "@workspace/app-ui/components/ui/home";
+import { HomeUI } from "@workspace/app-ui/components/ui/home/index";
 
 export const Route = createFileRoute("/home/")({
   component: RouteComponent,
