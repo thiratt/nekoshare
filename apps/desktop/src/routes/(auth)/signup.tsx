@@ -1,4 +1,5 @@
 import { authClient, invalidateSessionCache } from "@/lib/auth";
+import { registerDevice } from "@/lib/device";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 
 import { SignupCard } from "@workspace/app-ui/components/signup-card";
@@ -25,7 +26,12 @@ function RouteComponent() {
     }
     invalidateSessionCache();
 
-    router.navigate({ to: "/home", replace: true });
+    try {
+      await registerDevice();
+      await router.navigate({ to: "/home", replace: true });
+    } catch (error) {
+      console.error("Failed to register device:", error);
+    }
   };
   return <SignupCard linkComponent={Link} onSubmit={onSubmit} />;
 }
