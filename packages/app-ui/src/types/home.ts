@@ -12,13 +12,17 @@ export interface FileData {
 
 export interface ShareItem {
 	id: number;
-	type: "text" | "file";
-	content: string;
-	fileName?: string;
-	fileSize?: string;
-	deviceName: string;
-	timestamp: string;
+	name: string;
+	from: "me" | "buddy";
+	device: string | null;
+	friendName?: string;
 	status: Status;
+	uploadedAt: string;
+	isReaded: boolean;
+	canDownload: boolean;
+	size?: string;
+	type?: string;
+	sharedWith?: number;
 }
 
 export interface HomeProps {
