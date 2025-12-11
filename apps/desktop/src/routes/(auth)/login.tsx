@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 
+import { useToast } from "@workspace/ui/hooks/use-toast";
 import { LoginCard } from "@workspace/app-ui/components/login-card";
 import { authClient, invalidateSessionCache } from "@workspace/app-ui/lib/auth";
 import type { TLoginSchema } from "@workspace/app-ui/types/schema";
@@ -13,6 +14,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function RouteComponent() {
   const router = useRouter();
+  const { toast } = useToast();
 
   const onGoogle = async () => {
     try {
@@ -37,6 +39,7 @@ function RouteComponent() {
 
     if (result.error) {
       console.error("Login error:", result.error.message);
+      toast.error(result.error.message ?? "เข้าสู่ระบบไม่สำเร็จ");
       throw new Error(result.error.message ?? "เข้าสู่ระบบไม่สำเร็จ");
     }
 
@@ -46,6 +49,10 @@ function RouteComponent() {
       await registerDevice();
       await router.navigate({ to: "/home" });
     } catch (error) {
+      toast.error(
+        "Failed to register device: " +
+          (error instanceof Error ? error.message : String(error)),
+      );
       console.error("Failed to register device:", error);
     }
   };

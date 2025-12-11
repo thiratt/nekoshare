@@ -1,9 +1,10 @@
-import { authClient, invalidateSessionCache } from "@/lib/auth";
-import { registerDevice } from "@/lib/device";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 
+import { useToast } from "@workspace/ui/hooks/use-toast";
 import { SignupCard } from "@workspace/app-ui/components/signup-card";
 import type { TSignupSchema } from "@workspace/app-ui/types/schema";
+import { authClient, invalidateSessionCache } from "@/lib/auth";
+import { registerDevice } from "@/lib/device";
 
 export const Route = createFileRoute("/(auth)/signup")({
   component: RouteComponent,
@@ -11,6 +12,8 @@ export const Route = createFileRoute("/(auth)/signup")({
 
 function RouteComponent() {
   const router = useRouter();
+  const { toast } = useToast();
+
   const onSubmit = async (data: TSignupSchema) => {
     const { error } = await authClient.signUp.email({
       email: data.email,
@@ -20,8 +23,8 @@ function RouteComponent() {
     });
 
     if (error) {
+      toast.error(error.message ?? "สมัครสมาชิกไม่สำเร็จ");
       console.error("Signup error:", error);
-      alert(`Signup failed: ${error.message}`);
       return;
     }
     invalidateSessionCache();
