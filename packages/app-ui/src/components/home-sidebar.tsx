@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { LuChevronLeft, LuHouse, LuLogOut, LuMonitorSmartphone, LuType, LuUsers } from "react-icons/lu";
+import { LuChevronLeft, LuHouse, LuLogOut, LuMonitorSmartphone, LuUsers } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@workspace/ui/components/tooltip";
@@ -13,7 +13,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/av
 import {
 	DropdownMenu,
 	DropdownMenuContent,
-	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
@@ -27,6 +26,7 @@ interface HomeSidebarProps extends IncludeLinkComponentProps {
 	onSettings?: () => Promise<void>;
 	onNotifications?: () => void;
 	onSignout?: () => Promise<void>;
+	collapseWhenNotificationOpen?: boolean;
 }
 
 interface SidebarButtonProps {
@@ -62,9 +62,18 @@ const SidebarButton = ({ label, link, icon: Icon, isActive, isOpen, linkComponen
 	return <div key={link}>{content}</div>;
 };
 
-export function HomeSidebar({ linkComponent, pathname, mode = "website", onSignout }: HomeSidebarProps) {
+export function HomeSidebar({
+	linkComponent,
+	pathname,
+	mode = "website",
+	onSignout,
+	collapseWhenNotificationOpen = false,
+}: HomeSidebarProps) {
 	const { isOpen, toggleSidebar } = useSidebar();
 	const { setMode, toggleNotification } = useNekoShare();
+
+	// Force collapse when notification sidebar is open
+	const effectiveIsOpen = collapseWhenNotificationOpen ? false : isOpen;
 
 	const sidebarLink = useMemo(
 		() => [
@@ -119,23 +128,33 @@ export function HomeSidebar({ linkComponent, pathname, mode = "website", onSigno
 			<aside
 				className={cn(
 					"relative flex flex-col py-4 pb-12 border-r duration-300 px-4.5",
-					isOpen ? "w-52 xl:w-64" : "w-20"
+					effectiveIsOpen ? "w-52 xl:w-64" : "w-20"
 				)}
 			>
 				{mode === "desktop" && (
-					<div className={cn("absolute flex items-center transition-[margin] -right-4", !isOpen && "")}>
-						<Button className="h-8 w-8 rounded-full" size="icon" onClick={toggleSidebar}>
-							<LuChevronLeft className={isOpen ? "rotate-180" : "rotate-0"} />
+					<div
+						className={cn(
+							"absolute flex items-center transition-[margin] -right-4",
+							!effectiveIsOpen && ""
+						)}
+					>
+						<Button
+							className="h-8 w-8 rounded-full"
+							size="icon"
+							onClick={toggleSidebar}
+							disabled={collapseWhenNotificationOpen}
+						>
+							<LuChevronLeft className={effectiveIsOpen ? "rotate-180" : "rotate-0"} />
 						</Button>
 					</div>
 				)}
 				<nav className="flex-1 flex flex-col">
 					{mode === "website" && (
-						<div className={cn("flex items-center transition-[margin] mb-4", !isOpen && "ms-2")}>
+						<div className={cn("flex items-center transition-[margin] mb-4", !effectiveIsOpen && "ms-2")}>
 							<Button size="icon" onClick={toggleSidebar} className="h-8 w-8 rounded-full">
-								<LuChevronLeft className={isOpen ? "rotate-180" : "rotate-0"} />
+								<LuChevronLeft className={effectiveIsOpen ? "rotate-180" : "rotate-0"} />
 							</Button>
-							{isOpen && <h3 className="ms-2 font-bold text-xl truncate">NekoShare</h3>}
+							{effectiveIsOpen && <h3 className="ms-2 font-bold text-xl truncate">NekoShare</h3>}
 						</div>
 					)}
 					<div className="space-y-1 flex flex-col">
@@ -146,7 +165,7 @@ export function HomeSidebar({ linkComponent, pathname, mode = "website", onSigno
 								link={item.link}
 								icon={item.icon}
 								isActive={normalizePath === item.link}
-								isOpen={isOpen}
+								isOpen={effectiveIsOpen}
 								linkComponent={linkComponent}
 							/>
 						))}
@@ -165,7 +184,7 @@ export function HomeSidebar({ linkComponent, pathname, mode = "website", onSigno
 												<AvatarImage src="https://github.com/evilrabbit.png" alt="Thiratcha" />
 												<AvatarFallback className="rounded-lg">TM</AvatarFallback>
 											</Avatar>
-											{isOpen && (
+											{effectiveIsOpen && (
 												<div className="grid flex-1 text-left text-sm leading-tight">
 													<span className="truncate font-medium">Thiratcha</span>
 													<span className="truncate text-xs">66011212181@msu.ac.th</span>
