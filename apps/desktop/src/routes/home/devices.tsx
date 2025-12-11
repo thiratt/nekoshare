@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { invoke } from "@tauri-apps/api/core";
 
-import { DevicesUI } from "@workspace/app-ui/components/ui/devices";
+import { DevicesUI } from "@workspace/app-ui/components/ui/devices/index";
 import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
 
 export const Route = createFileRoute("/home/devices")({
