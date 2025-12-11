@@ -1,12 +1,12 @@
-import { toast } from "sonner";
+import { toast as sonnerToast } from "sonner";
 
 interface UseToastReturn {
-  toasts: typeof toast;
+	toast: typeof sonnerToast;
 }
 
 const useToast = (): UseToastReturn => {
 	return {
-		toasts: toast,
+		toast: sonnerToast,
 	};
 };
 
