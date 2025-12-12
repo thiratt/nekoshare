@@ -8,6 +8,7 @@ function requireEnvVar(name: string): string {
 
 const env = {
 	PORT: Number(process.env.PORT) || 7780,
+	SOCKET_PORT: Number(process.env.SOCKET_PORT) || 7781,
 
 	// MAIL_SERVER_KEY: requireEnvVar("MAIL_SERVER_KEY"),
 
