@@ -20,7 +20,7 @@ export function createApp() {
 	app.use(
 		"*",
 		cors({
-			origin: "http://localhost:7783",
+			origin: "http://localhost:7787",
 			allowHeaders: ["Content-Type", "Authorization"],
 			allowMethods: ["GET", "HEAD", "PUT", "POST", "PATCH", "DELETE", "OPTIONS"],
 			exposeHeaders: ["Content-Length"],

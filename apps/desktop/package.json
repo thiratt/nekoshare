@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
-    "dev:w": "vite --port 7783",
+    "dev:w": "vite --port 7787",
     "build": "vite build && tsc",
     "serve": "vite preview",
     "test": "vitest run",

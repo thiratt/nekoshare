@@ -38,7 +38,7 @@ export const pluginsOptions = [
 
 export const trustedOriginsOptions: BetterAuthOptions["trustedOrigins"] = [
 	"http://localhost:7780",
-	"http://localhost:7783",
+	"http://localhost:7787",
 ];
 
 // export const sessionOptions: BetterAuthOptions["session"] = {
