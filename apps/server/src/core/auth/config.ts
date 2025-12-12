@@ -3,6 +3,7 @@ import { username } from "better-auth/plugins";
 
 import { env } from "@/config/env";
 import { hashPassword, verifyPassword } from "@/core/crypto/hash";
+import { Logger } from "../logger";
 
 const RESERVED_USERNAMES = ["admin", "dev", "system", "root", "nekoshare"] as const;
 
@@ -40,6 +41,13 @@ export const trustedOriginsOptions: BetterAuthOptions["trustedOrigins"] = [
 	"http://localhost:7780",
 	"http://localhost:7787",
 ];
+
+export const loggerOptions: BetterAuthOptions["logger"] = {
+	level: env.NODE_ENV === "production" ? "info" : "debug",
+	log(level, message, ...args) {
+		Logger[level]("App (Better Auth)", message, ...args);
+	},
+};
 
 // export const sessionOptions: BetterAuthOptions["session"] = {
 // 	cookieCache: {

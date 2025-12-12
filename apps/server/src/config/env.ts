@@ -7,6 +7,8 @@ function requireEnvVar(name: string): string {
 }
 
 const env = {
+	NODE_ENV: process.env.NODE_ENV || "development",
+	
 	PORT: Number(process.env.PORT) || 7780,
 	SOCKET_PORT: Number(process.env.SOCKET_PORT) || 7781,
 

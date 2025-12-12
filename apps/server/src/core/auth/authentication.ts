@@ -4,7 +4,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/adapters/db";
 import { userPreference } from "@/adapters/db/schemas";
 
-import { emailAndPasswordOptions, pluginsOptions, socialProvidersOptions, trustedOriginsOptions } from "./config";
+import { emailAndPasswordOptions, loggerOptions, pluginsOptions, socialProvidersOptions, trustedOriginsOptions } from "./config";
 
 export const auth = betterAuth({
 	appName: "Nekoshare",
@@ -32,6 +32,7 @@ export const auth = betterAuth({
 	socialProviders: socialProvidersOptions,
 	plugins: pluginsOptions,
 	trustedOrigins: trustedOriginsOptions,
+	logger: loggerOptions,
 });
 
 export type AuthType = {
