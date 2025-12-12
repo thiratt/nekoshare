@@ -16,9 +16,8 @@ import { CategoryButton } from "./components";
 import { LogoutDialog } from "./dialogs";
 import { CONTENT_VARIANTS, OVERLAY_VARIANTS, CONTENT_TRANSITION, OVERLAY_TRANSITION } from "./animations";
 
-
 export function SettingsUI() {
-	const { router, setMode, currentDeviceId } = useNekoShare();
+	const { router, setMode, setGlobalLoading, currentDeviceId } = useNekoShare();
 	const [activeCategory, setActiveCategory] = useState<SettingCategory>("account");
 	const [confirmLogout, setConfirmLogout] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -54,6 +53,8 @@ export function SettingsUI() {
 	}, []);
 
 	const onLogout = useCallback(async () => {
+		setGlobalLoading(true);
+
 		try {
 			if (currentDeviceId) {
 				await deleteDevice(currentDeviceId);
@@ -72,6 +73,8 @@ export function SettingsUI() {
 				},
 			},
 		});
+
+		// setGlobalLoading(false);
 	}, [router, setMode, currentDeviceId]);
 
 	useEffect(() => {
