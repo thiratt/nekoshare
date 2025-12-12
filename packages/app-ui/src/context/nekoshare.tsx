@@ -45,9 +45,10 @@ const CONTENT_SCALE_INACTIVE = { scale: 0.97, y: -10 };
 interface NekoShareProviderProps<TRouter extends Router = Router> {
 	router: TRouter;
 	children: ReactNode;
+	currentDeviceId?: string;
 }
 
-const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoShareProviderProps<TRouter>) => {
+const NekoShareProvider = <TRouter extends Router>({ router, children, currentDeviceId }: NekoShareProviderProps<TRouter>) => {
 	const [isGlobalLoading, setIsGlobalLoading] = useState(true);
 	const [mode, setMode] = useState<Mode>("home");
 	const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>("off");
@@ -89,6 +90,7 @@ const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoSha
 			mode,
 			notificationStatus,
 			router,
+			currentDeviceId: currentDeviceId ?? router.options?.context?.currentDeviceId,
 			setGlobalLoading: handleSetGlobalLoading,
 			setMode: handleSetMode,
 			setNotificationStatus: handleSetNotification,
@@ -99,6 +101,7 @@ const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoSha
 			mode,
 			notificationStatus,
 			router,
+			currentDeviceId,
 			handleSetGlobalLoading,
 			handleSetMode,
 			handleSetNotification,
@@ -161,7 +164,7 @@ const NekoShareProvider = <TRouter extends Router>({ router, children }: NekoSha
 				</AnimatePresence>
 			</div>
 			<AnimatePresence>{isGlobalLoading && <LoadingOverlay key="global-loading-overlay" />}</AnimatePresence>
-			<Toaster richColors position="top-right" offset={{top: "3rem"}}/>
+			<Toaster richColors position="top-right" offset={{ top: "3rem" }} />
 		</NekoShareContext.Provider>
 	);
 };

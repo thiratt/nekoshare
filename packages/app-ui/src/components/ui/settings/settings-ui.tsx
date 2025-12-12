@@ -8,6 +8,7 @@ import { SearchInput } from "@workspace/ui/components/search-input";
 
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import { authClient, invalidateSessionCache } from "@workspace/app-ui/lib/auth";
+import { deleteDevice } from "@workspace/app-ui/lib/device-api";
 import type { SettingCategory } from "@workspace/app-ui/types/settings";
 
 import { SETTING_CATEGORIES, CATEGORY_MAP, CONTENT_COMPONENTS } from "./constants";
@@ -15,8 +16,9 @@ import { CategoryButton } from "./components";
 import { LogoutDialog } from "./dialogs";
 import { CONTENT_VARIANTS, OVERLAY_VARIANTS, CONTENT_TRANSITION, OVERLAY_TRANSITION } from "./animations";
 
+
 export function SettingsUI() {
-	const { router, setMode } = useNekoShare();
+	const { router, setMode, currentDeviceId } = useNekoShare();
 	const [activeCategory, setActiveCategory] = useState<SettingCategory>("account");
 	const [confirmLogout, setConfirmLogout] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -52,6 +54,14 @@ export function SettingsUI() {
 	}, []);
 
 	const onLogout = useCallback(async () => {
+		try {
+			if (currentDeviceId) {
+				await deleteDevice(currentDeviceId);
+			}
+		} catch (error) {
+			console.error("Failed to delete device on logout:", error);
+		}
+
 		await authClient.signOut({
 			fetchOptions: {
 				onSuccess: () => {
@@ -62,7 +72,7 @@ export function SettingsUI() {
 				},
 			},
 		});
-	}, [router, setMode]);
+	}, [router, setMode, currentDeviceId]);
 
 	useEffect(() => {
 		if (!isEscapeEnabled) return;

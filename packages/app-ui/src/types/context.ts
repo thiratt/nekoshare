@@ -3,6 +3,11 @@ export type NotificationStatus = "on" | "off";
 
 export interface Router {
 	navigate: (opts: any) => any;
+	options: {
+		context?: {
+			currentDeviceId?: string;
+		};
+	};
 }
 
 export interface NekoShareContextType {
@@ -10,6 +15,7 @@ export interface NekoShareContextType {
 	mode: Mode;
 	notificationStatus: NotificationStatus;
 	router: Router;
+	currentDeviceId?: string;
 	setGlobalLoading: (loading: boolean) => void;
 	setMode: (mode: Mode) => void;
 	setNotificationStatus: (status: NotificationStatus) => void;
