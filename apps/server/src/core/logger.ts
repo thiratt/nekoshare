@@ -1,3 +1,11 @@
+enum LogColor {
+	ERROR = "\x1b[31m", // Red
+	WARN = "\x1b[33m", // Yellow
+	INFO = "\x1b[32m", // Green
+	DEBUG = "\x1b[34m", // Blue
+	RESET = "\x1b[0m", // Reset
+}
+
 export enum LogLevel {
 	ERROR = "ERROR",
 	WARN = "WARN",
@@ -24,7 +32,7 @@ export class Logger {
 
 	private static formatMessage(level: LogLevel, component: string, message: string, data?: unknown): string {
 		const timestamp = new Date().toISOString();
-		const prefix = `[${timestamp}] [${level}] [${component}]`;
+		const prefix = `[${timestamp}] [${LogColor[level]}${level}${LogColor.RESET}] [${component}]`;
 
 		if (data !== undefined) {
 			return `${prefix} ${message} ${JSON.stringify(data)}`;
