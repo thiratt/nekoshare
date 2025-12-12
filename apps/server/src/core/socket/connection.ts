@@ -1,7 +1,7 @@
 import type { Socket } from "net";
 import type { ConnectionState, ServerConfig, UploadStats } from "./types";
 import { MAX_BUFFER_SIZE, RELAY_COMMANDS, RESPONSES, MESSAGE_TYPES } from "./constants";
-import { Logger } from "./utils";
+import { Logger } from "../logger";
 import { handleJsonRequest, handleFileData, processJsonFromBuffer, handleRelayCommand } from "./handlers";
 import type { RelayManager } from "./relay";
 

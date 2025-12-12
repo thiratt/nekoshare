@@ -140,9 +140,4 @@ export const DEFAULT_CONFIG: ServerConfig = {
 	allowedExtensions: ALLOWED_EXTENSIONS,
 };
 
-export enum LogLevel {
-	ERROR = "ERROR",
-	WARN = "WARN",
-	INFO = "INFO",
-	DEBUG = "DEBUG",
-}
+export { LogLevel } from "../logger";

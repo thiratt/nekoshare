@@ -3,7 +3,6 @@ import * as path from "path";
 import type { ClientRequest, ConnectionState, ServerConfig } from "./types";
 import { RELAY_COMMANDS, RESPONSES, MESSAGE_TYPES, DELIMITERS } from "./constants";
 import {
-	Logger,
 	validateClientRequest,
 	isValidFileExtension,
 	isValidFileSize,
@@ -11,6 +10,7 @@ import {
 	createErrorResponse,
 	formatBytes,
 } from "./utils";
+import { Logger } from "../logger";
 import type { RelayManager } from "./relay";
 
 export async function handleJsonRequest(

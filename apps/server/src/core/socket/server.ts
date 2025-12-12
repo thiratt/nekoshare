@@ -2,7 +2,8 @@ import { createServer, Server as NetServer } from "net";
 import * as fs from "fs";
 import type { ServerConfig } from "./types";
 import { DEFAULT_CONFIG, RESPONSES } from "./constants";
-import { Logger, formatDuration, formatBytes } from "./utils";
+import { Logger } from "../logger";
+import { formatDuration, formatBytes } from "./utils";
 import { ConnectionManager } from "./connection";
 import { RelayManager } from "./relay";
 
@@ -28,9 +29,9 @@ export class TCPFileServer {
 		if (!fs.existsSync(this.config.uploadDir)) {
 			try {
 				fs.mkdirSync(this.config.uploadDir, { recursive: true });
-				Logger.info("Server", `Created upload directory: ${this.config.uploadDir}`);
+				Logger.info("TCP", `Created upload directory: ${this.config.uploadDir}`);
 			} catch (error) {
-				Logger.error("Server", `Failed to create upload directory: ${this.config.uploadDir}`, error);
+				Logger.error("TCP", `Failed to create upload directory: ${this.config.uploadDir}`, error);
 				throw error;
 			}
 		}
@@ -41,7 +42,7 @@ export class TCPFileServer {
 			try {
 				this.server = createServer((socket) => {
 					if (!this.connectionManager.canAcceptConnection()) {
-						Logger.warn("Server", `Connection rejected - max connections reached`, {
+						Logger.warn("TCP", `Connection rejected - max connections reached`, {
 							maxConnections: this.config.maxConnections,
 						});
 						socket.write(RESPONSES.SERVER_BUSY);
@@ -55,17 +56,17 @@ export class TCPFileServer {
 				});
 
 				this.server.on("error", (error) => {
-					Logger.error("Server", "Server error", error);
+					Logger.error("TCP", "Server error", error);
 					reject(error);
 				});
 
 				this.server.listen(this.config.port, () => {
 					this.startTime = new Date();
-					Logger.info("Server", `TCP Server started on port ${this.config.port}`);
+					Logger.info("TCP", `TCP Server started on port ${this.config.port}`);
 					resolve();
 				});
 			} catch (error) {
-				Logger.error("Server", "Failed to start server", error);
+				Logger.error("TCP", "Failed to start server", error);
 				reject(error);
 			}
 		});
@@ -78,17 +79,17 @@ export class TCPFileServer {
 				return;
 			}
 
-			Logger.info("Server", "Stopping server...");
+			Logger.info("TCP", "Stopping server...");
 
 			this.relayManager.cleanup();
 			this.connectionManager.cleanup();
 			this.server.close((error) => {
 				if (error) {
-					Logger.error("Server", "Error stopping server", error);
+					Logger.error("TCP", "Error stopping server", error);
 					reject(error);
 				} else {
 					const stats = this.getStats();
-					Logger.info("Server", "Server stopped", stats);
+					Logger.info("TCP", "Server stopped", stats);
 					this.server = null;
 					resolve();
 				}

@@ -1,7 +1,6 @@
 export { TCPFileServer } from "./server";
 export { ConnectionManager } from "./connection";
 export { RelayManager } from "./relay";
-export { Logger } from "./utils";
 export * from "./types";
 export {
 	PROTOCOL_VERSION,
@@ -15,7 +14,7 @@ export {
 
 import { TCPFileServer } from "./server";
 import { DEFAULT_CONFIG } from "./constants";
-import { Logger } from "./utils";
+import { Logger } from "../logger";
 
 export async function startSocketServer(): Promise<TCPFileServer> {
 	const server = new TCPFileServer(DEFAULT_CONFIG);
