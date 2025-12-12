@@ -112,20 +112,6 @@ const NekoShareProvider = <TRouter extends Router>({ router, children, currentDe
 	const isHomeMode = mode === "home";
 	const contentAnimationState = isHomeMode ? CONTENT_SCALE_ACTIVE : CONTENT_SCALE_INACTIVE;
 
-	useEffect(() => {
-		let isMounted = true;
-		const initializeApp = async () => {
-			await new Promise((resolve) => setTimeout(resolve, 1000));
-			if (isMounted) {
-				setIsGlobalLoading(false);
-			}
-		};
-		initializeApp();
-		return () => {
-			isMounted = false;
-		};
-	}, []);
-
 	return (
 		<NekoShareContext.Provider value={contextValue}>
 			<div className="relative h-screen overflow-hidden">
