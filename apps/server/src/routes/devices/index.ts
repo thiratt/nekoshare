@@ -15,10 +15,10 @@ import {
 const app = new Hono<{ Variables: AuthenticatedType }>();
 
 app.get("/", async (c) => {
-	const user = c.get("user");
+	const session = c.get("session");
 
 	const devices = await db.query.device.findMany({
-		where: (devices) => eq(devices.userId, user.id),
+		where: (devices) => eq(devices.sessionId, session.id),
 	});
 
 	return c.json(
@@ -30,7 +30,7 @@ app.get("/", async (c) => {
 });
 
 app.post("/register", async (c) => {
-	const user = c.get("user");
+	const session = c.get("session");
 	const body = await c.req.json<DeviceRegistrationRequest>();
 
 	if (!body.id || !body.name || !body.platform || !body.publicKey) {
@@ -38,7 +38,7 @@ app.post("/register", async (c) => {
 	}
 
 	const existingDevice = await db.query.device.findFirst({
-		where: and(eq(device.id, body.id), eq(device.userId, user.id)),
+		where: and(eq(device.id, body.id), eq(device.sessionId, session.id)),
 	});
 
 	if (existingDevice) {
@@ -70,7 +70,7 @@ app.post("/register", async (c) => {
 
 	await db.insert(device).values({
 		id: body.id,
-		userId: user.id,
+		sessionId: session.id,
 		name: body.name,
 		platform: body.platform,
 		publicKey: body.publicKey,
@@ -95,12 +95,12 @@ app.post("/register", async (c) => {
 });
 
 app.patch("/:id", async (c) => {
-	const user = c.get("user");
+	const session = c.get("session");
 	const deviceId = c.req.param("id");
 	const body = await c.req.json<{ name?: string }>();
 
 	const existingDevice = await db.query.device.findFirst({
-		where: and(eq(device.id, deviceId), eq(device.userId, user.id)),
+		where: and(eq(device.id, deviceId), eq(device.sessionId, session.id)),
 	});
 
 	if (!existingDevice) {
@@ -122,11 +122,11 @@ app.patch("/:id", async (c) => {
 });
 
 app.delete("/:id", async (c) => {
-	const user = c.get("user");
+	const session = c.get("session");
 	const deviceId = c.req.param("id");
 
 	const existingDevice = await db.query.device.findFirst({
-		where: and(eq(device.id, deviceId), eq(device.userId, user.id)),
+		where: and(eq(device.id, deviceId), eq(device.sessionId, session.id)),
 	});
 
 	if (!existingDevice) {

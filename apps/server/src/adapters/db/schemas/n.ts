@@ -14,9 +14,12 @@ export const userPreference = mysqlTable("user_preference", {
 
 export const device = mysqlTable("device", {
 	id: varchar("id", { length: 36 }).primaryKey(),
-	userId: varchar("user_id", { length: 36 })
+	sessionId: varchar("session_id", { length: 36 })
 		.notNull()
-		.references(() => user.id, { onDelete: "cascade" }),
+		.references(() => session.id, { onDelete: "cascade" }),
+	// userId: varchar("user_id", { length: 36 })
+	// 	.notNull()
+	// 	.references(() => user.id, { onDelete: "cascade" }),
 	name: varchar("name", { length: 255 }).notNull(),
 	platform: mysqlEnum("platform", ["android", "windows", "web", "other"]).notNull(),
 	publicKey: text("public_key").notNull(),
@@ -100,9 +103,9 @@ export const userRelations = relations(user, ({ many, one }) => ({
 }));
 
 export const deviceRelations = relations(device, ({ one }) => ({
-	user: one(user, {
-		fields: [device.userId],
-		references: [user.id],
+	session: one(session, {
+		fields: [device.sessionId],
+		references: [session.id],
 	}),
 }));
 
