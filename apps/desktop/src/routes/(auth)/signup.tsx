@@ -5,6 +5,7 @@ import { SignupCard } from "@workspace/app-ui/components/signup-card";
 import type { TSignupSchema } from "@workspace/app-ui/types/schema";
 import { authClient, invalidateSessionCache } from "@/lib/auth";
 import { registerDevice } from "@/lib/device";
+import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 
 export const Route = createFileRoute("/(auth)/signup")({
   component: RouteComponent,
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/(auth)/signup")({
 
 function RouteComponent() {
   const router = useRouter();
+  const { setGlobalLoading } = useNekoShare();
   const { toast } = useToast();
 
   const onSubmit = async (data: TSignupSchema) => {
@@ -30,6 +32,7 @@ function RouteComponent() {
     invalidateSessionCache();
 
     try {
+      setGlobalLoading(true);
       await registerDevice();
       await router.navigate({ to: "/home", replace: true });
     } catch (error) {

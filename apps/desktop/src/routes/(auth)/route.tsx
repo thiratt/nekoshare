@@ -1,6 +1,8 @@
 import { DesktopTitlebar } from "@/components/navbar";
 import { getCachedSession } from "@/lib/auth";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/(auth)")({
   async beforeLoad() {
@@ -13,6 +15,12 @@ export const Route = createFileRoute("/(auth)")({
 });
 
 function RouteComponent() {
+  const { setGlobalLoading } = useNekoShare();
+
+  useEffect(() => {
+    setGlobalLoading(false);
+  }, []);
+
   return (
     <div className="h-screen flex flex-col">
       <DesktopTitlebar />

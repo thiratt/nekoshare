@@ -5,6 +5,7 @@ import { LoginCard } from "@workspace/app-ui/components/login-card";
 import { authClient, invalidateSessionCache } from "@workspace/app-ui/lib/auth";
 import type { TLoginSchema } from "@workspace/app-ui/types/schema";
 import { registerDevice } from "@/lib/device";
+import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 
 export const Route = createFileRoute("/(auth)/login")({
   component: RouteComponent,
@@ -14,6 +15,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function RouteComponent() {
   const router = useRouter();
+  const { setGlobalLoading } = useNekoShare();
   const { toast } = useToast();
 
   const onGoogle = async () => {
@@ -46,6 +48,7 @@ function RouteComponent() {
     invalidateSessionCache();
 
     try {
+      setGlobalLoading(true);
       await registerDevice();
       await router.navigate({ to: "/home" });
     } catch (error) {
