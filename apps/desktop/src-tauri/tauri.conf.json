@@ -18,7 +18,8 @@
         "minWidth": 1200,
         "minHeight": 700,
         "center": true,
-        "decorations": false
+        "decorations": false,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0 NekoshareDesktop/0.1.0"
       }
     ],
     "security": {
