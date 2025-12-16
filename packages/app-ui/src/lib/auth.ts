@@ -5,6 +5,21 @@ export const authClient = createAuthClient({
 	baseURL: "http://localhost:7780",
 	basePath: "/auth",
 	plugins: [usernameClient()],
+	$InferAuth: {
+		databaseHooks: {
+			session: {
+				create: {
+					before: async (session, context) => {
+						const { ipAddress, ...rest } = session;
+						console.log(rest);
+						return {
+							data: { ...rest },
+						};
+					},
+				},
+			},
+		},
+	},
 });
 
 export type SessionData = typeof authClient.$Infer.Session;

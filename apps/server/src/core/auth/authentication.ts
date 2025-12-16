@@ -1,10 +1,15 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
-import { db } from "@/adapters/db";
-import { userPreference } from "@/adapters/db/schemas";
-
-import { emailAndPasswordOptions, loggerOptions, pluginsOptions, socialProvidersOptions, trustedOriginsOptions } from "./config";
+import {
+	databaseHookOptions,
+	db,
+	emailAndPasswordOptions,
+	loggerOptions,
+	pluginsOptions,
+	socialProvidersOptions,
+	trustedOriginsOptions,
+} from "./config";
 
 export const auth = betterAuth({
 	appName: "Nekoshare",
@@ -12,22 +17,7 @@ export const auth = betterAuth({
 	database: drizzleAdapter(db, {
 		provider: "mysql",
 	}),
-	databaseHooks: {
-		user: {
-			create: {
-				after: async (user) => {
-					db.insert(userPreference)
-						.values({
-							userId: user.id,
-							updatedAt: new Date(),
-						})
-						.catch((err) => {
-							console.error("Error creating user preference:", err);
-						});
-				},
-			},
-		},
-	},
+	databaseHooks: databaseHookOptions,
 	emailAndPassword: emailAndPasswordOptions,
 	socialProviders: socialProvidersOptions,
 	plugins: pluginsOptions,

@@ -44,12 +44,12 @@ export const account = mysqlTable(
 		userId: varchar("user_id", { length: 36 })
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
-		accessToken: text("access_token"),
-		refreshToken: text("refresh_token"),
-		idToken: text("id_token"),
-		accessTokenExpiresAt: timestamp("access_token_expires_at", { fsp: 3 }),
-		refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { fsp: 3 }),
-		scope: text("scope"),
+		// accessToken: text("access_token"),
+		// refreshToken: text("refresh_token"),
+		// idToken: text("id_token"),
+		// accessTokenExpiresAt: timestamp("access_token_expires_at", { fsp: 3 }),
+		// refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { fsp: 3 }),
+		// scope: text("scope"),
 		password: text("password"),
 		createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
 		updatedAt: timestamp("updated_at", { fsp: 3 })
@@ -59,21 +59,21 @@ export const account = mysqlTable(
 	(table) => [index("account_userId_idx").on(table.userId)]
 );
 
-export const verification = mysqlTable(
-	"verification",
-	{
-		id: varchar("id", { length: 36 }).primaryKey(),
-		identifier: varchar("identifier", { length: 255 }).notNull(),
-		value: text("value").notNull(),
-		expiresAt: timestamp("expires_at", { fsp: 3 }).notNull(),
-		createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
-		updatedAt: timestamp("updated_at", { fsp: 3 })
-			.defaultNow()
-			.$onUpdate(() => /* @__PURE__ */ new Date())
-			.notNull(),
-	},
-	(table) => [index("verification_identifier_idx").on(table.identifier)]
-);
+// export const verification = mysqlTable(
+// 	"verification",
+// 	{
+// 		id: varchar("id", { length: 36 }).primaryKey(),
+// 		identifier: varchar("identifier", { length: 255 }).notNull(),
+// 		value: text("value").notNull(),
+// 		expiresAt: timestamp("expires_at", { fsp: 3 }).notNull(),
+// 		createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
+// 		updatedAt: timestamp("updated_at", { fsp: 3 })
+// 			.defaultNow()
+// 			.$onUpdate(() => /* @__PURE__ */ new Date())
+// 			.notNull(),
+// 	},
+// 	(table) => [index("verification_identifier_idx").on(table.identifier)]
+// );
 
 export const sessionRelations = relations(session, ({ one }) => ({
 	user: one(user, {
