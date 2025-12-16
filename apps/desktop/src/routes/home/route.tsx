@@ -37,8 +37,13 @@ interface AppConfig {
 function RouteComponent() {
   const [isSetup, setIsSetup] = useState<boolean>(false);
   const location = useLocation();
-  const { isGlobalLoading, notificationStatus, toggleNotification, setMode } =
-    useNekoShare();
+  const {
+    isGlobalLoading,
+    notificationStatus,
+    toggleNotification,
+    setMode,
+    setGlobalLoading,
+  } = useNekoShare();
   const { theme, setTheme } = useTheme();
   const { get } = useStore();
 
@@ -74,10 +79,12 @@ function RouteComponent() {
         setIsSetup(appConfig?.isSetup ?? false);
       } catch (error) {
         console.error("Failed to load app config:", error);
+      } finally {
+        setGlobalLoading(false);
       }
     };
     init();
-  }, [get, isGlobalLoading]);
+  }, [get]);
 
   if (isGlobalLoading) return;
 
