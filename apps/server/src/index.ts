@@ -1,6 +1,5 @@
-import { serve, type ServerType } from "@hono/node-server";
+import { type ServerType } from "@hono/node-server";
 import { createApp } from "./app";
-import { env } from "./config/env";
 import { startSocketServer, type TCPFileServer } from "./core/socket";
 import { Logger } from "./core/logger";
 
@@ -9,14 +8,11 @@ let socketServer: TCPFileServer | null = null;
 
 async function startServers(): Promise<void> {
 	try {
+		Logger.info("Main", "Starting HTTP server...");
+		httpServer = await createApp();
+
 		Logger.info("Main", "Starting TCP socket server...");
 		socketServer = await startSocketServer();
-
-		Logger.info("Main", "Starting HTTP server...");
-		const app = createApp();
-		httpServer = serve({ fetch: app.fetch, hostname: "0.0.0.0", port: env.PORT }, (info) => {
-			Logger.info("Main", `HTTP Server running at http://${info.address}:${info.port}`);
-		});
 	} catch (error) {
 		console.error("Failed to start servers:", error);
 		process.exit(1);

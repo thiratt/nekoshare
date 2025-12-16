@@ -12,9 +12,11 @@ import accountRouter from "@/routes/account";
 import devicesRouter from "@/routes/devices";
 import friendsRouter from "@/routes/friends";
 
-import { nekoShareLogger } from "./core/logger";
+import { Logger, nekoShareLogger } from "./core/logger";
+import { serve, type ServerType } from "@hono/node-server";
+import { env } from "./config/env";
 
-export function createApp() {
+export async function createApp(): Promise<ServerType> {
 	const app = new Hono();
 
 	app.use(
@@ -39,5 +41,10 @@ export function createApp() {
 	app.route("/devices", devicesRouter);
 	app.route("/friends", friendsRouter);
 
-	return app;
+	return new Promise<ServerType>((resolve) => {
+		const httpServer = serve({ fetch: app.fetch, hostname: "0.0.0.0", port: env.PORT }, (info) => {
+			Logger.info("APP", `HTTP Server running started on port ${info.port}`);
+			resolve(httpServer);
+		});
+	});
 }
