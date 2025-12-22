@@ -23,7 +23,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::device::get_device_info,
+            commands::device::ns_get_device_info,
             commands::socket::connect_socket,
             commands::socket::disconnect_socket,
             commands::socket::send_socket_data,
