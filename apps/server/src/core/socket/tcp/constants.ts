@@ -75,8 +75,6 @@ export const FORBIDDEN_EXTENSIONS: string[] = [
 	".dylib",
 ];
 
-export const PROTOCOL_VERSION = "1.0";
-
 export const MESSAGE_TYPES = {
 	COMMAND: "CMD:",
 	RESPONSE: "RES:",
@@ -115,7 +113,7 @@ export const RESPONSES = {
 	FILE_TOO_LARGE: `${MESSAGE_TYPES.RESPONSE}FILE|${RESPONSE_CODES.ERROR}|TOO_LARGE\n`,
 	FORBIDDEN_FILE_TYPE: `${MESSAGE_TYPES.RESPONSE}FILE|${RESPONSE_CODES.ERROR}|FORBIDDEN_TYPE\n`,
 	SERVER_BUSY: `${MESSAGE_TYPES.RESPONSE}CONNECT|${RESPONSE_CODES.BUSY}\n`,
-	WELCOME: (clientId: number) => `${MESSAGE_TYPES.RESPONSE}WELCOME|${clientId}|${PROTOCOL_VERSION}\n`,
+	WELCOME: (clientId: number) => `${MESSAGE_TYPES.RESPONSE}WELCOME|${clientId}\n`,
 	CONNECTED: (targetId: number) => `${MESSAGE_TYPES.RESPONSE}CONNECTED|${RESPONSE_CODES.OK}|${targetId}\n`,
 	PEER_CONNECTED: (clientId: number) => `${MESSAGE_TYPES.RESPONSE}PEER_CONNECTED|${clientId}\n`,
 	PEER_DISCONNECTED: `${MESSAGE_TYPES.RESPONSE}PEER_DISCONNECTED\n`,
@@ -139,5 +137,3 @@ export const DEFAULT_CONFIG: ServerConfig = {
 	verboseLogging: process.env.NODE_ENV === "development",
 	allowedExtensions: ALLOWED_EXTENSIONS,
 };
-
-export { LogLevel } from "../logger";

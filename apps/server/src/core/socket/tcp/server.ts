@@ -2,7 +2,7 @@ import { createServer, Server as NetServer } from "net";
 import * as fs from "fs";
 import type { ServerConfig } from "./types";
 import { DEFAULT_CONFIG, RESPONSES } from "./constants";
-import { Logger } from "../logger";
+import { Logger } from "@/core/logger";
 import { formatDuration, formatBytes } from "./utils";
 import { ConnectionManager } from "./connection";
 import { RelayManager } from "./relay";

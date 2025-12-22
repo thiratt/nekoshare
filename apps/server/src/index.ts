@@ -1,6 +1,6 @@
 import { type ServerType } from "@hono/node-server";
 import { createApp } from "./app";
-import { startSocketServer, type TCPFileServer } from "./core/socket";
+import { startSocketServer, type TCPFileServer } from "./core/socket/tcp";
 import { Logger } from "./core/logger";
 
 let httpServer: ServerType | null = null;
@@ -11,8 +11,8 @@ async function startServers(): Promise<void> {
 		Logger.info("Main", "Starting HTTP server...");
 		httpServer = await createApp();
 
-		Logger.info("Main", "Starting TCP socket server...");
-		socketServer = await startSocketServer();
+		// Logger.info("Main", "Starting TCP socket server...");
+		// socketServer = await startSocketServer();
 	} catch (error) {
 		console.error("Failed to start servers:", error);
 		process.exit(1);

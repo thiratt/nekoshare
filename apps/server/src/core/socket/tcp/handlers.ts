@@ -10,7 +10,7 @@ import {
 	createErrorResponse,
 	formatBytes,
 } from "./utils";
-import { Logger } from "../logger";
+import { Logger } from "@/core/logger";
 import type { RelayManager } from "./relay";
 
 export async function handleJsonRequest(

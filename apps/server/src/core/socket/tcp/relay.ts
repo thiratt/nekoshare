@@ -1,7 +1,7 @@
 import type { Socket } from "net";
 import type { RelayClient } from "./types";
 import { RESPONSES } from "./constants";
-import { Logger } from "../logger";
+import { Logger } from "@/core/logger";
 
 export class RelayManager {
 	private clients: Map<number, RelayClient> = new Map();
