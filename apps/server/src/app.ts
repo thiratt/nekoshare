@@ -15,9 +15,11 @@ import friendsRouter from "@/routes/friends";
 import { Logger, nekoShareLogger } from "./core/logger";
 import { serve, type ServerType } from "@hono/node-server";
 import { env } from "./config/env";
+import { createWebSocketInstance } from "./core/socket/ws";
 
 export async function createApp(): Promise<ServerType> {
 	const app = new Hono();
+	const webSocketInstance = await createWebSocketInstance(app);
 
 	app.use(
 		"*",
@@ -44,7 +46,8 @@ export async function createApp(): Promise<ServerType> {
 	return new Promise<ServerType>((resolve) => {
 		const httpServer = serve({ fetch: app.fetch, hostname: "0.0.0.0", port: env.PORT }, (info) => {
 			Logger.info("APP", `HTTP Server running started on port ${info.port}`);
-			resolve(httpServer);
 		});
+		webSocketInstance(httpServer);
+		resolve(httpServer);
 	});
 }
