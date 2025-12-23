@@ -48,7 +48,11 @@ interface NekoShareProviderProps<TRouter extends Router = Router> {
 	currentDeviceId?: string;
 }
 
-const NekoShareProvider = <TRouter extends Router>({ router, children, currentDeviceId }: NekoShareProviderProps<TRouter>) => {
+const NekoShareProvider = <TRouter extends Router>({
+	router,
+	children,
+	currentDeviceId,
+}: NekoShareProviderProps<TRouter>) => {
 	const [isGlobalLoading, setIsGlobalLoading] = useState(true);
 	const [mode, setMode] = useState<Mode>("home");
 	const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>("off");
