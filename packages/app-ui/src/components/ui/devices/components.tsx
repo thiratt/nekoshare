@@ -76,21 +76,21 @@ export const DeviceCard = memo(function DeviceCard({ device, onManage, onDelete 
 					<div className="space-y-1">
 						<CardTitle>{device.name}</CardTitle>
 						<CardDescription>{platformLabel}</CardDescription>
-						{device.isCurrent ? (
-							<Badge className="bg-amber-500 text-white dark:bg-amber-600" variant="secondary">
-								<LuUserCheck className="fill-current" />
-								เครื่องนี้
-							</Badge>
-						) : (
-							<div className="flex gap-1">
+						<div className="flex gap-1 items-center">
+							{device.isCurrent ? (
+								<Badge className="bg-amber-500 text-white dark:bg-amber-600" variant="secondary">
+									<LuUserCheck className="fill-current" />
+									เครื่องนี้
+								</Badge>
+							) : (
 								<DeviceStatusBadge status={device.status} />
-								{device.isTailscale && (
-									<Badge variant="secondary" className="bg-blue-500 text-white dark:bg-blue-600">
-										Tailscale
-									</Badge>
-								)}
-							</div>
-						)}
+							)}
+							{device.isTailscale && (
+								<Badge variant="secondary" className="bg-blue-500 text-white dark:bg-blue-600">
+									Tailscale
+								</Badge>
+							)}
+						</div>
 					</div>
 				</div>
 				{device.battery.supported && (
