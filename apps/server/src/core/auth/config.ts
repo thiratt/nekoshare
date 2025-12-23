@@ -1,5 +1,5 @@
 import type { BetterAuthOptions } from "better-auth";
-import { username } from "better-auth/plugins";
+import { oneTimeToken, username } from "better-auth/plugins";
 
 import { db } from "@/adapters/db";
 import { userPreference } from "@/adapters/db/schemas/n";
@@ -49,6 +49,7 @@ const pluginsOptions = [
 			return !RESERVED_USERNAMES.includes(username as (typeof RESERVED_USERNAMES)[number]);
 		},
 	}),
+	oneTimeToken(),
 ];
 
 const trustedOriginsOptions: BetterAuthOptions["trustedOrigins"] = ["http://localhost:7780", "http://localhost:7787"];
