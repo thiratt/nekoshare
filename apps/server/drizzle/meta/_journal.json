@@ -43,6 +43,13 @@
       "when": 1766510529978,
       "tag": "0005_young_thaddeus_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1766522016669,
+      "tag": "0006_zippy_blacklash",
+      "breakpoints": true
     }
   ]
 }

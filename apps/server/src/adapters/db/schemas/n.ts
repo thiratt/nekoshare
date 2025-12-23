@@ -26,7 +26,7 @@ export const device = mysqlTable("device", {
 	batterySupported: boolean("battery_supported").default(false).notNull(),
 	batteryCharging: boolean("battery_charging").default(false).notNull(),
 	batteryPercent: bigint("battery_percent", { mode: "number" }).default(100).notNull(),
-	lastIp: text("last_ip"),
+	ipv4: text("ipv4").notNull(),
 	lastActiveAt: timestamp("last_active_at").defaultNow(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 });
