@@ -23,12 +23,12 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 
-import type { Device } from "@workspace/app-ui/types/device";
+import type { UiDevice } from "@workspace/app-ui/types/device";
 
 interface ManageDeviceDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	device: Device | null;
+	device: UiDevice | null;
 	onSave: (id: string, name: string) => Promise<void>;
 }
 

@@ -1,3 +1,5 @@
+import { LocalDeviceInfo } from "./device";
+
 export type Mode = "home" | "settings";
 export type NotificationStatus = "on" | "off";
 
@@ -15,7 +17,7 @@ export interface NekoShareContextType {
 	mode: Mode;
 	notificationStatus: NotificationStatus;
 	router: Router;
-	currentDeviceId?: string;
+	currentDevice: LocalDeviceInfo | undefined;
 	setGlobalLoading: (loading: boolean) => void;
 	setMode: (mode: Mode) => void;
 	setNotificationStatus: (status: NotificationStatus) => void;

@@ -16,11 +16,11 @@ import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { cn } from "@workspace/ui/lib/utils";
 
-import type { Device, DevicePlatform, DeviceStatus } from "@workspace/app-ui/types/device";
+import type { UiDevice, Os, DeviceStatus } from "@workspace/app-ui/types/device";
 import { PLATFORM_ICONS, STATUS_CONFIG, BATTERY_THRESHOLDS, capitalize } from "./constants";
 
 interface DeviceIconProps {
-	platform: DevicePlatform;
+	platform: Os;
 	size?: number;
 }
 
@@ -34,7 +34,7 @@ interface DeviceBatteryIconProps {
 }
 
 interface DeviceCardProps {
-	device: Device;
+	device: UiDevice;
 	onManage: (deviceId: string) => void;
 	onDelete: (deviceId: string) => void;
 }
@@ -84,6 +84,11 @@ export const DeviceCard = memo(function DeviceCard({ device, onManage, onDelete 
 						) : (
 							<div className="flex gap-1">
 								<DeviceStatusBadge status={device.status} />
+								{device.isTailscale && (
+									<Badge variant="secondary" className="bg-blue-500 text-white dark:bg-blue-600">
+										Tailscale
+									</Badge>
+								)}
 							</div>
 						)}
 					</div>

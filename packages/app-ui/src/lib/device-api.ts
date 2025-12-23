@@ -1,83 +1,83 @@
 import type {
 	ApiDevice,
-	Device,
-	DeviceListResponse,
-	DeviceRegistrationPayload,
-	DeviceRegistrationResponse,
+	ApiDeviceListResponse,
+	ApiDeviceRegistrationPayload,
+	ApiDeviceRegistrationResponse,
 	LocalDeviceInfo,
+	UiDevice,
 } from "@workspace/app-ui/types/device";
 import { xfetch } from "./xfetch";
 
-function formatLastSeen(date: Date | string | null): string {
-	if (!date) return "ไม่ทราบ";
-
-	const now = new Date();
-	const lastActive = new Date(date);
-	const diffMs = now.getTime() - lastActive.getTime();
-	const diffMinutes = Math.floor(diffMs / (1000 * 60));
-	const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-	const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-	if (diffMinutes < 1) return "ตอนนี้";
-	if (diffMinutes < 60) return `${diffMinutes} นาทีที่แล้ว`;
-	if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
-	if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
-
-	return lastActive.toLocaleDateString("th-TH", {
-		day: "numeric",
-		month: "short",
-		year: "numeric",
-	});
-}
-
-function isDeviceOnline(lastActiveAt: Date | string | null): boolean {
-	if (!lastActiveAt) return false;
-	const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-	return new Date(lastActiveAt).getTime() > fiveMinutesAgo;
-}
-
-export function transformApiDevice(apiDevice: ApiDevice, currentDeviceId?: string): Device {
+export function transformApiDevice(apiDevice: ApiDevice, currentDeviceId?: string): UiDevice {
 	const isCurrent = apiDevice.id === currentDeviceId;
 
-	// TODO: Replace with socket-based real-time status in the future
-	const status = isCurrent ? "online" : isDeviceOnline(apiDevice.lastActiveAt) ? "online" : "offline";
+	const os = `${apiDevice.platform.os.charAt(0).toUpperCase() + apiDevice.platform.os.slice(1)} ${apiDevice.platform.version}`;
+
+	const ip = apiDevice.ip.ipv6 ? `${apiDevice.ip.ipv4} / ${apiDevice.ip.ipv6}` : apiDevice.ip.ipv4;
+
+	const formatLastSeen = (date: Date): string => {
+		try {
+			const now = new Date();
+			const diffMs = now.getTime() - date.getTime();
+			const diffMinutes = Math.floor(diffMs / (1000 * 60));
+			const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+			const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+			if (diffMinutes < 1) return "ตอนนี้";
+			if (diffMinutes < 60) return `${diffMinutes} นาทีที่แล้ว`;
+			if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
+			if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
+
+			return date.toLocaleDateString("th-TH", {
+				day: "numeric",
+				month: "short",
+				year: "numeric",
+			});
+		} catch {
+			return "ไม่ทราบ";
+		}
+	};
+
+	const isOnline = apiDevice.lastActiveAt
+		? new Date().getTime() - new Date(apiDevice.lastActiveAt).getTime() < 5 * 60 * 1000
+		: false;
+
+	const status: UiDevice["status"] = isCurrent || isOnline ? "online" : "offline";
 
 	return {
 		id: apiDevice.id,
 		name: apiDevice.name,
 		isCurrent,
-		platform: apiDevice.platform,
+		platform: apiDevice.platform.os,
+		os,
+		ip,
+		isTailscale: apiDevice.ip.is_tailscale,
 		status,
 		lastSeen: isCurrent ? "ตอนนี้" : formatLastSeen(apiDevice.lastActiveAt),
-		battery: {
-			supported: apiDevice.batterySupported,
-			charging: apiDevice.batteryCharging,
-			percent: apiDevice.batteryPercent,
-		},
-		ip: apiDevice.lastIp ?? "ไม่ทราบ",
-		os: apiDevice.platform,
+		battery: apiDevice.battery,
 	};
 }
 
-export function transformLocalDevice(localDevice: LocalDeviceInfo): Device {
+export function transformLocalDevice(localDevice: LocalDeviceInfo): UiDevice {
+	const os = `${localDevice.platform.os.charAt(0).toUpperCase() + localDevice.platform.os.slice(1)} ${localDevice.platform.version}`;
+
+	const ip = localDevice.ip.ipv6 ? `${localDevice.ip.ipv4} / ${localDevice.ip.ipv6}` : localDevice.ip.ipv4;
+
 	return {
 		id: localDevice.id,
 		name: localDevice.name,
 		isCurrent: true,
-		platform: localDevice.platform,
+		platform: localDevice.platform.os,
+		os,
+		ip,
+		isTailscale: localDevice.ip.is_tailscale,
 		status: "online",
 		lastSeen: "ตอนนี้",
-		battery: {
-			supported: localDevice.battery.supported,
-			charging: localDevice.battery.charging,
-			percent: localDevice.battery.percent,
-		},
-		ip: localDevice.ipv4,
-		os: localDevice.long_os_version,
+		battery: localDevice.battery,
 	};
 }
 
-export async function fetchDevices(signal?: AbortSignal): Promise<DeviceListResponse> {
+export async function fetchDevices(signal?: AbortSignal): Promise<ApiDeviceListResponse> {
 	const response = await xfetch("/devices", {
 		method: "GET",
 		signal,
@@ -96,7 +96,7 @@ export async function fetchDevices(signal?: AbortSignal): Promise<DeviceListResp
 	return result.data;
 }
 
-export async function registerDevice(payload: DeviceRegistrationPayload): Promise<DeviceRegistrationResponse> {
+export async function registerDevice(payload: ApiDeviceRegistrationPayload): Promise<ApiDeviceRegistrationResponse> {
 	const response = await xfetch("/devices/register", {
 		method: "POST",
 		headers: {

@@ -1,4 +1,4 @@
-import type { Device, LocalDeviceInfo } from "./device";
+import type { UiDevice, LocalDeviceInfo } from "./device";
 
 export type SidebarState = "on" | "off";
 
@@ -7,7 +7,7 @@ export interface UseDevicesOptions {
 }
 
 export interface UseDevicesReturn {
-	devices: Device[];
+	devices: UiDevice[];
 	loading: boolean;
 	error: string | null;
 	refresh: () => Promise<void>;

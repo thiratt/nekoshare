@@ -6,6 +6,7 @@ import { Toaster } from "@workspace/ui/components/sonner";
 import LoadingOverlay from "@workspace/app-ui/components/global-loading";
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
 import type { Mode, NotificationStatus, NekoShareContextType, Router } from "@workspace/app-ui/types/context";
+import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
 
 const NekoShareContext = createContext<NekoShareContextType | null>(null);
 
@@ -45,15 +46,17 @@ const CONTENT_SCALE_INACTIVE = { scale: 0.97, y: -10 };
 interface NekoShareProviderProps<TRouter extends Router = Router> {
 	router: TRouter;
 	children: ReactNode;
-	currentDeviceId?: string;
+	globalLoading: boolean;
+	currentDevice: LocalDeviceInfo | undefined;
 }
 
 const NekoShareProvider = <TRouter extends Router>({
 	router,
 	children,
-	currentDeviceId,
+	globalLoading,
+	currentDevice,
 }: NekoShareProviderProps<TRouter>) => {
-	const [isGlobalLoading, setIsGlobalLoading] = useState(true);
+	const [isGlobalLoading, setIsGlobalLoading] = useState(globalLoading);
 	const [mode, setMode] = useState<Mode>("home");
 	const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>("off");
 	const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -94,7 +97,7 @@ const NekoShareProvider = <TRouter extends Router>({
 			mode,
 			notificationStatus,
 			router,
-			currentDeviceId: currentDeviceId ?? router.options?.context?.currentDeviceId,
+			currentDevice,
 			setGlobalLoading: handleSetGlobalLoading,
 			setMode: handleSetMode,
 			setNotificationStatus: handleSetNotification,
@@ -105,7 +108,7 @@ const NekoShareProvider = <TRouter extends Router>({
 			mode,
 			notificationStatus,
 			router,
-			currentDeviceId,
+			currentDevice,
 			handleSetGlobalLoading,
 			handleSetMode,
 			handleSetNotification,

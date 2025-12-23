@@ -9,26 +9,20 @@ import { cn } from "@workspace/ui/lib/utils";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
 import { useDevices } from "@workspace/app-ui/hooks/use-devices";
-import type { Device, LocalDeviceInfo } from "@workspace/app-ui/types/device";
+import type { UiDevice } from "@workspace/app-ui/types/device";
 
 import { DeviceCard, EmptyState } from "./components";
 import { ManageDeviceDialog, DeleteDeviceDialog } from "./dialogs";
 
-interface DevicesUIProps {
-	localDeviceInfo: LocalDeviceInfo | null;
-}
-
-export function DevicesUI({ localDeviceInfo }: DevicesUIProps) {
-	const { devices, loading, error, refresh, updateDevice, deleteDevice } = useDevices({
-		localDeviceInfo,
-	});
+export function DevicesUI() {
+	const { devices, loading, error, refresh, updateDevice, deleteDevice } = useDevices();
 
 	const [query, setQuery] = useState("");
 	const deferredQuery = useDeferredValue(query);
 
 	const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-	const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+	const [selectedDevice, setSelectedDevice] = useState<UiDevice | null>(null);
 
 	const filteredDevices = useMemo(() => {
 		const normalizedQuery = deferredQuery.trim().toLowerCase();

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { Device } from "@workspace/app-ui/types/device";
+import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
+import type { UiDevice } from "@workspace/app-ui/types/device";
 import {
 	fetchDevices,
 	transformApiDevice,
@@ -8,14 +9,15 @@ import {
 	updateDevice as updateDeviceApi,
 	deleteDevice as deleteDeviceApi,
 } from "@workspace/app-ui/lib/device-api";
-import type { UseDevicesOptions, UseDevicesReturn } from "@workspace/app-ui/types/hooks";
+import type { UseDevicesReturn } from "@workspace/app-ui/types/hooks";
 
-export function useDevices({ localDeviceInfo }: UseDevicesOptions): UseDevicesReturn {
-	const [remoteDevices, setRemoteDevices] = useState<Device[]>([]);
+export function useDevices(): UseDevicesReturn {
+	const { currentDevice: localDeviceInfo } = useNekoShare();
+	const [remoteDevices, setRemoteDevices] = useState<UiDevice[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
-	const localDevice = useMemo<Device | null>(() => {
+	const localDevice = useMemo<UiDevice | null>(() => {
 		if (!localDeviceInfo) return null;
 		return transformLocalDevice(localDeviceInfo);
 	}, [localDeviceInfo]);
