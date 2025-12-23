@@ -21,12 +21,16 @@ export const device = mysqlTable("device", {
 	// 	.notNull()
 	// 	.references(() => user.id, { onDelete: "cascade" }),
 	name: varchar("name", { length: 255 }).notNull(),
-	platform: mysqlEnum("platform", ["android", "windows", "web", "other"]).notNull(),
+	os: mysqlEnum("os", ["android", "windows", "web", "other"]).notNull(),
+	os_version: varchar("os_version", { length: 100 }).notNull(),
+	os_long_version: varchar("os_long_version", { length: 255 }).notNull(),
+	is_tailscale: boolean("is_tailscale").default(false).notNull(),
 	publicKey: text("public_key").notNull(),
 	batterySupported: boolean("battery_supported").default(false).notNull(),
 	batteryCharging: boolean("battery_charging").default(false).notNull(),
 	batteryPercent: bigint("battery_percent", { mode: "number" }).default(100).notNull(),
 	ipv4: text("ipv4").notNull(),
+	ipv6: text("ipv6"),
 	lastActiveAt: timestamp("last_active_at").defaultNow(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 });

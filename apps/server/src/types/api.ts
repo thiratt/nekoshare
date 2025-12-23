@@ -24,30 +24,51 @@ export const error = (error: string, message?: string): ApiErrorResponse => ({
 	message,
 });
 
-export type Device = typeof device.$inferSelect;
+export interface Device {
+	id: string;
+	name: string;
+	platform: Platform;
+	ip: Ip;
+	battery: BatteryInfo;
+}
+
+export interface Platform {
+	os: Os;
+	version: string;
+	long_version: string;
+}
+
+export interface Ip {
+	ipv4: string;
+	ipv6?: string;
+	is_tailscale: boolean;
+}
+
+export interface BatteryInfo {
+	supported: boolean;
+	charging: boolean;
+	percent: number;
+}
 
 export type DeviceListResponse = {
 	devices: Device[];
 	total: number;
 };
 
-export type DeviceRegistrationRequest = {
-	id: string;
-	name: string;
-	platform: "windows" | "android" | "web" | "other";
+export interface DeviceRegistrationRequest extends Device {
 	publicKey: string;
-	batterySupported: boolean;
-	batteryCharging: boolean;
-	batteryPercent: number;
-	lastIp: string;
-};
+}
+
+export const OS_TYPES = ["windows", "android", "web", "other"] as const;
+export type Os = (typeof OS_TYPES)[number];
 
 export type DeviceRegistrationResponse = {
 	device: Device;
 	isNew: boolean;
 };
 
-export type FriendStatus = "active" | "pending";
+export const FRIEND_STATUSES = ["active", "pending"] as const;
+export type FriendStatus = (typeof FRIEND_STATUSES)[number];
 
 export type Friend = {
 	id: string;
