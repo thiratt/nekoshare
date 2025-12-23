@@ -34,6 +34,7 @@ const deviceRegistrationSchema = z.object({
 		percent: z.number().min(0).max(100),
 	}),
 	publicKey: z.string().min(1),
+	lastActiveAt: z.date(),
 });
 
 const deviceUpdateSchema = z.object({
@@ -59,6 +60,7 @@ function mapDeviceToDto(d: typeof device.$inferSelect): Device {
 			charging: d.batteryCharging,
 			percent: d.batteryPercent,
 		},
+		lastActiveAt: d.lastActiveAt,
 	};
 }
 
@@ -75,6 +77,7 @@ function mapDeviceToDbValues(body: DeviceRegistrationRequest) {
 		ipv4: body.ip.ipv4,
 		ipv6: body.ip.ipv6 || null,
 		is_tailscale: body.ip.is_tailscale,
+		lastActiveAt: new Date(),
 	};
 }
 

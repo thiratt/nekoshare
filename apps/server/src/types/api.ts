@@ -30,6 +30,7 @@ export interface Device {
 	platform: Platform;
 	ip: Ip;
 	battery: BatteryInfo;
+	lastActiveAt: Date;
 }
 
 export interface Platform {

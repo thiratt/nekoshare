@@ -31,7 +31,7 @@ export const device = mysqlTable("device", {
 	batteryPercent: bigint("battery_percent", { mode: "number" }).default(100).notNull(),
 	ipv4: text("ipv4").notNull(),
 	ipv6: text("ipv6"),
-	lastActiveAt: timestamp("last_active_at").defaultNow(),
+	lastActiveAt: timestamp("last_active_at").defaultNow().notNull(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

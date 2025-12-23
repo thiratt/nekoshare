@@ -57,6 +57,13 @@
       "when": 1766524852690,
       "tag": "0007_broken_the_call",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1766528333831,
+      "tag": "0008_thick_black_bird",
+      "breakpoints": true
     }
   ]
 }
