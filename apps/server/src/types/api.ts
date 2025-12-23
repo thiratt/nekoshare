@@ -40,7 +40,7 @@ export interface Platform {
 
 export interface Ip {
 	ipv4: string;
-	ipv6?: string;
+	ipv6?: string | null;
 	is_tailscale: boolean;
 }
 

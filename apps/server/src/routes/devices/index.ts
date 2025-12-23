@@ -25,7 +25,7 @@ const deviceRegistrationSchema = z.object({
 	}),
 	ip: z.object({
 		ipv4: z.string().ip({ version: "v4" }),
-		ipv6: z.string().ip({ version: "v6" }).optional(),
+		ipv6: z.string().ip({ version: "v6" }).nullable().optional(),
 		is_tailscale: z.boolean(),
 	}),
 	battery: z.object({
