@@ -13,6 +13,7 @@ import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import { useTheme } from "@workspace/app-ui/providers/theme-provider";
+import { useSocket } from "@workspace/app-ui/hooks/use-socket";
 
 import { DesktopTitlebar } from "@/components/navbar";
 import { SetupApplicationUI } from "@/components/setup";
@@ -46,6 +47,7 @@ function RouteComponent() {
   } = useNekoShare();
   const { theme, setTheme } = useTheme();
   const { get } = useStore();
+  const { connect, disconnect, } = useSocket();
 
   const titlebarHelperActions = useMemo(
     () => [
@@ -73,6 +75,24 @@ function RouteComponent() {
   };
 
   useEffect(() => {
+    if (!isSetup) return;
+
+    const initSocket = async () => {
+      try {
+        await connect();
+      } catch (error) {
+        console.error("WebSocket connection failed:", error);
+      }
+    };
+
+    initSocket();
+
+    return () => {
+      disconnect();
+    };
+  }, [isSetup, connect, disconnect]);
+
+  useEffect(() => {
     const init = async () => {
       try {
         const appConfig = await get<AppConfig>("appConfig");
@@ -84,7 +104,7 @@ function RouteComponent() {
       }
     };
     init();
-  }, [get]);
+  }, [get, setGlobalLoading]);
 
   if (isGlobalLoading) return;
 
