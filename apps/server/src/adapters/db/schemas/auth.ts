@@ -59,21 +59,21 @@ export const account = mysqlTable(
 	(table) => [index("account_userId_idx").on(table.userId)]
 );
 
-// export const verification = mysqlTable(
-// 	"verification",
-// 	{
-// 		id: varchar("id", { length: 36 }).primaryKey(),
-// 		identifier: varchar("identifier", { length: 255 }).notNull(),
-// 		value: text("value").notNull(),
-// 		expiresAt: timestamp("expires_at", { fsp: 3 }).notNull(),
-// 		createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
-// 		updatedAt: timestamp("updated_at", { fsp: 3 })
-// 			.defaultNow()
-// 			.$onUpdate(() => /* @__PURE__ */ new Date())
-// 			.notNull(),
-// 	},
-// 	(table) => [index("verification_identifier_idx").on(table.identifier)]
-// );
+export const verification = mysqlTable(
+	"verification",
+	{
+		id: varchar("id", { length: 36 }).primaryKey(),
+		identifier: varchar("identifier", { length: 255 }).notNull(),
+		value: text("value").notNull(),
+		expiresAt: timestamp("expires_at", { fsp: 3 }).notNull(),
+		createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
+		updatedAt: timestamp("updated_at", { fsp: 3 })
+			.defaultNow()
+			.$onUpdate(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(table) => [index("verification_identifier_idx").on(table.identifier)]
+);
 
 export const sessionRelations = relations(session, ({ one }) => ({
 	user: one(user, {
