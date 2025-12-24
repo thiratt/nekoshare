@@ -1,4 +1,4 @@
-import type { UiDevice, LocalDeviceInfo } from "./device";
+import type { LocalDeviceInfo,UiDevice } from "./device";
 
 export type SidebarState = "on" | "off";
 

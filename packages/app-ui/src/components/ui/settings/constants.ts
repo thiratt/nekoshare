@@ -1,4 +1,5 @@
 import type { FC } from "react";
+
 import { LuBell, LuDatabase, LuGlobe, LuKeyboard, LuPalette, LuShield, LuUser } from "react-icons/lu";
 
 import type { SettingCategory, SettingCategoryConfig } from "@workspace/app-ui/types/settings";
@@ -20,13 +21,13 @@ export interface ContentComponentProps {
 }
 
 import {
+	SettingAccessibilityContent,
 	SettingAccountContent,
 	SettingAppearanceContent,
 	SettingNotificationsContent,
 	SettingPrivacyContent,
-	SettingStorageContent,
-	SettingAccessibilityContent,
 	SettingShortcutsContent,
+	SettingStorageContent,
 } from "./content";
 
 export const CONTENT_COMPONENTS: Record<SettingCategory, FC<ContentComponentProps>> = {

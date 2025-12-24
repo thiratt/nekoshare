@@ -1,16 +1,17 @@
-import { useState, useEffect, useMemo, useCallback, useDeferredValue } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+
 import {
-	type RowSelectionState,
-	type SortingState,
 	getCoreRowModel,
 	getSortedRowModel,
+	type RowSelectionState,
+	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
 
 import { useFriends } from "@workspace/app-ui/hooks/use-friends";
 
-import { PAGE_SIZE } from "./constants";
 import { useColumns } from "./columns";
+import { PAGE_SIZE } from "./constants";
 import { RevokeConfirmDialog } from "./dialogs";
 import { FriendsCard, FriendsContent, FriendsHeader, FriendsTable, Pagination } from "./layout";
 
@@ -84,8 +85,8 @@ export function FriendsUI() {
 	});
 
 	const selectedIds = useMemo(() => {
-		return table.getSelectedRowModel().rows.map((r) => r.original.id);
-	}, [table, rowSelection]);
+		return Object.keys(rowSelection).filter((id) => rowSelection[id]);
+	}, [rowSelection]);
 
 	return (
 		<FriendsCard>

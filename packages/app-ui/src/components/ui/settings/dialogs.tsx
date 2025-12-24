@@ -1,8 +1,7 @@
-import { memo, type ChangeEvent } from "react";
+import { type ChangeEvent, memo } from "react";
+
 import { LuCamera } from "react-icons/lu";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
-import { Button } from "@workspace/ui/components/button";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -13,6 +12,8 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@workspace/ui/components/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
+import { Button } from "@workspace/ui/components/button";
 import {
 	Dialog,
 	DialogClose,
@@ -54,7 +55,7 @@ interface DeleteAccountDialogProps {
 	onConfirm?: () => void;
 }
 
-export const LogoutDialog = memo<LogoutDialogProps>(function LogoutDialog({ open, onOpenChange, onConfirm }) {
+export const LogoutDialog = memo(function LogoutDialog({ open, onOpenChange, onConfirm }: LogoutDialogProps) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
@@ -71,12 +72,12 @@ export const LogoutDialog = memo<LogoutDialogProps>(function LogoutDialog({ open
 	);
 });
 
-export const AvatarDialog = memo<AvatarDialogProps>(function AvatarDialog({
+export const AvatarDialog = memo(function AvatarDialog({
 	open,
 	onOpenChange,
 	avatarUrl = "/syncora-avatar.png",
 	onUpload,
-}) {
+}: AvatarDialogProps) {
 	const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
 		if (file && onUpload) {
@@ -131,7 +132,7 @@ export const AvatarDialog = memo<AvatarDialogProps>(function AvatarDialog({
 	);
 });
 
-export const EmailDialog = memo<EmailDialogProps>(function EmailDialog({ open, onOpenChange, onSubmit }) {
+export const EmailDialog = memo(function EmailDialog({ open, onOpenChange }: EmailDialogProps) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
@@ -165,7 +166,7 @@ export const EmailDialog = memo<EmailDialogProps>(function EmailDialog({ open, o
 	);
 });
 
-export const PasswordDialog = memo<PasswordDialogProps>(function PasswordDialog({ open, onOpenChange, onSubmit }) {
+export const PasswordDialog = memo(function PasswordDialog({ open, onOpenChange }: PasswordDialogProps) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
@@ -204,12 +205,12 @@ export const PasswordDialog = memo<PasswordDialogProps>(function PasswordDialog(
 	);
 });
 
-export const DeleteAccountDialog = memo<DeleteAccountDialogProps>(function DeleteAccountDialog({
+export const DeleteAccountDialog = memo(function DeleteAccountDialog({
 	open,
 	onOpenChange,
 	username,
 	onConfirm,
-}) {
+}: DeleteAccountDialogProps) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>

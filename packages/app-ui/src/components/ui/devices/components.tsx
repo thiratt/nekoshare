@@ -1,4 +1,5 @@
 import { memo, useMemo } from "react";
+
 import {
 	LuBatteryCharging,
 	LuBatteryFull,
@@ -16,8 +17,9 @@ import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { cn } from "@workspace/ui/lib/utils";
 
-import type { UiDevice, Os, DeviceStatus } from "@workspace/app-ui/types/device";
-import { PLATFORM_ICONS, STATUS_CONFIG, BATTERY_THRESHOLDS, capitalize } from "./constants";
+import type { DeviceStatus, Os, UiDevice } from "@workspace/app-ui/types/device";
+
+import { BATTERY_THRESHOLDS, capitalize, PLATFORM_ICONS, STATUS_CONFIG } from "./constants";
 
 interface DeviceIconProps {
 	platform: Os;

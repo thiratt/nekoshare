@@ -1,12 +1,14 @@
 import { useMemo } from "react";
+
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { Checkbox } from "@workspace/ui/components/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
 
 import type { FriendProps } from "@workspace/app-ui/types/friends";
+
+import { FriendAvatarCell, FriendRowActions,SortableHeader, StatusBadge } from "./components";
 import { formatDate } from "./constants";
-import { SortableHeader, StatusBadge, FriendAvatarCell, FriendRowActions } from "./components";
 
 interface UseColumnsOptions {
 	onAccept: (id: string) => void;

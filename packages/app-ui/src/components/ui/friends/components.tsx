@@ -1,4 +1,5 @@
 import { memo } from "react";
+
 import { LuArrowUpDown, LuCheck, LuChevronDown, LuChevronUp, LuX } from "react-icons/lu";
 import type { Column } from "@tanstack/react-table";
 
@@ -8,7 +9,8 @@ import { Button } from "@workspace/ui/components/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
 
 import type { FriendProps, FriendStatus } from "@workspace/app-ui/types/friends";
-import { STATUS_CONFIG, getInitials } from "./constants";
+
+import { getInitials,STATUS_CONFIG } from "./constants";
 
 interface SortableHeaderProps {
 	column: Column<FriendProps, unknown>;

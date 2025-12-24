@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { LuLogOut, LuX } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
@@ -11,13 +11,13 @@ import { authClient, invalidateSessionCache } from "@workspace/app-ui/lib/auth";
 import { deleteDevice } from "@workspace/app-ui/lib/device-api";
 import type { SettingCategory } from "@workspace/app-ui/types/settings";
 
-import { SETTING_CATEGORIES, CATEGORY_MAP, CONTENT_COMPONENTS } from "./constants";
+import { CONTENT_TRANSITION, CONTENT_VARIANTS, OVERLAY_TRANSITION, OVERLAY_VARIANTS } from "./animations";
 import { CategoryButton } from "./components";
+import { CATEGORY_MAP, CONTENT_COMPONENTS, SETTING_CATEGORIES } from "./constants";
 import { LogoutDialog } from "./dialogs";
-import { CONTENT_VARIANTS, OVERLAY_VARIANTS, CONTENT_TRANSITION, OVERLAY_TRANSITION } from "./animations";
 
 export function SettingsUI() {
-	const { router, setMode, setGlobalLoading, currentDeviceId } = useNekoShare();
+	const { router, setMode, setGlobalLoading, currentDevice } = useNekoShare();
 	const [activeCategory, setActiveCategory] = useState<SettingCategory>("account");
 	const [confirmLogout, setConfirmLogout] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -56,8 +56,8 @@ export function SettingsUI() {
 		setGlobalLoading(true);
 
 		try {
-			if (currentDeviceId) {
-				await deleteDevice(currentDeviceId);
+			if (currentDevice) {
+				await deleteDevice(currentDevice.id);
 			}
 		} catch (error) {
 			console.error("Failed to delete device on logout:", error);
@@ -73,9 +73,7 @@ export function SettingsUI() {
 				},
 			},
 		});
-
-		// setGlobalLoading(false);
-	}, [router, setMode, currentDeviceId]);
+	}, [router, setMode, currentDevice, setGlobalLoading]);
 
 	useEffect(() => {
 		if (!isEscapeEnabled) return;

@@ -1,5 +1,4 @@
+export { DeviceBatteryIcon, DeviceCard, DeviceIcon, DeviceStatusBadge, EmptyState } from "./components";
+export { BATTERY_THRESHOLDS, capitalize,PLATFORM_ICONS, STATUS_CONFIG } from "./constants";
 export { DevicesUI } from "./devices-ui";
-
-export { DeviceIcon, DeviceStatusBadge, DeviceBatteryIcon, DeviceCard, EmptyState } from "./components";
-export { ManageDeviceDialog, DeleteDeviceDialog } from "./dialogs";
-export { PLATFORM_ICONS, STATUS_CONFIG, BATTERY_THRESHOLDS, capitalize } from "./constants";
+export { DeleteDeviceDialog,ManageDeviceDialog } from "./dialogs";

@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useDeferredValue } from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
+
 import { LuRefreshCcw } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
@@ -12,7 +13,7 @@ import { useDevices } from "@workspace/app-ui/hooks/use-devices";
 import type { UiDevice } from "@workspace/app-ui/types/device";
 
 import { DeviceCard, EmptyState } from "./components";
-import { ManageDeviceDialog, DeleteDeviceDialog } from "./dialogs";
+import { DeleteDeviceDialog, ManageDeviceDialog } from "./dialogs";
 
 export function DevicesUI() {
 	const { devices, loading, error, refresh, updateDevice, deleteDevice } = useDevices();
@@ -124,7 +125,7 @@ export function DevicesUI() {
 							"border-2 border-dashed rounded-lg text-muted-foreground space-y-2"
 						)}
 					>
-						<p>ไม่พบอุปกรณ์ที่ตรงกับ "{deferredQuery}"</p>
+						<p>ไม่พบอุปกรณ์ที่ตรงกับ {deferredQuery}</p>
 					</div>
 				) : (
 					<EmptyState />

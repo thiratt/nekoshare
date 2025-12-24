@@ -1,7 +1,8 @@
-import type { Os, DeviceStatus } from "@workspace/app-ui/types/device";
 import { LuSmartphone } from "react-icons/lu";
-import { MdLaptopWindows } from "react-icons/md";
 import { LuEarth } from "react-icons/lu";
+import { MdLaptopWindows } from "react-icons/md";
+
+import type { DeviceStatus, Os } from "@workspace/app-ui/types/device";
 
 export const PLATFORM_ICONS: Record<Os, React.ComponentType<{ size?: number }>> = {
 	windows: MdLaptopWindows,

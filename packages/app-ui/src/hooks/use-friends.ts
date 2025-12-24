@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback,useEffect, useState } from "react";
 
 import { xfetch } from "@workspace/app-ui/lib/xfetch";
 import type { FriendProps } from "@workspace/app-ui/types/friends";

@@ -3,8 +3,12 @@ import { LocalDeviceInfo } from "./device";
 export type Mode = "home" | "settings";
 export type NotificationStatus = "on" | "off";
 
+export interface NavigateOptions {
+	[key: string]: string | number | boolean | object | undefined;
+}
+
 export interface Router {
-	navigate: (opts: any) => any;
+	navigate: (opts: NavigateOptions) => void;
 	options: {
 		context?: {
 			currentDeviceId?: string;

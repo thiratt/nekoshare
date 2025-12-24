@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo, useCallback, useDeferredValue } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+
 import {
-	type RowSelectionState,
-	type SortingState,
 	flexRender,
 	getCoreRowModel,
 	getSortedRowModel,
+	type RowSelectionState,
+	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
 import {
@@ -35,9 +36,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
 import type { HomeProps, ShareItem, Status } from "@workspace/app-ui/types/home";
 
-import { ITEMS_PER_PAGE } from "./constants";
 import { useColumns } from "./columns";
-import { DeleteItemDialog, DeleteBulkDialog } from "./dialogs";
+import { ITEMS_PER_PAGE } from "./constants";
+import { DeleteBulkDialog, DeleteItemDialog } from "./dialogs";
 import { useShareData } from "./hooks";
 
 export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading: externalLoading }: HomeProps) {
@@ -112,7 +113,7 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 		const ids = new Set<number>();
 		table.getSelectedRowModel().rows.forEach((r) => ids.add(r.original.id));
 		return ids;
-	}, [table, rowSelection]);
+	}, [table]);
 
 	const handleClearFilters = useCallback(() => {
 		setQuery("");

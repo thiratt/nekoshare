@@ -1,26 +1,11 @@
-import { createAuthClient } from "better-auth/react";
 import { usernameClient } from "better-auth/client/plugins";
 import { oneTimeTokenClient } from "better-auth/client/plugins";
+import { createAuthClient } from "better-auth/react";
 
 export const authClient = createAuthClient({
 	baseURL: "http://localhost:7780",
 	basePath: "/auth",
 	plugins: [usernameClient(), oneTimeTokenClient()],
-	$InferAuth: {
-		databaseHooks: {
-			session: {
-				create: {
-					before: async (session, context) => {
-						const { ipAddress, ...rest } = session;
-						console.log(rest);
-						return {
-							data: { ...rest },
-						};
-					},
-				},
-			},
-		},
-	},
 });
 
 export type SessionData = typeof authClient.$Infer.Session;

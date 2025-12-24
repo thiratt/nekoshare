@@ -1,5 +1,7 @@
 import type { IconType } from "react-icons";
 
+import { LinkComponent } from "./link";
+
 export type SettingCategory =
 	| "account"
 	| "appearance"
@@ -22,7 +24,7 @@ export interface CategoryButtonProps {
 }
 
 export interface ContentComponentProps {
-	linkComponent?: any;
+	linkComponent?: LinkComponent;
 }
 
 // Account types
@@ -31,7 +33,7 @@ export type DialogKey = "avatar" | "changeEmail" | "deleteAccount" | "changePass
 export type DialogState = Record<DialogKey, boolean>;
 
 export interface SettingAccountContentProps {
-	linkComponent?: any;
+	linkComponent?: LinkComponent;
 }
 
 // Appearance types

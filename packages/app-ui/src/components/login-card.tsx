@@ -1,17 +1,18 @@
 import { type JSX, useCallback, useState } from "react";
+
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { FaGoogle } from "react-icons/fa";
 import { LuLoader } from "react-icons/lu";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@workspace/ui/components/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage, Form } from "@workspace/ui/components/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
+
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
 import { ExtendLink } from "@workspace/app-ui/components/ext/link";
 import { loginFormSchema } from "@workspace/app-ui/schemas/auth";
-
 import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
 import type { TLoginSchema } from "@workspace/app-ui/types/schema";
 
@@ -73,7 +74,7 @@ export function LoginCard({ data, linkComponent, onGoogle, onSubmit }: LoginCard
 				)}
 			/>
 		),
-		[form.control]
+		[form.control, form.formState.isSubmitting, linkComponent]
 	);
 
 	return (

@@ -1,4 +1,4 @@
-import { memo, useCallback, type ReactNode } from "react";
+import { memo, type ReactNode, useCallback } from "react";
 
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card";
@@ -7,7 +7,7 @@ import { Separator } from "@workspace/ui/components/separator";
 import { Switch } from "@workspace/ui/components/switch";
 import { cn } from "@workspace/ui/lib/utils";
 
-import type { SettingCategoryConfig, SettingCategory } from "@workspace/app-ui/types/settings";
+import type { SettingCategory, SettingCategoryConfig } from "@workspace/app-ui/types/settings";
 
 interface CategoryButtonProps {
 	category: SettingCategoryConfig;
@@ -43,7 +43,7 @@ interface SettingSectionProps {
 	showSeparator?: boolean;
 }
 
-export const CategoryButton = memo<CategoryButtonProps>(function CategoryButton({ category, isActive, onClick }) {
+export const CategoryButton = memo(function CategoryButton({ category, isActive, onClick }: CategoryButtonProps) {
 	const Icon = category.icon;
 	const handleClick = useCallback(() => onClick(category.id), [onClick, category.id]);
 
@@ -60,7 +60,7 @@ export const CategoryButton = memo<CategoryButtonProps>(function CategoryButton(
 	);
 });
 
-export const SettingCard = memo<SettingCardProps>(function SettingCard({
+export const SettingCard = memo(function SettingCard({
 	title,
 	description,
 	footer,
@@ -68,7 +68,7 @@ export const SettingCard = memo<SettingCardProps>(function SettingCard({
 	action,
 	variant = "default",
 	children,
-}) {
+}: SettingCardProps) {
 	return (
 		<Card className={cn(variant === "destructive" && "bg-destructive/5 dark:bg-destructive/20")}>
 			<CardHeader className={cn(variant === "destructive" && "text-destructive")}>
@@ -87,13 +87,13 @@ export const SettingCard = memo<SettingCardProps>(function SettingCard({
 	);
 });
 
-export const SettingSwitch = memo<SettingSwitchProps>(function SettingSwitch({
+export const SettingSwitch = memo(function SettingSwitch({
 	label,
 	description,
 	checked,
 	onCheckedChange,
 	disabled,
-}) {
+}: SettingSwitchProps) {
 	return (
 		<div className="flex items-center justify-between">
 			<div className="space-y-0.5">
@@ -105,7 +105,7 @@ export const SettingSwitch = memo<SettingSwitchProps>(function SettingSwitch({
 	);
 });
 
-export const ShortcutRow = memo<ShortcutRowProps>(function ShortcutRow({ label, shortcut }) {
+export const ShortcutRow = memo(function ShortcutRow({ label, shortcut }: ShortcutRowProps) {
 	return (
 		<div className="flex justify-between items-center">
 			<span>{label}</span>
@@ -114,7 +114,7 @@ export const ShortcutRow = memo<ShortcutRowProps>(function ShortcutRow({ label, 
 	);
 });
 
-export const SettingSection = memo<SettingSectionProps>(function SettingSection({ children, showSeparator = false }) {
+export const SettingSection = memo(function SettingSection({ children, showSeparator = false }: SettingSectionProps) {
 	return (
 		<>
 			{children}

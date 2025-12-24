@@ -6,6 +6,7 @@ import type {
 	LocalDeviceInfo,
 	UiDevice,
 } from "@workspace/app-ui/types/device";
+
 import { xfetch } from "./xfetch";
 
 export function transformApiDevice(apiDevice: ApiDevice, currentDeviceId?: string): UiDevice {

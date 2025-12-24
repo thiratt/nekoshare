@@ -1,7 +1,7 @@
 import { memo } from "react";
 
 import { Button } from "@workspace/ui/components/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@workspace/ui/components/card";
+import { Card, CardContent,CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 
 import { ShortcutRow } from "../components";
 

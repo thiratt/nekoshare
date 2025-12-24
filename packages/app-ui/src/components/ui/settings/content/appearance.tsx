@@ -1,17 +1,18 @@
-import { memo, useCallback, useState, type FC, type ReactNode } from "react";
-import { LuCheck, LuMonitorSmartphone, LuMoon, LuSun } from "react-icons/lu";
+import { memo, type ReactNode, useCallback, useState } from "react";
 import type { IconType } from "react-icons";
+
+import { LuCheck, LuMonitorSmartphone, LuMoon, LuSun } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
 import { cn } from "@workspace/ui/lib/utils";
 
-import { useTheme } from "@workspace/app-ui/providers/theme-provider";
-import { ThaiFlagSvg } from "@workspace/app-ui/components/svgs/thai";
 import { EnglishFlagSvg } from "@workspace/app-ui/components/svgs/english";
-import type { Theme } from "@workspace/app-ui/types/theme";
+import { ThaiFlagSvg } from "@workspace/app-ui/components/svgs/thai";
+import { useTheme } from "@workspace/app-ui/providers/theme-provider";
 import type { Language, LanguageOption } from "@workspace/app-ui/types/settings";
+import type { Theme } from "@workspace/app-ui/types/theme";
 
 const LANGUAGE_OPTIONS: readonly LanguageOption[] = [
 	{
@@ -84,7 +85,7 @@ interface LocalIconElementProps {
 	children: ReactNode;
 }
 
-const IconElement: FC<LocalIconElementProps> = memo(function IconElement({ className, children }) {
+const IconElement = memo(function IconElement({ className, children }: LocalIconElementProps) {
 	return (
 		<div
 			className={cn(
@@ -107,13 +108,13 @@ interface LocalThemeButtonProps {
 	"aria-checked"?: boolean;
 }
 
-const ThemeButton = memo<LocalThemeButtonProps>(function ThemeButton({
+const ThemeButton = memo(function ThemeButton({
 	option,
 	isSelected,
 	onThemeSelect,
 	className,
 	...props
-}) {
+}: LocalThemeButtonProps) {
 	const { id, icon: Icon, bgClass, iconClass, label } = option;
 
 	const handleClick = useCallback(() => {

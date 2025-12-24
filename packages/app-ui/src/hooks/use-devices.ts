@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
-import type { UiDevice } from "@workspace/app-ui/types/device";
 import {
+	deleteDevice as deleteDeviceApi,
 	fetchDevices,
 	transformApiDevice,
 	transformLocalDevice,
 	updateDevice as updateDeviceApi,
-	deleteDevice as deleteDeviceApi,
 } from "@workspace/app-ui/lib/device-api";
+import type { UiDevice } from "@workspace/app-ui/types/device";
 import type { UseDevicesReturn } from "@workspace/app-ui/types/hooks";
 
 export function useDevices(): UseDevicesReturn {

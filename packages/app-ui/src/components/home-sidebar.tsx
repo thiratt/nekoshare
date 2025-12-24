@@ -2,14 +2,8 @@ import { useMemo } from "react";
 
 import { LuChevronLeft, LuHouse, LuLogOut, LuMonitorSmartphone, LuUsers } from "react-icons/lu";
 
-import { Button } from "@workspace/ui/components/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@workspace/ui/components/tooltip";
-import { cn } from "@workspace/ui/lib/utils";
-import { useSidebar } from "@workspace/app-ui/hooks/use-sidebar";
-
-import { ExtendLink } from "@workspace/app-ui/components/ext/link";
-import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
+import { Button } from "@workspace/ui/components/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -18,7 +12,12 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
-import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@workspace/ui/components/tooltip";
+import { cn } from "@workspace/ui/lib/utils";
+
+import { ExtendLink } from "@workspace/app-ui/components/ext/link";
+import { useSidebar } from "@workspace/app-ui/hooks/use-sidebar";
+import type { IncludeLinkComponentProps, LinkComponent } from "@workspace/app-ui/types/link";
 
 interface HomeSidebarProps extends IncludeLinkComponentProps {
 	pathname: string;
@@ -35,7 +34,7 @@ interface SidebarButtonProps {
 	icon: React.ElementType;
 	isActive: boolean;
 	isOpen: boolean;
-	linkComponent: any;
+	linkComponent: LinkComponent;
 }
 
 const SidebarButton = ({ label, link, icon: Icon, isActive, isOpen, linkComponent }: SidebarButtonProps) => {
@@ -70,7 +69,6 @@ export function HomeSidebar({
 	collapseWhenNotificationOpen = false,
 }: HomeSidebarProps) {
 	const { isOpen, toggleSidebar } = useSidebar();
-	const { setMode, toggleNotification } = useNekoShare();
 
 	// Force collapse when notification sidebar is open
 	const effectiveIsOpen = collapseWhenNotificationOpen ? false : isOpen;

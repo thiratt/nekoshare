@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import { authClient } from "@workspace/app-ui/lib/auth";
 
 const SERVER_URL = "ws://localhost:7780/ws";

@@ -1,8 +1,9 @@
+import { AnimatePresence, motion } from "motion/react";
 import { LuX } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
-import { AnimatePresence, motion } from "motion/react";
+
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import { useSidebar } from "@workspace/app-ui/hooks/use-sidebar";
 

@@ -1,4 +1,4 @@
-import { useCallback, useState, memo, type FC, type ChangeEvent } from "react";
+import { memo, useCallback, useState } from "react";
 
 import { LuCamera } from "react-icons/lu";
 
@@ -18,8 +18,8 @@ import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
-
 import { cn } from "@workspace/ui/lib/utils";
+
 import type { DialogKey, DialogState } from "@workspace/app-ui/types/settings";
 
 const INITIAL_DIALOG_STATE: DialogState = {
@@ -39,9 +39,9 @@ interface LocalSettingAccountContentProps {
 	onDialogActive: (value: boolean) => void;
 }
 
-export const SettingAccountContent: FC<LocalSettingAccountContentProps> = memo(function SettingAccountContent({
+export const SettingAccountContent = memo(function SettingAccountContent({
 	onDialogActive,
-}) {
+}: LocalSettingAccountContentProps) {
 	const [dialogs, setDialogs] = useState<DialogState>(INITIAL_DIALOG_STATE);
 
 	const updateDialog = useCallback(
@@ -57,13 +57,13 @@ export const SettingAccountContent: FC<LocalSettingAccountContentProps> = memo(f
 	const openDeleteDialog = useCallback(() => updateDialog("deleteAccount", true), [updateDialog]);
 	const openPasswordDialog = useCallback(() => updateDialog("changePassword", true), [updateDialog]);
 
-	const handleAvatarUpload = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0];
-		if (file) {
-			// TODO: Implement avatar upload logic
-			console.log("Avatar file selected:", file);
-		}
-	}, []);
+	// const handleAvatarUpload = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+	// 	const file = event.target.files?.[0];
+	// 	if (file) {
+	// 		// TODO: Implement avatar upload logic
+	// 		console.log("Avatar file selected:", file);
+	// 	}
+	// }, []);
 
 	return (
 		<div className="space-y-2 rounded-full">

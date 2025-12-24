@@ -1,11 +1,12 @@
-import { createContext, useContext, useState, useMemo, useCallback, useRef, type ReactNode, useEffect } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useMemo, useRef, useState } from "react";
 
 import { AnimatePresence, motion, type Transition, type Variants } from "motion/react";
 
 import { Toaster } from "@workspace/ui/components/sonner";
+
 import LoadingOverlay from "@workspace/app-ui/components/global-loading";
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
-import type { Mode, NotificationStatus, NekoShareContextType, Router } from "@workspace/app-ui/types/context";
+import type { Mode, NekoShareContextType, NotificationStatus, Router } from "@workspace/app-ui/types/context";
 import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
 
 const NekoShareContext = createContext<NekoShareContextType | null>(null);

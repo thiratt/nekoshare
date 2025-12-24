@@ -1,6 +1,6 @@
 import { memo } from "react";
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@workspace/ui/components/card";
+import { Card, CardContent,CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 
 import { SettingSwitch } from "../components";
 

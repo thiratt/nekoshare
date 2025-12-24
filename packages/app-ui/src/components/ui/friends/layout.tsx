@@ -1,5 +1,5 @@
-import { LuChevronLeft, LuChevronRight, LuLoader, LuRefreshCcw, LuTrash2, LuUserPlus } from "react-icons/lu";
 import { flexRender, type Table as TanstackTable } from "@tanstack/react-table";
+import { LuChevronLeft, LuChevronRight, LuLoader, LuRefreshCcw, LuTrash2, LuUserPlus } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
