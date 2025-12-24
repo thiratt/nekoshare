@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { ChevronDownIcon } from "lucide-react";
 
@@ -50,4 +51,4 @@ function AccordionContent({ className, children, ...props }: React.ComponentProp
 	);
 }
 
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };
+export { Accordion, AccordionContent,AccordionItem, AccordionTrigger };
