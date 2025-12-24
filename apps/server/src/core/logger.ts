@@ -1,68 +1,80 @@
-enum LogColor {
-	ERROR = "\x1b[31m", // Red
-	WARN = "\x1b[33m", // Yellow
-	INFO = "\x1b[32m", // Green
-	DEBUG = "\x1b[34m", // Blue
-	RESET = "\x1b[0m", // Reset
+import { inspect } from "util";
+
+enum LogLevel {
+	ERROR = 0,
+	WARN = 1,
+	INFO = 2,
+	DEBUG = 3,
 }
 
-export enum LogLevel {
-	ERROR = "ERROR",
-	WARN = "WARN",
-	INFO = "INFO",
-	DEBUG = "DEBUG",
-}
+const COLORS = {
+	Reset: "\x1b[0m",
+	Bright: "\x1b[1m",
+	Dim: "\x1b[2m",
+	Red: "\x1b[31m",
+	Yellow: "\x1b[33m",
+	Green: "\x1b[32m",
+	Cyan: "\x1b[36m",
+	Gray: "\x1b[90m",
+};
 
-export class Logger {
-	private static level: LogLevel = LogLevel.INFO;
-	private static verbose: boolean = false;
+const LEVEL_COLORS = {
+	[LogLevel.ERROR]: COLORS.Red,
+	[LogLevel.WARN]: COLORS.Yellow,
+	[LogLevel.INFO]: COLORS.Green,
+	[LogLevel.DEBUG]: COLORS.Cyan,
+};
+
+class Logger {
+	private static currentLevel: LogLevel = LogLevel.INFO;
 
 	static setLevel(level: LogLevel): void {
-		this.level = level;
+		this.currentLevel = level;
 	}
-
-	static setVerbose(verbose: boolean): void {
-		this.verbose = verbose;
-	}
-
 	private static shouldLog(level: LogLevel): boolean {
-		const levels = [LogLevel.ERROR, LogLevel.WARN, LogLevel.INFO, LogLevel.DEBUG];
-		return levels.indexOf(level) <= levels.indexOf(this.level);
+		return level <= this.currentLevel;
 	}
 
-	private static formatMessage(level: LogLevel, component: string, message: string, data?: unknown): string {
-		const timestamp = new Date().toISOString();
-		const prefix = `[${timestamp}] [${LogColor[level]}${level}${LogColor.RESET}] [${component}]`;
+	private static getTimestamp(): string {
+		const now = new Date();
+		return now.toISOString();
+	}
+
+	private static format(level: LogLevel, component: string, message: string, data?: unknown): void {
+		if (!this.shouldLog(level)) return;
+
+		const timestamp = this.getTimestamp();
+		const color = LEVEL_COLORS[level];
+		const levelName = LogLevel[level].padEnd(5);
+
+		const prefix = `${COLORS.Gray}[${timestamp}]${COLORS.Reset} ${color}[${levelName}]${COLORS.Reset} ${COLORS.Bright}[${component}]${COLORS.Reset}`;
+
+		const logFn = level === LogLevel.ERROR ? console.error : console.log;
 
 		if (data !== undefined) {
-			return `${prefix} ${message} ${JSON.stringify(data)}`;
-		}
+			const formattedData =
+				typeof data === "object" ? inspect(data, { colors: true, depth: null, breakLength: Infinity }) : data;
 
-		return `${prefix} ${message}`;
+			logFn(`${prefix} ${message}`, formattedData);
+		} else {
+			logFn(`${prefix} ${message}`);
+		}
 	}
 
 	static error(component: string, message: string, error?: unknown): void {
-		if (this.shouldLog(LogLevel.ERROR)) {
-			console.error(this.formatMessage(LogLevel.ERROR, component, message, error));
-		}
+		this.format(LogLevel.ERROR, component, message, error);
 	}
 
 	static warn(component: string, message: string, data?: unknown): void {
-		if (this.shouldLog(LogLevel.WARN)) {
-			console.warn(this.formatMessage(LogLevel.WARN, component, message, data));
-		}
+		this.format(LogLevel.WARN, component, message, data);
 	}
 
 	static info(component: string, message: string, data?: unknown): void {
-		if (this.shouldLog(LogLevel.INFO)) {
-			console.log(this.formatMessage(LogLevel.INFO, component, message, data));
-		}
+		this.format(LogLevel.INFO, component, message, data);
 	}
 
 	static debug(component: string, message: string, data?: unknown): void {
-		if (this.verbose && this.shouldLog(LogLevel.DEBUG)) {
-			console.log(this.formatMessage(LogLevel.DEBUG, component, message, data));
-		}
+		this.format(LogLevel.DEBUG, component, message, data);
 	}
 }
 
@@ -70,4 +82,4 @@ const nekoShareLogger = (message: string, ...rest: string[]) => {
 	Logger.info("App", message, rest.length > 0 ? rest : undefined);
 };
 
-export { nekoShareLogger };
+export { Logger, LogLevel, nekoShareLogger };
