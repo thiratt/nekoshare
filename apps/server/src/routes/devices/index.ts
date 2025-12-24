@@ -34,7 +34,6 @@ const deviceRegistrationSchema = z.object({
 		percent: z.number().min(0).max(100),
 	}),
 	publicKey: z.string().min(1),
-	lastActiveAt: z.date(),
 });
 
 const deviceUpdateSchema = z.object({
@@ -64,7 +63,7 @@ function mapDeviceToDto(d: typeof device.$inferSelect): Device {
 	};
 }
 
-function mapDeviceToDbValues(body: DeviceRegistrationRequest) {
+function mapDeviceToDbValues(body: z.infer<typeof deviceRegistrationSchema>) {
 	return {
 		name: body.name,
 		os: body.platform.os,
