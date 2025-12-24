@@ -1,7 +1,7 @@
 import { type ServerType } from "@hono/node-server";
-import { createApp } from "./app";
-import { startSocketServer, type TCPFileServer } from "./core/socket/tcp";
+import { createApp, shutdownApp } from "./app";
 import { Logger } from "./core/logger";
+import type { TCPFileServer } from "./core/socket/tcp";
 
 let httpServer: ServerType | null = null;
 let socketServer: TCPFileServer | null = null;
@@ -24,17 +24,8 @@ async function shutdown(signal: string): Promise<void> {
 
 	try {
 		if (httpServer) {
-			await new Promise<void>((resolve, reject) => {
-				httpServer!.close((err) => {
-					if (err) {
-						console.error("Error stopping HTTP server:", err);
-						reject(err);
-					} else {
-						console.log("HTTP server stopped");
-						resolve();
-					}
-				});
-			});
+			await shutdownApp(httpServer);
+			console.log("HTTP server stopped");
 		}
 
 		if (socketServer) {

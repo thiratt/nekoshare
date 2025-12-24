@@ -1,8 +1,6 @@
-import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 
-import type { AuthenticatedType } from "@/core/auth";
 import { db } from "@/adapters/db";
 import { device } from "@/adapters/db/schemas";
 import {
@@ -11,9 +9,9 @@ import {
 	OS_TYPES,
 	type Device,
 	type DeviceListResponse,
-	type DeviceRegistrationRequest,
 	type DeviceRegistrationResponse,
 } from "@/types";
+import { createRouter } from "@/core/utils/router";
 
 const deviceRegistrationSchema = z.object({
 	id: z.string().min(1),
@@ -80,7 +78,7 @@ function mapDeviceToDbValues(body: z.infer<typeof deviceRegistrationSchema>) {
 	};
 }
 
-const app = new Hono<{ Variables: AuthenticatedType }>();
+const app = createRouter();
 
 app.get("/", async (c) => {
 	const session = c.get("session");

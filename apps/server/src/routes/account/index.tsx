@@ -1,9 +1,7 @@
-import { Hono } from "hono";
-
-import type { AuthenticatedType } from "@/core/auth";
+import { createRouter } from "@/core/utils/router";
 import { success } from "@/types";
 
-const app = new Hono<{ Variables: AuthenticatedType }>();
+const app = createRouter();
 
 app.get("/session", (c) => {
 	const session = c.get("session");

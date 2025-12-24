@@ -1,7 +1,7 @@
 import { auth } from "@/core/auth";
-import { Hono } from "hono";
+import { createRouter } from "@/core/utils/router";
 
-const app = new Hono();
+const app = createRouter();
 
 app.on(["POST", "GET"], "*", (c) => {
 	return auth.handler(c.req.raw);
