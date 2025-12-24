@@ -1,6 +1,8 @@
-import { type ServerType } from "@hono/node-server";
+import type { ServerType } from "@hono/node-server";
+
 import { createApp, shutdownApp } from "./app";
-import { Logger } from "./core/logger";
+import { Logger, LogLevel } from "./core/logger";
+import { env } from "./config/env";
 import type { TCPFileServer } from "./core/socket/tcp";
 
 let httpServer: ServerType | null = null;
@@ -8,6 +10,10 @@ let socketServer: TCPFileServer | null = null;
 
 async function startServers(): Promise<void> {
 	try {
+		if (env.NODE_ENV === "development") {
+			Logger.setLevel(LogLevel.DEBUG);
+		}
+
 		Logger.info("Main", "Starting HTTP server...");
 		httpServer = await createApp();
 
