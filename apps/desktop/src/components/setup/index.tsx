@@ -130,7 +130,7 @@ function SetupApplicationUI({
           <FieldGroup>
             <Field>
               <FieldLabel>ตำแหน่งบันทึกเริ่มต้น</FieldLabel>
-              <div className="flex gap-2">
+              <div className="flex">
                 <Input
                   value={finalPath}
                   placeholder={
@@ -140,6 +140,7 @@ function SetupApplicationUI({
                   readOnly
                 />
                 <Button
+                  className="ml-2"
                   variant="outline"
                   size="icon"
                   onClick={handleSelectFolder}
@@ -149,6 +150,7 @@ function SetupApplicationUI({
                 </Button>
                 <AnimatedContainer show={!isDefault}>
                   <Button
+                    className="ml-2"
                     variant="outline"
                     size="icon"
                     onClick={() => {
