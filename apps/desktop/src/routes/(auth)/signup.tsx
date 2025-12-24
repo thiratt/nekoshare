@@ -1,11 +1,13 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 
 import { useToast } from "@workspace/ui/hooks/use-toast";
+
 import { SignupCard } from "@workspace/app-ui/components/signup-card";
+import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import type { TSignupSchema } from "@workspace/app-ui/types/schema";
+
 import { authClient, invalidateSessionCache } from "@/lib/auth";
 import { registerDevice } from "@/lib/device";
-import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 
 export const Route = createFileRoute("/(auth)/signup")({
   component: RouteComponent,

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 import {
   createFileRoute,
   Link,
@@ -8,17 +7,18 @@ import {
   redirect,
   useLocation,
 } from "@tanstack/react-router";
+import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 
 import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
-import { useTheme } from "@workspace/app-ui/providers/theme-provider";
 import { useSocket } from "@workspace/app-ui/hooks/use-socket";
+import { useTheme } from "@workspace/app-ui/providers/theme-provider";
 
 import { DesktopTitlebar } from "@/components/navbar";
 import { SetupApplicationUI } from "@/components/setup";
-import { getCachedSession } from "@/lib/auth";
 import { useStore } from "@/hooks/useStore";
+import { getCachedSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/home")({
   async beforeLoad() {
@@ -39,7 +39,7 @@ function RouteComponent() {
   const [isSetup, setIsSetup] = useState<boolean>(false);
   const location = useLocation();
   const {
-    isGlobalLoading,
+    globalLoading,
     notificationStatus,
     toggleNotification,
     setMode,
@@ -47,7 +47,7 @@ function RouteComponent() {
   } = useNekoShare();
   const { theme, setTheme } = useTheme();
   const { get } = useStore();
-  const { connect, disconnect, } = useSocket();
+  const { connect, disconnect } = useSocket();
 
   const titlebarHelperActions = useMemo(
     () => [
@@ -67,7 +67,7 @@ function RouteComponent() {
         onClick: () => setMode("settings"),
       },
     ],
-    [notificationStatus, theme],
+    [notificationStatus, setMode, setTheme, theme, toggleNotification],
   );
 
   const handleSetupComplete = () => {
@@ -106,7 +106,7 @@ function RouteComponent() {
     init();
   }, [get, setGlobalLoading]);
 
-  if (isGlobalLoading) return;
+  if (globalLoading) return;
 
   return (
     <div className="min-h-svh flex flex-col">

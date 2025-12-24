@@ -17,7 +17,7 @@ export interface Router {
 }
 
 export interface NekoShareContextType {
-	isGlobalLoading: boolean;
+	globalLoading: boolean;
 	mode: Mode;
 	notificationStatus: NotificationStatus;
 	router: Router;

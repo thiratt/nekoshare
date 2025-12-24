@@ -47,7 +47,7 @@ const CONTENT_SCALE_INACTIVE = { scale: 0.97, y: -10 };
 interface NekoShareProviderProps<TRouter extends Router = Router> {
 	router: TRouter;
 	children: ReactNode;
-	globalLoading: boolean;
+	globalLoading: { loading: boolean; setLoading: (loading: boolean) => void };
 	currentDevice: LocalDeviceInfo | undefined;
 }
 
@@ -57,7 +57,6 @@ const NekoShareProvider = <TRouter extends Router>({
 	globalLoading,
 	currentDevice,
 }: NekoShareProviderProps<TRouter>) => {
-	const [isGlobalLoading, setIsGlobalLoading] = useState(globalLoading);
 	const [mode, setMode] = useState<Mode>("home");
 	const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>("off");
 	const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -66,23 +65,24 @@ const NekoShareProvider = <TRouter extends Router>({
 		setNotificationStatus((previousStatus) => (previousStatus === "on" ? "off" : "on"));
 	}, []);
 
-	const handleSetGlobalLoading = useCallback((isLoading: boolean) => {
-		if (loadingTimeoutRef.current) {
-			clearTimeout(loadingTimeoutRef.current);
-			loadingTimeoutRef.current = null;
-		}
-
-		if (isLoading) {
-			requestAnimationFrame(() => {
-				setIsGlobalLoading(isLoading);
-			});
-		} else {
-			loadingTimeoutRef.current = setTimeout(() => {
-				setIsGlobalLoading(isLoading);
+	const handleSetGlobalLoading = useCallback(
+		(isLoading: boolean) => {
+			if (loadingTimeoutRef.current) {
+				clearTimeout(loadingTimeoutRef.current);
 				loadingTimeoutRef.current = null;
-			}, 300);
-		}
-	}, []);
+			}
+			if (isLoading) {
+				requestAnimationFrame(() => {
+				});
+			} else {
+				loadingTimeoutRef.current = setTimeout(() => {
+					globalLoading.setLoading(isLoading);
+					loadingTimeoutRef.current = null;
+				}, 500);
+			}
+		},
+		[globalLoading]
+	);
 
 	const handleSetMode = useCallback((newMode: Mode) => {
 		setMode(newMode);
@@ -94,7 +94,7 @@ const NekoShareProvider = <TRouter extends Router>({
 
 	const contextValue = useMemo<NekoShareContextType>(
 		() => ({
-			isGlobalLoading,
+			globalLoading: globalLoading.loading,
 			mode,
 			notificationStatus,
 			router,
@@ -105,7 +105,7 @@ const NekoShareProvider = <TRouter extends Router>({
 			toggleNotification,
 		}),
 		[
-			isGlobalLoading,
+			globalLoading,
 			mode,
 			notificationStatus,
 			router,
@@ -157,7 +157,9 @@ const NekoShareProvider = <TRouter extends Router>({
 					)}
 				</AnimatePresence>
 			</div>
-			<AnimatePresence>{isGlobalLoading && <LoadingOverlay key="global-loading-overlay" />}</AnimatePresence>
+			<AnimatePresence>
+				{globalLoading.loading && <LoadingOverlay key="global-loading-overlay" />}
+			</AnimatePresence>
 			<Toaster richColors position="top-right" offset={{ top: "3rem" }} />
 		</NekoShareContext.Provider>
 	);

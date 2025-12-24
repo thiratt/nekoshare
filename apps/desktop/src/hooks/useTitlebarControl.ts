@@ -1,5 +1,6 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
+
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 function useTitlebarControl() {
   const appWindow = getCurrentWindow();

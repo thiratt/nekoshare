@@ -1,8 +1,10 @@
-import { useTitlebarControl } from "@/hooks/useTitlebarControl";
-import { Button } from "@workspace/ui/components/button";
-import { cn } from "@workspace/ui/lib/utils";
 import { LuMaximize, LuMinus, LuX } from "react-icons/lu";
 import { TiTabsOutline } from "react-icons/ti";
+
+import { Button } from "@workspace/ui/components/button";
+import { cn } from "@workspace/ui/lib/utils";
+
+import { useTitlebarControl } from "@/hooks/useTitlebarControl";
 
 interface DesktopTitlebarHelperActionsProps {
   icon: React.ReactNode;

@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { remove } from "@tauri-apps/plugin-fs";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+
+import { HomeUI } from "@workspace/app-ui/components/ui/home/index";
 
 import { useFiles } from "@/hooks/useFiles";
-import { HomeUI } from "@workspace/app-ui/components/ui/home/index";
 
 export const Route = createFileRoute("/home/")({
   component: RouteComponent,

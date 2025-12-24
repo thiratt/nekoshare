@@ -1,42 +1,40 @@
-import { Outlet, createRootRoute, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+
+import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
+
 import { NekoShareProvider } from "@workspace/app-ui/context/nekoshare";
 import { ThemeProvider } from "@workspace/app-ui/providers/theme-provider";
-import { useEffect, useRef, useState } from "react";
-
-import { getDeviceInfo } from "@/lib/device";
 import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
 
+import { getDeviceInfo } from "@/lib/device";
 export const Route = createRootRoute({
-  component: () => {
-    const router = useRouter();
-    const [globalLoading, setGlobalLoading] = useState(true);
-    const [deviceInfo, setDeviceInfo] = useState<LocalDeviceInfo | undefined>(
-      undefined,
-    );
-    const hasFetchedRef = useRef(false);
-
-    useEffect(() => {
-      if (hasFetchedRef.current) return;
-      hasFetchedRef.current = true;
-
-      const fetchDeviceInfo = async () => {
-        const info = await getDeviceInfo();
-        setDeviceInfo(info);
-        setGlobalLoading(false);
-      };
-      fetchDeviceInfo();
-    }, []);
-
-    return (
-      <ThemeProvider>
-        <NekoShareProvider
-          router={router}
-          globalLoading={globalLoading}
-          currentDevice={deviceInfo}
-        >
-          <Outlet />
-        </NekoShareProvider>
-      </ThemeProvider>
-    );
-  },
+  component: RouteComponent,
 });
+
+function RouteComponent() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [deviceInfo, setDeviceInfo] = useState<LocalDeviceInfo | undefined>(
+    undefined,
+  );
+
+  useEffect(() => {
+    const fetchDeviceInfo = async () => {
+      const info = await getDeviceInfo();
+      setDeviceInfo(info);
+    };
+    fetchDeviceInfo();
+  }, []);
+
+  return (
+    <ThemeProvider>
+      <NekoShareProvider
+        router={router}
+        currentDevice={deviceInfo}
+        globalLoading={{ loading, setLoading }}
+      >
+        <Outlet />
+      </NekoShareProvider>
+    </ThemeProvider>
+  );
+}

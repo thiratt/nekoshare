@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { FolderOpen, Check } from "lucide-react";
-import { LuLoader, LuX } from "react-icons/lu";
-import { open } from "@tauri-apps/plugin-dialog";
 import { documentDir, join } from "@tauri-apps/api/path";
+import { open } from "@tauri-apps/plugin-dialog";
+import { exists, mkdir } from "@tauri-apps/plugin-fs";
+import { Check, FolderOpen } from "lucide-react";
+import { LuLoader, LuX } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -15,10 +16,10 @@ import {
 } from "@workspace/ui/components/field";
 import { Input } from "@workspace/ui/components/input";
 import { Switch } from "@workspace/ui/components/switch";
+
 import { AnimatedContainer } from "@workspace/app-ui/components/provide-animate";
 
 import { useStore } from "@/hooks/useStore";
-import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
 const FOLDER_NAME = "Nekoshare";
 const DIALOG_TITLE = "Select Save Location";
@@ -28,7 +29,7 @@ function SetupApplicationUI({
 }: {
   onSetupComplete?: () => void;
 }) {
-  const { set: saveToStore, isLoading: isStoreLoading } = useStore();
+  const { set: saveToStore } = useStore();
 
   const [defaultDocPath, setDefaultDocPath] = useState<string>("");
   const [selectedPath, setSelectedPath] = useState<string>("");
@@ -40,62 +41,38 @@ function SetupApplicationUI({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let mounted = true;
     const init = async () => {
       try {
         const docDir = await documentDir();
-        if (mounted) {
-          setDefaultDocPath(docDir);
-          setSelectedPath(docDir);
-        }
-      } catch (err) {
-        console.error("Failed to get document dir", err);
-        if (mounted) {
-          setError("Failed to initialize default path");
-        }
+        setDefaultDocPath(docDir);
+        setSelectedPath(docDir);
+      } catch {
+        setError("ไม่สามารถเข้าถึงโฟลเดอร์ Documents ได้");
       } finally {
-        if (mounted) {
-          setIsInitializing(false);
-        }
+        setIsInitializing(false);
       }
     };
     init();
-    return () => {
-      mounted = false;
-    };
   }, []);
 
   useEffect(() => {
     if (!selectedPath) return;
 
-    let mounted = true;
-    const calculatePath = async () => {
-      try {
-        const path = createSubfolder
-          ? await join(selectedPath, FOLDER_NAME)
-          : selectedPath;
-
-        if (mounted) {
-          setFinalPath(path);
-        }
-      } catch (err) {
-        console.error("Error joining paths", err);
-      }
+    const updateFinalPath = async () => {
+      const path = createSubfolder
+        ? await join(selectedPath, FOLDER_NAME)
+        : selectedPath;
+      setFinalPath(path);
     };
-    calculatePath();
-    return () => {
-      mounted = false;
-    };
+    updateFinalPath();
   }, [selectedPath, createSubfolder]);
 
   const isDefault = useMemo(() => {
-    if (!defaultDocPath || !selectedPath) return true;
-    return selectedPath === defaultDocPath && createSubfolder === true;
+    return selectedPath === defaultDocPath && createSubfolder;
   }, [defaultDocPath, selectedPath, createSubfolder]);
 
   const handleSelectFolder = useCallback(async () => {
     try {
-      setError(null);
       const selected = await open({
         directory: true,
         multiple: false,
@@ -105,43 +82,23 @@ function SetupApplicationUI({
 
       if (selected && typeof selected === "string") {
         setSelectedPath(selected);
-        const isNekoshareFolder =
-          selected.endsWith(FOLDER_NAME) ||
-          selected.endsWith(FOLDER_NAME + "\\") ||
-          selected.endsWith(FOLDER_NAME + "/");
-
-        if (isNekoshareFolder) {
-          setCreateSubfolder(false);
-        } else {
-          setCreateSubfolder(true);
-        }
+        setCreateSubfolder(
+          !selected.toLowerCase().endsWith(FOLDER_NAME.toLowerCase()),
+        );
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      console.error("Error selecting folder:", err);
-      setError(`Failed to select folder: ${msg}`);
+    } catch {
+      setError("เกิดข้อผิดพลาดในการเลือกโฟลเดอร์");
     }
   }, [selectedPath, defaultDocPath]);
 
-  const handleResetToDefault = useCallback(() => {
-    setSelectedPath(defaultDocPath);
-    setCreateSubfolder(true);
-    setError(null);
-  }, [defaultDocPath]);
-
-  const handleSaveSettings = useCallback(async () => {
+  const handleSaveSettings = async () => {
     if (!finalPath) return;
-
     setIsSaving(true);
     setError(null);
 
     try {
-      console.log("Saving settings:", { finalPath, createSubfolder });
-      const isPathExists = await exists(finalPath);
-
-      if (!isPathExists) {
-        // TODO: Request permission if needed
-        await mkdir(finalPath);
+      if (!(await exists(finalPath))) {
+        await mkdir(finalPath, { recursive: true });
       }
 
       await saveToStore("appConfig", {
@@ -149,17 +106,13 @@ function SetupApplicationUI({
         fileLocation: finalPath,
       });
 
-      if (onSetupComplete) {
-        onSetupComplete();
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      console.error("Error saving settings:", err);
-      setError(`Failed to save settings: ${msg}`);
+      onSetupComplete?.();
+    } catch {
+      setError("ไม่สามารถบันทึกการตั้งค่าได้");
     } finally {
       setIsSaving(false);
     }
-  }, [finalPath, createSubfolder, saveToStore]);
+  };
 
   return (
     <div className="w-full max-w-2xl space-y-8 rounded-lg border bg-card p-8 shadow-lg">
@@ -168,7 +121,7 @@ function SetupApplicationUI({
           ยินดีต้อนรับสู่ Nekoshare
         </h1>
         <p className="text-muted-foreground">
-          ตั้งค่าตำแหน่งบันทึกเริ่มต้นสำหรับไฟล์ที่ได้รับ
+          ตั้งค่าตำแหน่งบันทึกไฟล์ที่คุณได้รับ
         </p>
       </header>
 
@@ -176,95 +129,84 @@ function SetupApplicationUI({
         <FieldSet>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="save-location">
-                ตำแหน่งบันทึกเริ่มต้น
-              </FieldLabel>
-              <div className="flex">
+              <FieldLabel>ตำแหน่งบันทึกเริ่มต้น</FieldLabel>
+              <div className="flex gap-2">
                 <Input
-                  id="save-location"
                   value={finalPath}
                   placeholder={
-                    isInitializing ? "Loading..." : "Select a folder..."
+                    isInitializing ? "กำลังโหลด..." : "เลือกโฟลเดอร์..."
                   }
-                  className="flex-1 pointer-events-none truncate"
+                  className="flex-1 pointer-events-none truncate bg-muted/50"
                   readOnly
-                  aria-label="Selected save location path"
-                  aria-invalid={!!error}
-                  title={finalPath}
                 />
                 <Button
-                  className="ml-2"
-                  type="button"
                   variant="outline"
                   size="icon"
                   onClick={handleSelectFolder}
-                  aria-label="Browse for folder"
-                  disabled={isInitializing || isSaving || isStoreLoading}
+                  disabled={isSaving}
                 >
                   <FolderOpen className="h-4 w-4" />
                 </Button>
                 <AnimatedContainer show={!isDefault}>
                   <Button
-                    className="ml-2"
-                    type="button"
                     variant="outline"
                     size="icon"
-                    onClick={handleResetToDefault}
-                    aria-label="Reset to default location"
-                    disabled={isInitializing || isSaving || isStoreLoading}
+                    onClick={() => {
+                      setSelectedPath(defaultDocPath);
+                      setCreateSubfolder(true);
+                    }}
                   >
                     <LuX className="h-4 w-4" />
                   </Button>
                 </AnimatedContainer>
               </div>
-              {error && (
-                <p className="text-sm text-destructive mt-1">{error}</p>
-              )}
+
               <FieldDescription>
-                ไฟล์ทั้งหมดที่คุณได้รับจะถูกบันทึกในตำแหน่งนี้โดยค่าเริ่มต้น
+                ไฟล์จะถูกบันทึกที่:{" "}
+                <span className="font-mono text-xs break-all text-primary">
+                  {finalPath}
+                </span>
               </FieldDescription>
-              <Field orientation="horizontal">
+
+              <Field orientation="horizontal" className="mt-4">
                 <Switch
                   id="create-new-folder"
                   checked={createSubfolder}
                   onCheckedChange={setCreateSubfolder}
-                  disabled={isInitializing || isSaving || isStoreLoading}
-                  aria-label="Create new folder for received files"
+                  disabled={isSaving}
                 />
-                <FieldLabel htmlFor="create-new-folder">
-                  สร้างโฟลเดอร์ "{FOLDER_NAME}" ในตำแหน่งที่เลือก
+                <FieldLabel
+                  htmlFor="create-new-folder"
+                  className="cursor-pointer"
+                >
+                  สร้างโฟลเดอร์ <span className="font-bold">{FOLDER_NAME}</span>{" "}
+                  อัตโนมัติ
                 </FieldLabel>
               </Field>
             </Field>
           </FieldGroup>
         </FieldSet>
+
+        {error && (
+          <div className="p-3 text-sm rounded bg-destructive/10 text-destructive">
+            {error}
+          </div>
+        )}
+
         <Button
           onClick={handleSaveSettings}
-          disabled={!finalPath || isInitializing || isSaving || isStoreLoading}
+          disabled={!finalPath || isSaving}
           className="w-full"
           size="lg"
-          aria-busy={isSaving}
         >
           {isSaving ? (
-            <>
-              <LuLoader
-                className="h-4 w-4 animate-spin mr-2"
-                aria-hidden="true"
-              />
-              กำลังบันทึก
-            </>
+            <LuLoader className="h-4 w-4 animate-spin mr-2" />
           ) : (
-            <>
-              <Check className="h-4 w-4 mr-2" aria-hidden="true" />
-              บันทึกการตั้งค่า
-            </>
+            <Check className="h-4 w-4 mr-2" />
           )}
+          เริ่มใช้งาน Nekoshare
         </Button>
       </div>
-
-      <footer className="border-t pt-4 text-center text-sm text-muted-foreground">
-        คุณสามารถเปลี่ยนตำแหน่งนี้ได้ในภายหลังในเมนูการตั้งค่า
-      </footer>
     </div>
   );
 }

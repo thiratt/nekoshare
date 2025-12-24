@@ -1,9 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
+
+import { xfetch } from "@workspace/app-ui/lib/xfetch";
 import type {
   ApiDeviceRegistrationPayload,
   LocalDeviceInfo,
 } from "@workspace/app-ui/types/device";
-import { xfetch } from "@workspace/app-ui/lib/xfetch";
 
 export async function getDeviceInfo(): Promise<LocalDeviceInfo> {
   return invoke<LocalDeviceInfo>("ns_get_device_info");
