@@ -26,20 +26,11 @@ export const config = [
 				"error",
 				{
 					groups: [
-						// Node.js built-ins
-						["^node:"],
-
-						// External packages
-						["^@?\\w"],
-
-						// Internal packages (workspace aliases)
-						["^@workspace/"],
-
-						// Relative imports
-						["^\\./", "^\\.\\./"],
-
-						// Side-effect imports
-						["^\\u0000"],
+						["^react$", "^react/.*", "^react.*\\u0000$"],
+						["^(?!@workspace)@?\\w", "^(?!@workspace)@?\\w.*\\u0000$"],
+						["^@workspace/ui", "^@workspace/ui.*\\u0000$"],
+						["^@workspace/app-ui", "^@workspace/app-ui.*\\u0000$"],
+						["^\\.", "^\\..*\\u0000$"],
 					],
 				},
 			],
