@@ -1,8 +1,8 @@
-import { Hono } from "hono";
 import { createNodeWebSocket } from "@hono/node-ws";
 import { Logger } from "@/core/logger";
 import type { WSContext } from "hono/ws";
-import { auth } from "@/core/auth";
+import type { User } from "@/core/auth";
+import type { createRouter } from "@/core/utils/router";
 
 interface Users {
 	id: string;
@@ -69,32 +69,28 @@ function broadcastUserList() {
 	});
 }
 
-export async function createWebSocketInstance(app: Hono, path: string = "/ws"): Promise<typeof injectWebSocket> {
+export async function createWebSocketInstance(
+	app: ReturnType<typeof createRouter>,
+	path: string = "/ws"
+): Promise<typeof injectWebSocket> {
 	const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 
 	app.get(
 		path,
 		upgradeWebSocket((c) => ({
 			async onOpen(evt, ws) {
-				const token = c.req.header("sec-websocket-protocol");
-				if (!token) {
-					ws.close(1008, "Missing token");
-					return;
+				try {
+					const currentUser = c.get("user") as User;
+
+					console.log("WebSocket authenticated for user:", currentUser.name);
+					// const userId = crypto.randomUUID().split("-")[0];
+					// users.push({ id: userId, socket: ws });
+					// ws.send(RESPONSES.REG(userId));
+					// // broadcastUserList();
+				} catch (error) {
+					console.error("WebSocket authentication failed:", (error as Error).message);
+					ws.close(1008, "Authentication failed");
 				}
-
-				const verificationResult = await auth.api.verifyOneTimeToken({ body: { token } });
-
-				if (!verificationResult.user || !verificationResult.session) {
-					ws.close(1008, "Invalid token");
-					return;
-				}
-
-				console.log("WebSocket authenticated for user:", verificationResult.user.name);
-
-				const userId = crypto.randomUUID().split("-")[0];
-				users.push({ id: userId, socket: ws });
-				ws.send(RESPONSES.REG(userId));
-				// broadcastUserList();
 			},
 			onMessage(evt, ws) {
 				const data = evt.data;
