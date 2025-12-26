@@ -38,7 +38,7 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 						connection = new Connection(currentUser.id, ws, globalSessionManager);
 						globalSessionManager.addSession(connection);
 
-						connection.sendPacket(PacketType.SYSTEM_HANDSHAKE);
+						connection.sendPacket(PacketType.SYSTEM_HANDSHAKE, 0);
 					} catch (error) {
 						if (connection) {
 							const msg = error instanceof Error ? error.message : "Unknown error";
