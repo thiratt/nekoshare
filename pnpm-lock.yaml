@@ -140,7 +140,7 @@ importers:
         version: 0.44.0
       better-auth:
         specifier: ^1.4.1
-        version: 1.4.1(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+        version: 1.4.1
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
@@ -8315,6 +8315,22 @@ snapshots:
   baseline-browser-mapping@2.9.5: {}
 
   basic-ftp@5.0.5: {}
+
+  better-auth@1.4.1:
+    dependencies:
+      '@better-auth/core': 1.4.1(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.0)(jose@6.1.2)(kysely@0.28.8)(nanostores@1.1.0)
+      '@better-auth/telemetry': 1.4.1(@better-auth/core@1.4.1(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.0)(jose@6.1.2)(kysely@0.28.8)(nanostores@1.1.0))
+      '@better-auth/utils': 0.3.0
+      '@better-fetch/fetch': 1.1.18
+      '@noble/ciphers': 2.0.1
+      '@noble/hashes': 2.0.1
+      '@standard-schema/spec': 1.0.0
+      better-call: 1.1.0
+      defu: 6.1.4
+      jose: 6.1.2
+      kysely: 0.28.8
+      nanostores: 1.1.0
+      zod: 4.1.13
 
   better-auth@1.4.1(react-dom@19.2.1(react@19.2.1))(react@19.2.1):
     dependencies:

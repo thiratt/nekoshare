@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import {
   createFileRoute,
@@ -12,12 +12,15 @@ import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
-import { useSocket } from "@workspace/app-ui/hooks/use-socket";
+import { useNekoSocket } from "@workspace/app-ui/hooks/useNekoSocket";
+import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
+import { useSocketInterval } from "@workspace/app-ui/hooks/useSocketInterval";
+import { PacketType } from "@workspace/app-ui/lib/nk-socket/index";
 import { useTheme } from "@workspace/app-ui/providers/theme-provider";
 
 import { DesktopTitlebar } from "@/components/navbar";
 import { SetupApplicationUI } from "@/components/setup";
-import { useStore } from "@/hooks/useStore";
+import { useAppSetup } from "@/hooks/useAppSetup";
 import { getCachedSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/home")({
@@ -30,28 +33,17 @@ export const Route = createFileRoute("/home")({
   component: RouteComponent,
 });
 
-interface AppConfig {
-  isSetup: boolean;
-  fileLocation: string;
-}
-
 function RouteComponent() {
-  const [isSetup, setIsSetup] = useState<boolean>(false);
+  const { isSetup, setIsSetup } = useAppSetup();
+
   const location = useLocation();
-  const {
-    globalLoading,
-    notificationStatus,
-    toggleNotification,
-    setMode,
-    setGlobalLoading,
-  } = useNekoShare();
+  const { globalLoading, notificationStatus, toggleNotification, setMode } =
+    useNekoShare();
   const { theme, setTheme } = useTheme();
-  const { get } = useStore();
-  const { connect, disconnect } = useSocket();
+  const { send } = useNekoSocket();
 
   const titlebarHelperActions = useMemo(
     () => [
-      // TODO: Remove when on production
       {
         icon: theme === "dark" ? <LuMoon /> : <LuSun />,
         onClick: () => setTheme(theme === "dark" ? "light" : "dark"),
@@ -70,47 +62,21 @@ function RouteComponent() {
     [notificationStatus, setMode, setTheme, theme, toggleNotification],
   );
 
-  const handleSetupComplete = () => {
-    setIsSetup(true);
-  };
+  usePacketRouter({
+    [PacketType.ERROR_GENERIC]: (message) => {
+      console.error("Received ERROR_GENERIC packet:", message);
+    },
+  });
 
-  useEffect(() => {
-    if (!isSetup) return;
+  useSocketInterval(() => {
+    send(PacketType.SYSTEM_HEARTBEAT);
+  }, 7000);
 
-    const initSocket = async () => {
-      try {
-        await connect();
-      } catch (error) {
-        console.error("WebSocket connection failed:", error);
-      }
-    };
-
-    initSocket();
-
-    return () => {
-      disconnect();
-    };
-  }, [isSetup, connect, disconnect]);
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const appConfig = await get<AppConfig>("appConfig");
-        setIsSetup(appConfig?.isSetup ?? false);
-      } catch (error) {
-        console.error("Failed to load app config:", error);
-      } finally {
-        setGlobalLoading(false);
-      }
-    };
-    init();
-  }, [get, setGlobalLoading]);
-
-  if (globalLoading) return;
+  if (globalLoading) return null;
 
   return (
     <div className="min-h-svh flex flex-col">
-      {isSetup === true ? (
+      {isSetup ? (
         <>
           <DesktopTitlebar helperActions={titlebarHelperActions} />
           <div className="flex flex-1 divide-x">
@@ -130,7 +96,7 @@ function RouteComponent() {
         <>
           <DesktopTitlebar />
           <div className="flex flex-1 divide-x items-center justify-center">
-            <SetupApplicationUI onSetupComplete={handleSetupComplete} />
+            <SetupApplicationUI onSetupComplete={() => setIsSetup(true)} />
           </div>
         </>
       )}
