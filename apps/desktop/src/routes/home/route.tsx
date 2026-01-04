@@ -34,7 +34,7 @@ export const Route = createFileRoute("/home")({
 });
 
 function RouteComponent() {
-  const { isSetup, setIsSetup } = useAppSetup();
+  const { isSetup, isLoading, setIsSetup } = useAppSetup();
 
   const location = useLocation();
   const { globalLoading, notificationStatus, toggleNotification, setMode } =
@@ -72,7 +72,7 @@ function RouteComponent() {
     send(PacketType.SYSTEM_HEARTBEAT);
   }, 7000);
 
-  if (globalLoading) return null;
+  if (globalLoading || isLoading) return null;
 
   return (
     <div className="min-h-svh flex flex-col">

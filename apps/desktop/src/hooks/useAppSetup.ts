@@ -20,9 +20,11 @@ export function useAppSetup(): UseAppSetupReturn {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const { setGlobalLoading } = useNekoShare();
-  const { get } = useStore();
+  const { get, isLoading: isStoreLoading } = useStore();
 
   useEffect(() => {
+    if (isStoreLoading) return;
+
     let isMounted = true;
 
     const loadConfig = async () => {
@@ -49,7 +51,7 @@ export function useAppSetup(): UseAppSetupReturn {
     return () => {
       isMounted = false;
     };
-  }, [get, setGlobalLoading]);
+  }, [get, setGlobalLoading, isStoreLoading]);
 
   const setIsSetup = useCallback((value: boolean) => {
     setIsSetupState(value);
