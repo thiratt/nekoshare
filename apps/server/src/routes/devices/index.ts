@@ -103,13 +103,16 @@ app.post("/register", async (c) => {
 		const body = deviceRegistrationSchema.parse(rawBody);
 
 		const existingDevice = await db.query.device.findFirst({
-			where: and(eq(device.id, body.id), eq(device.sessionId, session.id)),
+			where: eq(device.id, body.id),
 		});
 
 		const dbValues = mapDeviceToDbValues(body);
 
 		if (existingDevice) {
-			await db.update(device).set(dbValues).where(eq(device.id, body.id));
+			await db
+				.update(device)
+				.set({ ...dbValues, sessionId: session.id })
+				.where(eq(device.id, body.id));
 
 			const updatedDevice = await db.query.device.findFirst({
 				where: eq(device.id, body.id),
