@@ -1,7 +1,7 @@
 import { memo, useMemo } from "react";
 
-import { type ColumnDef } from "@tanstack/react-table";
-import { LuFolderInput, LuTrash2 } from "react-icons/lu";
+import { LuArrowUpDown, LuFolderInput, LuTrash2 } from "react-icons/lu";
+import type { ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
@@ -9,7 +9,8 @@ import { Checkbox } from "@workspace/ui/components/checkbox";
 
 import type { ShareItem } from "@workspace/app-ui/types/home";
 
-import { formatDate,STATUS_CONFIG } from "./constants";
+import { formatDate, STATUS_CONFIG } from "./constants";
+import { FileIcon } from "./icon";
 
 interface StatusBadgeProps {
 	status: ShareItem["status"];
@@ -60,31 +61,87 @@ export function useColumns({ onItemReveal, onItemDelete }: UseColumnsProps): Col
 			},
 			{
 				accessorKey: "name",
-				header: "รายการ",
+				header: ({ column }) => {
+					return (
+						<div
+							className="flex items-center gap-2"
+							onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+						>
+							ชื่อ
+							<LuArrowUpDown />
+						</div>
+					);
+				},
+				cell: ({ row }) => (
+					<div className="flex items-center gap-2">
+						<FileIcon type={row.original.type || "file"} />
+						<span>{row.original.name}</span>
+					</div>
+				),
 			},
 			{
 				accessorKey: "from",
-				header: "จาก",
+				header: ({ column }) => (
+					<div
+						className="flex items-center gap-2"
+						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+					>
+						จาก
+						<LuArrowUpDown />
+					</div>
+				),
 				cell: ({ row }) => (row.original.from === "me" ? "ฉัน" : "เพื่อน"),
 			},
 			{
 				accessorKey: "device",
-				header: "อุปกรณ์",
+				header: ({ column }) => (
+					<div
+						className="flex items-center gap-2"
+						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+					>
+						อุปกรณ์
+						<LuArrowUpDown />
+					</div>
+				),
 				cell: ({ row }) => row.original.device || "-",
 			},
 			{
 				accessorKey: "size",
-				header: "ขนาด",
+				header: ({ column }) => (
+					<div
+						className="flex items-center gap-2"
+						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+					>
+						ขนาด
+						<LuArrowUpDown />
+					</div>
+				),
 				cell: ({ row }) => row.original.size ?? "-",
 			},
 			{
 				accessorKey: "status",
-				header: "สถานะ",
+				header: ({ column }) => (
+					<div
+						className="flex items-center gap-2"
+						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+					>
+						สถานะ
+						<LuArrowUpDown />
+					</div>
+				),
 				cell: ({ row }) => <StatusBadge status={row.original.status} />,
 			},
 			{
 				accessorKey: "uploadedAt",
-				header: "วันที่",
+				header: ({ column }) => (
+					<div
+						className="flex items-center gap-2"
+						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+					>
+						วันที่
+						<LuArrowUpDown />
+					</div>
+				),
 				sortingFn: (a, b) =>
 					new Date(a.original.uploadedAt).getTime() - new Date(b.original.uploadedAt).getTime(),
 				cell: ({ row }) => (
