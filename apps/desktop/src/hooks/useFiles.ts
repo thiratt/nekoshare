@@ -1,7 +1,7 @@
-import { useCallback,useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { join } from "@tauri-apps/api/path";
-import { readDir, stat } from "@tauri-apps/plugin-fs";
+import { readDir, stat, watchImmediate } from "@tauri-apps/plugin-fs";
 
 import { useStore } from "./useStore";
 
@@ -35,6 +35,20 @@ function useFiles(): UseFilesReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [configPath, setConfigPath] = useState<string | null>(null);
+
+  const unwatchRef = useRef<(() => void) | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (unwatchRef.current) {
+        unwatchRef.current();
+        unwatchRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isStoreLoading) return;
@@ -97,6 +111,45 @@ function useFiles(): UseFilesReturn {
     if (configPath) {
       getFiles();
     }
+  }, [configPath, getFiles]);
+
+  useEffect(() => {
+    if (!configPath) return;
+
+    if (unwatchRef.current) {
+      unwatchRef.current();
+      unwatchRef.current = null;
+    }
+
+    let cancelled = false;
+
+    const initiateWatch = async () => {
+      try {
+        const unwatch = await watchImmediate(configPath, () => {
+          if (isMountedRef.current && !cancelled) {
+            getFiles();
+          }
+        });
+
+        if (cancelled || !isMountedRef.current) {
+          unwatch();
+        } else {
+          unwatchRef.current = unwatch;
+        }
+      } catch (err) {
+        console.error("Failed to watch directory:", err);
+      }
+    };
+
+    initiateWatch();
+
+    return () => {
+      cancelled = true;
+      if (unwatchRef.current) {
+        unwatchRef.current();
+        unwatchRef.current = null;
+      }
+    };
   }, [configPath, getFiles]);
 
   const refresh = useCallback(async () => {

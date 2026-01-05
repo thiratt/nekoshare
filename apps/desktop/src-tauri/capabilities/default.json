@@ -52,6 +52,22 @@
         }
       ]
     },
+    {
+      "identifier": "fs:allow-watch",
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-unwatch",
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
+    },
     "store:default",
     "dialog:default",
     "opener:default",
