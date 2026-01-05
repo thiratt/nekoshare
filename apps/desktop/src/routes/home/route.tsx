@@ -75,18 +75,18 @@ function RouteComponent() {
   if (globalLoading || isLoading) return null;
 
   return (
-    <div className="min-h-svh flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       {isSetup ? (
         <>
           <DesktopTitlebar helperActions={titlebarHelperActions} />
-          <div className="flex flex-1 divide-x">
+          <div className="flex flex-1 divide-x overflow-hidden">
             <HomeSidebar
               linkComponent={Link}
               pathname={location.pathname}
               mode="desktop"
               collapseWhenNotificationOpen={notificationStatus === "on"}
             />
-            <div className="flex-1 bg-muted p-4">
+            <div className="flex-1 bg-muted p-4 flex flex-col min-w-0 overflow-hidden">
               <Outlet />
             </div>
             <NotificationSidebar />
