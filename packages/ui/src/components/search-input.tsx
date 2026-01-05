@@ -14,7 +14,7 @@ interface SearchInputProps {
 
 function SearchInput({ className, searchQuery, placeholder, onSearchQuery, onClearSearch }: SearchInputProps) {
 	return (
-		<div className={cn("relative w-64", className)}>
+		<div className={cn("relative transition-all duration-300", className)}>
 			{!searchQuery && (
 				<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 animate-in zoom-in" />
 			)}
@@ -23,7 +23,7 @@ function SearchInput({ className, searchQuery, placeholder, onSearchQuery, onCle
 				placeholder={placeholder ? placeholder : "ค้นหา..."}
 				value={searchQuery}
 				onChange={(e) => onSearchQuery(e.target.value)}
-				className={cn("transition-all", !searchQuery ? "pl-9 pr-9" : "")}
+				className={cn("transition-all", !searchQuery ? "pl-9" : "pr-7")}
 				aria-label="Search input"
 			/>
 
