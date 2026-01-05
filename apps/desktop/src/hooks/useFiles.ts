@@ -75,7 +75,6 @@ function useFiles(): UseFilesReturn {
   const getFiles = useCallback(async () => {
     if (!configPath) return;
 
-    setLoading(true);
     setError(null);
 
     try {
