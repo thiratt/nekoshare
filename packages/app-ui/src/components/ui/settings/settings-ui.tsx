@@ -106,7 +106,7 @@ export function SettingsUI() {
 			aria-modal="true"
 			aria-label="Settings"
 		>
-			<div className="w-full bg-background/90 grid grid-cols-[280px_1fr] m-6 divide-x divide-muted-foreground/30 rounded-xl shadow-2xl overflow-hidden border border-muted-foreground/30">
+			<div className="w-full bg-background/90 grid grid-cols-[280px_1fr] m-6 divide-x rounded-xl shadow-2xl overflow-hidden border">
 				{/* Sidebar */}
 				<aside className="flex flex-col p-5" aria-label="Settings categories">
 					<SearchInput
@@ -136,7 +136,7 @@ export function SettingsUI() {
 
 				{/* Main content */}
 				<main className="flex-1 flex flex-col overflow-hidden">
-					<header className="flex justify-between items-center p-6 border-b border-muted-foreground/30">
+					<header className="flex justify-between items-center p-6 border-b">
 						<h2 className="text-2xl font-semibold">{activeCategoryLabel}</h2>
 						<Button
 							className="group rounded-full"
