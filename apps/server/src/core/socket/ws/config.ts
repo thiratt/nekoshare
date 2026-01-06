@@ -1,5 +1,0 @@
-export const BUFFER_HIGH_WATER_MARK = 1024 * 1024;
-export const BUFFER_LOW_WATER_MARK = 256 * 1024;
-export const DRAIN_CHECK_INTERVAL = 100;
-export const HEADER_SIZE = 5;
-export const MAX_CONTROL_PACKET_SIZE = 64 * 1024;

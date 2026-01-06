@@ -1,16 +1,16 @@
-import { Connection } from "../connection";
-import { BinaryReader } from "../binary-utils";
-import { mainRouter } from "../router";
+import type { IConnection, CommandHandler, TransportType } from "../types";
+import type { PacketRouter } from "../router";
 import { PacketType } from "../protocol";
 import { Logger } from "@/core/logger";
 import { auth } from "@/core/auth";
 
-export class AuthController {
-	static init() {
-		mainRouter.register(PacketType.AUTH_LOGIN_REQUEST, AuthController.handleLoginRequest);
-	}
-
-	private static async handleLoginRequest(client: Connection, reader: BinaryReader, requestId: number) {
+/**
+ * Register authentication handlers.
+ * This is primarily used by TCP which requires explicit auth.
+ * WebSocket is pre-authenticated via HTTP middleware.
+ */
+export function registerAuthHandlers<T extends IConnection>(router: PacketRouter<T>, transportType: TransportType) {
+	const handleLoginRequest: CommandHandler<T> = async (client, reader, requestId) => {
 		try {
 			if (client.isAuthenticated) {
 				client.sendPacket(
@@ -44,7 +44,7 @@ export class AuthController {
 			});
 
 			if (!data.session || !data.user) {
-				Logger.warn("TCP", `Authentication failed for client ${client.id}: Invalid session`);
+				Logger.warn(transportType, `Authentication failed for client ${client.id}: Invalid session`);
 				client.sendPacket(
 					PacketType.AUTH_LOGIN_RESPONSE,
 					(w) => {
@@ -67,18 +67,21 @@ export class AuthController {
 				requestId
 			);
 
-			Logger.info("TCP", `Client ${client.id} authenticated as ${data.user.name}`);
+			Logger.info(transportType, `Client ${client.id} authenticated as ${data.user.name}`);
 		} catch (error) {
 			const msg = (error as Error).message;
-			Logger.error("TCP", `Authentication error for client ${client.id}: ${msg}`);
+			Logger.error(transportType, `Authentication error for client ${client.id}: ${msg}`);
 			client.sendPacket(
 				PacketType.AUTH_LOGIN_RESPONSE,
 				(w) => {
 					w.writeUInt8(0);
-					// w.writeString("Authentication error: " + msg);
+					w.writeString("Authentication error");
 				},
 				requestId
 			);
 		}
-	}
+	};
+
+	router.register(PacketType.AUTH_LOGIN_REQUEST, handleLoginRequest);
+	Logger.debug(transportType, "AuthController handlers registered");
 }

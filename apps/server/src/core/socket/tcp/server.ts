@@ -1,33 +1,21 @@
 import { createServer, Server as NetServer, Socket } from "net";
 import { Logger } from "@/core/logger";
-
-import { Connection } from "./connection";
-import { AuthController } from "./controllers/auth.controller";
-import { UserController } from "./controllers/user.controller";
-import { SystemController } from "./controllers/sys.controller";
-import { globalSessionManager } from "./session";
-import { PacketType } from "./protocol";
+import { PacketType } from "../shared";
+import { TCPConnection, tcpSessionManager, bootstrapTCPControllers } from "./connection";
 import { env } from "@/config/env";
 
-function bootstrapControllers() {
-	AuthController.init();
-	SystemController.init();
-	UserController.init();
-	Logger.info("TCP", "All controllers initialized.");
-}
-
 export async function createTCPSocketInstance() {
-	bootstrapControllers();
+	bootstrapTCPControllers();
 
 	const port = env.TCP_SOCKET_PORT;
 	const server: NetServer = createServer((socket: Socket) => {
-		let connection: Connection | undefined;
+		let connection: TCPConnection | undefined;
 		const clientId = `tcp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
 		try {
 			Logger.info("TCP", `Client ${clientId} connected via TCP.`);
-			connection = new Connection(clientId, socket, globalSessionManager);
-			globalSessionManager.addSession(connection);
+			connection = new TCPConnection(clientId, socket);
+			tcpSessionManager.addSession(connection);
 
 			connection.sendPacket(PacketType.SYSTEM_HANDSHAKE, 0);
 		} catch (error) {
