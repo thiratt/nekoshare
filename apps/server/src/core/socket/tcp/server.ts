@@ -1,121 +1,66 @@
-import { createServer, Server as NetServer } from "net";
-import * as fs from "fs";
-import type { ServerConfig } from "./types";
-import { DEFAULT_CONFIG, RESPONSES } from "./constants";
+import { createServer, Server as NetServer, Socket } from "net";
 import { Logger } from "@/core/logger";
-import { formatDuration, formatBytes } from "./utils";
-import { ConnectionManager } from "./connection";
-import { RelayManager } from "./relay";
 
-export class TCPFileServer {
-	private server: NetServer | null = null;
-	private connectionManager: ConnectionManager;
-	private relayManager: RelayManager;
-	private config: ServerConfig;
-	private startTime: Date | null = null;
+import { Connection } from "./connection";
+import { AuthController } from "./controllers/auth.controller";
+import { UserController } from "./controllers/user.controller";
+import { SystemController } from "./controllers/sys.controller";
+import { globalSessionManager } from "./session";
+import { PacketType } from "./protocol";
+import { env } from "@/config/env";
 
-	constructor(config: Partial<ServerConfig> = {}) {
-		this.config = { ...DEFAULT_CONFIG, ...config };
-		this.connectionManager = new ConnectionManager(this.config);
-		this.relayManager = new RelayManager();
-		this.connectionManager.setRelayManager(this.relayManager);
+function bootstrapControllers() {
+	AuthController.init();
+	SystemController.init();
+	UserController.init();
+	Logger.info("TCP", "All controllers initialized.");
+}
 
-		Logger.setVerbose(this.config.verboseLogging);
+export async function createTCPSocketInstance() {
+	bootstrapControllers();
 
-		this.ensureUploadDirectory();
-	}
+	const port = env.TCP_SOCKET_PORT;
+	const server: NetServer = createServer((socket: Socket) => {
+		let connection: Connection | undefined;
+		const clientId = `tcp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
-	private ensureUploadDirectory(): void {
-		if (!fs.existsSync(this.config.uploadDir)) {
-			try {
-				fs.mkdirSync(this.config.uploadDir, { recursive: true });
-				Logger.info("TCP", `Created upload directory: ${this.config.uploadDir}`);
-			} catch (error) {
-				Logger.error("TCP", `Failed to create upload directory: ${this.config.uploadDir}`, error);
-				throw error;
+		try {
+			Logger.info("TCP", `Client ${clientId} connected via TCP.`);
+			connection = new Connection(clientId, socket, globalSessionManager);
+			globalSessionManager.addSession(connection);
+
+			connection.sendPacket(PacketType.SYSTEM_HANDSHAKE, 0);
+		} catch (error) {
+			if (connection) {
+				const msg = error instanceof Error ? error.message : "Unknown error";
+				Logger.error("TCP", `Connection error: ${msg}`);
+				connection.close();
 			}
+			socket.destroy();
+			return;
 		}
-	}
 
-	start(): Promise<void> {
-		return new Promise((resolve, reject) => {
-			try {
-				this.server = createServer((socket) => {
-					if (!this.connectionManager.canAcceptConnection()) {
-						Logger.warn("TCP", `Connection rejected - max connections reached`, {
-							maxConnections: this.config.maxConnections,
-						});
-						socket.write(RESPONSES.SERVER_BUSY);
-						socket.destroy();
-						return;
-					}
-
-					const clientId = this.relayManager.registerClient(socket);
-					const state = this.connectionManager.createConnection(socket, clientId);
-					this.connectionManager.setupSocketHandlers(socket, clientId);
-				});
-
-				this.server.on("error", (error) => {
-					Logger.error("TCP", "Server error", error);
-					reject(error);
-				});
-
-				this.server.listen(this.config.port, () => {
-					this.startTime = new Date();
-					Logger.info("TCP", `TCP Server started on port ${this.config.port}`);
-					resolve();
-				});
-			} catch (error) {
-				Logger.error("TCP", "Failed to start server", error);
-				reject(error);
+		socket.on("data", (data: Buffer) => {
+			if (connection) {
+				connection.handleMessage(data);
 			}
 		});
-	}
 
-	async stop(): Promise<void> {
-		return new Promise((resolve, reject) => {
-			if (!this.server) {
-				resolve();
-				return;
+		socket.on("close", () => {
+			if (connection) {
+				connection.close();
 			}
-
-			Logger.info("TCP", "Stopping server...");
-
-			this.relayManager.cleanup();
-			this.connectionManager.cleanup();
-			this.server.close((error) => {
-				if (error) {
-					Logger.error("TCP", "Error stopping server", error);
-					reject(error);
-				} else {
-					const stats = this.getStats();
-					Logger.info("TCP", "Server stopped", stats);
-					this.server = null;
-					resolve();
-				}
-			});
+			Logger.info("TCP", `TCP connection closed.`);
 		});
-	}
 
-	getStats() {
-		const uploadStats = this.connectionManager.getStats();
-		const relayStats = this.relayManager.getStats();
-		const uptime = this.startTime ? Date.now() - this.startTime.getTime() : 0;
+		socket.on("error", (error) => {
+			Logger.error("TCP", `Socket error: ${error.message}`);
+		});
+	});
 
-		return {
-			...uploadStats,
-			...relayStats,
-			uptime: formatDuration(uptime),
-			uptimeMs: uptime,
-			totalBytesFormatted: formatBytes(uploadStats.totalBytes),
-		};
-	}
+	server.listen(port, () => {
+		Logger.info("TCP", `TCP server initialized at port: ${port}`);
+	});
 
-	isRunning(): boolean {
-		return this.server !== null && this.server.listening;
-	}
-
-	getConfig(): ServerConfig {
-		return { ...this.config };
-	}
+	return server;
 }

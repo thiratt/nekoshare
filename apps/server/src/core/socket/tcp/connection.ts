@@ -1,239 +1,133 @@
 import type { Socket } from "net";
-
+import { BinaryReader, BinaryWriter } from "./binary-utils";
+import { HEADER_SIZE } from "./config";
+import { PacketType } from "./protocol";
+import { mainRouter } from "./router";
 import { Logger } from "@/core/logger";
-import type { ConnectionState, ServerConfig, UploadStats } from "./types";
-import { MAX_BUFFER_SIZE, RELAY_COMMANDS, RESPONSES, MESSAGE_TYPES } from "./constants";
-import { handleJsonRequest, handleFileData, processJsonFromBuffer, handleRelayCommand } from "./handlers";
-import type { RelayManager } from "./relay";
+import type { Session, User } from "@/core/auth";
 
-export class ConnectionManager {
-	private connections: Map<number, ConnectionState> = new Map();
-	private stats: UploadStats;
-	private relayManager: RelayManager | null = null;
+export interface ISessionManager {
+	getSession(userId: string): Connection | undefined;
+	removeSession(userId: string): void;
+}
 
-	constructor(private config: ServerConfig) {
-		this.stats = {
-			totalFiles: 0,
-			totalBytes: 0,
-			activeConnections: 0,
-			failedUploads: 0,
-			startTime: new Date(),
-		};
+export class Connection {
+	public readonly id: string;
+	public readonly socket: Socket;
+	private sessionManager: ISessionManager;
+	private _authenticated: boolean = false;
+	private _user: User | null = null;
+	private _session: Session | null = null;
+
+	constructor(id: string, socket: Socket, manager: ISessionManager) {
+		this.id = id;
+		this.socket = socket;
+		this.sessionManager = manager;
 	}
 
-	setRelayManager(relayManager: RelayManager): void {
-		this.relayManager = relayManager;
+	public get isAuthenticated(): boolean {
+		return this._authenticated;
 	}
 
-	getStats(): UploadStats {
-		return { ...this.stats, activeConnections: this.connections.size };
+	public get user(): User | null {
+		return this._user;
 	}
 
-	canAcceptConnection(): boolean {
-		return this.connections.size < this.config.maxConnections;
+	public get userId(): string | null {
+		return this._user?.id ?? null;
 	}
 
-	createConnection(socket: Socket, clientId: number): ConnectionState {
-		const state: ConnectionState = {
-			socket,
-			buffer: Buffer.alloc(0),
-			mode: "WAIT_JSON",
-			fileBytesLeft: 0,
-			fileStream: null,
-			currentFileName: null,
-			connectedAt: new Date(),
-			totalBytesReceived: 0,
-			filesUploaded: 0,
-			clientId,
-			peerId: null,
-			inRelayMode: false,
-		};
-
-		this.connections.set(clientId, state);
-		this.stats.activeConnections = this.connections.size;
-
-		Logger.info("ConnectionManager", `New connection`, {
-			clientId,
-			totalConnections: this.connections.size,
-		});
-
-		return state;
+	public get session(): Session | null {
+		return this._session;
 	}
 
-	removeConnection(clientId: number): void {
-		const state = this.connections.get(clientId);
-		if (!state) return;
+	public setAuthenticated(data: { session: Session & Record<string, any>; user: User & Record<string, any> }): void {
+		this._authenticated = true;
+		this._user = data.user;
+		this._session = data.session;
+		Logger.debug("TCP", `Set authenticated for client ${this.id}, user ID: ${this._user.id}`);
+	}
 
-		if (state.fileStream) {
-			state.fileStream.destroy();
-			this.stats.failedUploads++;
-			Logger.warn("ConnectionManager", `Connection closed with incomplete upload: ${clientId}`);
+	public sendPacket(type: PacketType, requestId: number): void;
+	public sendPacket(type: PacketType, payloadWriter?: (w: BinaryWriter) => void, requestId?: number): void;
+
+	public sendPacket(
+		type: PacketType,
+		payloadWriterOrRequestId?: ((w: BinaryWriter) => void) | number,
+		requestId?: number
+	) {
+		const writer = new BinaryWriter();
+
+		let payloadWriter: ((w: BinaryWriter) => void) | undefined;
+		let finalId: number;
+
+		if (typeof payloadWriterOrRequestId === "number") {
+			payloadWriter = undefined;
+			finalId = payloadWriterOrRequestId;
+		} else {
+			payloadWriter = payloadWriterOrRequestId;
+			finalId = requestId ?? this.generateRequestId();
 		}
 
-		this.stats.totalFiles += state.filesUploaded;
-		this.stats.totalBytes += state.totalBytesReceived;
+		writer.writeUInt8(type);
+		writer.writeInt32(finalId);
 
-		this.connections.delete(clientId);
-		this.stats.activeConnections = this.connections.size;
+		if (payloadWriter) {
+			payloadWriter(writer);
+		}
 
-		Logger.info("ConnectionManager", `Connection closed: ${clientId}`, {
-			filesUploaded: state.filesUploaded,
-			totalConnections: this.connections.size,
-		});
+		if (type !== PacketType.SYSTEM_HEARTBEAT) {
+			Logger.debug("TCP", `Send Packet Type: ${PacketType[type] || type}, ID: ${finalId}`);
+		}
+
+		if (!this.socket.destroyed) {
+			this.socket.write(writer.getBuffer());
+		}
 	}
 
-	async handleData(clientId: number, chunk: Buffer): Promise<void> {
-		const state = this.connections.get(clientId);
-		if (!state) {
-			Logger.warn("ConnectionManager", `Data received for unknown connection`, { clientId });
-			return;
-		}
+	public handleMessage(data: Buffer) {
+		try {
+			const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
 
-		if (state.inRelayMode && this.relayManager) {
-			const relayed = this.relayManager.relayData(clientId, chunk);
-			if (!relayed) {
-				Logger.warn("ConnectionManager", `Failed to relay data, exiting relay mode`, { clientId });
-				state.inRelayMode = false;
-			}
-			return;
-		}
+			if (buffer.length === 0) return;
 
-		state.buffer = Buffer.concat([state.buffer, chunk]);
+			const type = buffer[0];
 
-		if (state.buffer.length > MAX_BUFFER_SIZE) {
-			Logger.error("ConnectionManager", `Buffer overflow`, {
-				clientId,
-				bufferSize: state.buffer.length,
-				maxSize: MAX_BUFFER_SIZE,
-			});
-			state.socket.write("ERROR: Buffer overflow\n");
-			state.socket.destroy();
-			return;
-		}
-
-		await this.processBuffer(state);
-	}
-
-	private async processBuffer(state: ConnectionState): Promise<void> {
-		let continueProcessing = true;
-
-		while (continueProcessing) {
-			if (state.mode === "WAIT_JSON" && this.relayManager) {
-				const relayHandled = await this.tryHandleRelayCommand(state);
-				if (relayHandled) {
-					continue;
-				}
+			if (buffer.length < HEADER_SIZE) {
+				Logger.warn("TCP", `Malformed header from ${this.id}`);
+				return;
 			}
 
-			if (state.mode === "WAIT_JSON") {
-				const request = processJsonFromBuffer(state, this.config);
-				if (!request) {
-					continueProcessing = false;
-					break;
-				}
+			if (!this._authenticated && type !== PacketType.AUTH_LOGIN_REQUEST) {
+				Logger.warn("TCP", `Unauthenticated packet from ${this.id}, type: ${type}`);
+				this.sendPacket(PacketType.ERROR_PERMISSION, (w) => w.writeString("Authentication required"), 0);
+				this.shutdown();
+				return;
+			}
 
-				await handleJsonRequest(request, state, this.config);
-			} else if (state.mode === "READING_FILE") {
-				const completed = handleFileData(state);
-				if (!completed && state.buffer.length === 0) {
-					continueProcessing = false;
-					break;
-				}
-			} else if (state.mode === "RELAY_FILE") {
-				continueProcessing = false;
+			const reader = new BinaryReader(buffer);
+			reader.readUInt8();
+			const requestId = reader.readInt32();
+			mainRouter.dispatch(type, this, reader, requestId);
+		} catch (error) {
+			if (error instanceof Error) {
+				Logger.error("TCP", `Error handling message from ${this.id}: ${error.message}`);
 			} else {
-				Logger.error("ConnectionManager", `Unknown mode`, {
-					clientId: state.clientId,
-					mode: state.mode,
-				});
-				continueProcessing = false;
+				Logger.error("TCP", `Unknown error handling message from ${this.id}`);
 			}
 		}
 	}
 
-	private async tryHandleRelayCommand(state: ConnectionState): Promise<boolean> {
-		const newlineIndex = state.buffer.indexOf("\n");
-		if (newlineIndex === -1) {
-			return false;
-		}
-
-		const line = state.buffer.subarray(0, newlineIndex).toString().trim();
-
-		const isRelayCommand =
-			line.startsWith(MESSAGE_TYPES.COMMAND) ||
-			line.startsWith(RELAY_COMMANDS.LIST) ||
-			line.startsWith(RELAY_COMMANDS.CONNECT) ||
-			line.startsWith(RELAY_COMMANDS.DISCONNECT) ||
-			line.startsWith(RELAY_COMMANDS.MESSAGE) ||
-			line.startsWith(RELAY_COMMANDS.FILE_START) ||
-			line.startsWith(RELAY_COMMANDS.FILE_END) ||
-			line.startsWith(RELAY_COMMANDS.PING);
-
-		if (isRelayCommand) {
-			state.buffer = state.buffer.subarray(newlineIndex + 1);
-
-			if (this.relayManager) {
-				try {
-					await handleRelayCommand(line, state, this.relayManager);
-				} catch (error) {
-					Logger.error("ConnectionManager", "Error handling relay command", {
-						clientId: state.clientId,
-						error,
-					});
-					state.socket.write(RESPONSES.ERROR("Command processing failed"));
-				}
-			}
-
-			return true;
-		}
-
-		return false;
+	public close() {
+		this.sessionManager.removeSession(this.id);
 	}
 
-	setupSocketHandlers(socket: Socket, clientId: number): void {
-		socket.setTimeout(this.config.connectionTimeout);
-
-		socket.on("timeout", () => {
-			Logger.warn("ConnectionManager", `Connection timeout`, { clientId });
-			socket.write("ERROR: Connection timeout\n");
-			socket.destroy();
-		});
-
-		socket.on("data", async (chunk) => {
-			await this.handleData(clientId, chunk);
-		});
-
-		socket.on("error", (error) => {
-			Logger.error("ConnectionManager", `Socket error`, { clientId, error });
-		});
-
-		socket.on("close", () => {
-			if (this.relayManager) {
-				this.relayManager.unregisterClient(clientId);
-			}
-			this.removeConnection(clientId);
-		});
-
-		socket.on("end", () => {
-			Logger.debug("ConnectionManager", `Client initiated disconnect`, { clientId });
-		});
+	public shutdown() {
+		this.socket.end();
+		this.socket.destroy();
 	}
 
-	cleanup(): void {
-		Logger.info("ConnectionManager", "Cleaning up all connections", {
-			count: this.connections.size,
-		});
-
-		for (const [clientId, state] of this.connections.entries()) {
-			if (state.fileStream) {
-				state.fileStream.destroy();
-			}
-			state.socket.destroy();
-			this.connections.delete(clientId);
-		}
-	}
-
-	getConnectionCount(): number {
-		return this.connections.size;
+	private generateRequestId(): number {
+		return Math.floor(Math.random() * 0x7fffffff);
 	}
 }

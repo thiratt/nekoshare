@@ -1,12 +1,13 @@
 import type { ServerType } from "@hono/node-server";
+import type { Server as NetServer } from "net";
 
 import { createApp, shutdownApp } from "./app";
 import { Logger, LogLevel } from "./core/logger";
 import { env } from "./config/env";
-import type { TCPFileServer } from "./core/socket/tcp";
+import { createTCPSocketInstance } from "./core/socket/tcp";
 
 let httpServer: ServerType | null = null;
-let socketServer: TCPFileServer | null = null;
+let socketServer: NetServer | null = null;
 
 async function startServers(): Promise<void> {
 	try {
@@ -17,8 +18,8 @@ async function startServers(): Promise<void> {
 		Logger.info("Main", "Starting HTTP server...");
 		httpServer = await createApp();
 
-		// Logger.info("Main", "Starting TCP socket server...");
-		// socketServer = await startSocketServer();
+		Logger.info("Main", "Starting TCP socket server...");
+		socketServer = await createTCPSocketInstance();
 	} catch (error) {
 		console.error("Failed to start servers:", error);
 		process.exit(1);
@@ -35,7 +36,7 @@ async function shutdown(signal: string): Promise<void> {
 		}
 
 		if (socketServer) {
-			await socketServer.stop();
+			socketServer.close();
 			console.log("TCP socket server stopped");
 		}
 
