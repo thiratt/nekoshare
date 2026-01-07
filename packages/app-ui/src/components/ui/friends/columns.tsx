@@ -5,19 +5,17 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Checkbox } from "@workspace/ui/components/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
 
-import type { FriendProps } from "@workspace/app-ui/types/friends";
+import type { FriendItem } from "@workspace/app-ui/types/friends";
 
-import { FriendAvatarCell, FriendRowActions,SortableHeader, StatusBadge } from "./components";
+import { FriendAvatarCell, FriendRowActions, SortableHeader, StatusBadge } from "./components";
 import { formatDate } from "./constants";
 
 interface UseColumnsOptions {
-	onAccept: (id: string) => void;
-	onDeny: (id: string) => void;
-	onRemove: (id: string) => void;
+	onRemove: (friendshipId: string) => void;
 }
 
-export function useColumns({ onAccept, onDeny, onRemove }: UseColumnsOptions) {
-	return useMemo<ColumnDef<FriendProps>[]>(
+export function useColumns({ onRemove }: UseColumnsOptions) {
+	return useMemo<ColumnDef<FriendItem>[]>(
 		() => [
 			{
 				id: "select",
@@ -69,7 +67,7 @@ export function useColumns({ onAccept, onDeny, onRemove }: UseColumnsOptions) {
 								{formatDate(row.original.lastActive)}
 							</span>
 						</TooltipTrigger>
-						<TooltipContent>เชิญเมื่อ: {formatDate(row.original.invitedAt)}</TooltipContent>
+						<TooltipContent>เพิ่มเมื่อ: {formatDate(row.original.createdAt)}</TooltipContent>
 					</Tooltip>
 				),
 			},
@@ -78,10 +76,13 @@ export function useColumns({ onAccept, onDeny, onRemove }: UseColumnsOptions) {
 				header: "ตัวเลือก",
 				enableSorting: false,
 				cell: ({ row }) => (
-					<FriendRowActions friend={row.original} onAccept={onAccept} onDeny={onDeny} onRemove={onRemove} />
+					<FriendRowActions
+						friend={row.original}
+						onRemove={onRemove}
+					/>
 				),
 			},
 		],
-		[onAccept, onDeny, onRemove]
+		[onRemove]
 	);
 }

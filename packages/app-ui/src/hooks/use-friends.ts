@@ -1,18 +1,29 @@
-import { useCallback,useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { xfetch } from "@workspace/app-ui/lib/xfetch";
-import type { FriendProps } from "@workspace/app-ui/types/friends";
+import type { FriendItem, FriendListResponse, UserSearchResult } from "@workspace/app-ui/types/friends";
 
-const sortByName = (a: FriendProps, b: FriendProps) => a.name.localeCompare(b.name);
+const sortByName = (a: FriendItem, b: FriendItem) => a.name.localeCompare(b.name);
+
+export interface UseFriendsState {
+	friends: FriendItem[];
+	incoming: FriendItem[];
+	outgoing: FriendItem[];
+	loading: boolean;
+	error: string | null;
+}
 
 export function useFriends() {
-	const [items, setItems] = useState<FriendProps[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const [state, setState] = useState<UseFriendsState>({
+		friends: [],
+		incoming: [],
+		outgoing: [],
+		loading: true,
+		error: null,
+	});
 
 	const fetchFriends = useCallback(async (signal?: AbortSignal) => {
-		setLoading(true);
-		setError(null);
+		setState((prev) => ({ ...prev, loading: true, error: null }));
 
 		try {
 			const response = await xfetch("/friends", { method: "GET", signal });
@@ -27,13 +38,22 @@ export function useFriends() {
 				throw new Error(result.message || "Failed to fetch friends");
 			}
 
-			setItems(result.data.friends.sort(sortByName));
+			const data = result.data as FriendListResponse;
+			setState({
+				friends: data.friends.sort(sortByName),
+				incoming: data.incoming.sort(sortByName),
+				outgoing: data.outgoing.sort(sortByName),
+				loading: false,
+				error: null,
+			});
 		} catch (err) {
 			if (err instanceof Error && err.name === "AbortError") return;
-			setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+			setState((prev) => ({
+				...prev,
+				loading: false,
+				error: err instanceof Error ? err.message : "เกิดข้อผิดพลาด",
+			}));
 			console.error("Failed to fetch friends:", err);
-		} finally {
-			setLoading(false);
 		}
 	}, []);
 
@@ -47,87 +67,259 @@ export function useFriends() {
 		await fetchFriends();
 	}, [fetchFriends]);
 
-	const invite = useCallback(async (payload: { email: string; message?: string }): Promise<FriendProps> => {
-		const response = await xfetch("/friends/invite", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(payload),
-		});
+	// Send friend request
+	const sendRequest = useCallback(
+		async (userId: string): Promise<void> => {
+			const response = await xfetch("/friends/request", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ userId }),
+			});
 
-		if (!response.ok) {
-			const errorData = await response.json().catch(() => ({}));
-			throw new Error(errorData.message || "Failed to invite friend");
-		}
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				throw new Error(errorData.message || "Failed to send friend request");
+			}
 
-		const result = await response.json();
+			const result = await response.json();
 
-		if (!result.success) {
-			throw new Error(result.message || "Failed to invite friend");
-		}
+			if (!result.success) {
+				throw new Error(result.message || "Failed to send friend request");
+			}
 
-		const newFriend = result.data.friend;
-		setItems((prev) => [newFriend, ...prev].sort(sortByName));
-		return newFriend;
-	}, []);
+			// If mutual request, they become friends immediately
+			if (result.data.status === "friend") {
+				await refresh();
+			} else {
+				// Add to outgoing list
+				const newItem: FriendItem = {
+					id: result.data.user.id,
+					friendshipId: result.data.friendshipId,
+					name: result.data.user.name,
+					email: result.data.user.email,
+					avatarUrl: result.data.user.avatarUrl,
+					status: "outgoing",
+					sharedCount: 0,
+					lastActive: new Date().toISOString(),
+					createdAt: new Date().toISOString(),
+				};
+				setState((prev) => ({
+					...prev,
+					outgoing: [newItem, ...prev.outgoing].sort(sortByName),
+				}));
+			}
+		},
+		[refresh]
+	);
 
-	const revoke = useCallback(async (ids: string[]): Promise<void> => {
-		const response = await xfetch("/friends/revoke", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ ids }),
-		});
+	// Accept incoming request
+	const acceptRequest = useCallback(
+		async (friendshipId: string): Promise<void> => {
+			// Optimistic update
+			const targetItem = state.incoming.find((item) => item.friendshipId === friendshipId);
+			if (targetItem) {
+				setState((prev) => ({
+					...prev,
+					incoming: prev.incoming.filter((item) => item.friendshipId !== friendshipId),
+					friends: [{ ...targetItem, status: "friend" as const }, ...prev.friends].sort(sortByName),
+				}));
+			}
 
-		if (!response.ok) {
-			throw new Error("Failed to revoke friends");
-		}
+			try {
+				const response = await xfetch(`/friends/${friendshipId}/accept`, { method: "PATCH" });
 
-		const result = await response.json();
+				if (!response.ok) {
+					throw new Error("Failed to accept friend request");
+				}
 
-		if (!result.success) {
-			throw new Error(result.message || "Failed to revoke friends");
-		}
+				const result = await response.json();
+				if (!result.success) {
+					throw new Error(result.message || "Failed to accept friend request");
+				}
+			} catch (err) {
+				// Rollback on error
+				if (targetItem) {
+					setState((prev) => ({
+						...prev,
+						friends: prev.friends.filter((item) => item.friendshipId !== friendshipId),
+						incoming: [targetItem, ...prev.incoming].sort(sortByName),
+					}));
+				}
+				throw err;
+			}
+		},
+		[state.incoming]
+	);
 
-		const deletedSet = new Set(result.data.deleted);
-		setItems((prev) => prev.filter((friend) => !deletedSet.has(friend.id)));
-	}, []);
+	// Reject incoming request
+	const rejectRequest = useCallback(
+		async (friendshipId: string): Promise<void> => {
+			// Optimistic update
+			const targetItem = state.incoming.find((item) => item.friendshipId === friendshipId);
+			setState((prev) => ({
+				...prev,
+				incoming: prev.incoming.filter((item) => item.friendshipId !== friendshipId),
+			}));
 
-	const accept = useCallback(async (id: string): Promise<void> => {
-		const response = await xfetch(`/friends/${id}/accept`, { method: "PATCH" });
+			try {
+				const response = await xfetch(`/friends/${friendshipId}/reject`, { method: "DELETE" });
 
-		if (!response.ok) {
-			const errorData = await response.json().catch(() => ({}));
-			throw new Error(errorData.message || "Failed to accept friend request");
-		}
+				if (!response.ok) {
+					throw new Error("Failed to reject friend request");
+				}
 
-		const result = await response.json();
+				const result = await response.json();
+				if (!result.success) {
+					throw new Error(result.message || "Failed to reject friend request");
+				}
+			} catch (err) {
+				// Rollback on error
+				if (targetItem) {
+					setState((prev) => ({
+						...prev,
+						incoming: [targetItem, ...prev.incoming].sort(sortByName),
+					}));
+				}
+				throw err;
+			}
+		},
+		[state.incoming]
+	);
 
-		if (!result.success) {
-			throw new Error(result.message || "Failed to accept friend request");
-		}
+	// Cancel outgoing request
+	const cancelRequest = useCallback(
+		async (friendshipId: string): Promise<void> => {
+			// Optimistic update
+			const targetItem = state.outgoing.find((item) => item.friendshipId === friendshipId);
+			setState((prev) => ({
+				...prev,
+				outgoing: prev.outgoing.filter((item) => item.friendshipId !== friendshipId),
+			}));
 
-		setItems((prev) =>
-			prev.map((friend) => (friend.id === id ? { ...friend, status: "active" as const } : friend))
-		);
-	}, []);
+			try {
+				const response = await xfetch(`/friends/${friendshipId}/cancel`, { method: "DELETE" });
 
-	const deny = useCallback(async (id: string): Promise<void> => {
-		const response = await xfetch(`/friends/${id}`, { method: "DELETE" });
+				if (!response.ok) {
+					throw new Error("Failed to cancel friend request");
+				}
 
-		if (!response.ok) {
-			const errorData = await response.json().catch(() => ({}));
-			throw new Error(errorData.message || "Failed to deny friend request");
-		}
+				const result = await response.json();
+				if (!result.success) {
+					throw new Error(result.message || "Failed to cancel friend request");
+				}
+			} catch (err) {
+				// Rollback on error
+				if (targetItem) {
+					setState((prev) => ({
+						...prev,
+						outgoing: [targetItem, ...prev.outgoing].sort(sortByName),
+					}));
+				}
+				throw err;
+			}
+		},
+		[state.outgoing]
+	);
 
-		const result = await response.json();
+	// Remove friend
+	const removeFriend = useCallback(
+		async (friendshipId: string): Promise<void> => {
+			// Optimistic update
+			const targetItem = state.friends.find((item) => item.friendshipId === friendshipId);
+			setState((prev) => ({
+				...prev,
+				friends: prev.friends.filter((item) => item.friendshipId !== friendshipId),
+			}));
 
-		if (!result.success) {
-			throw new Error(result.message || "Failed to deny friend request");
-		}
+			try {
+				const response = await xfetch(`/friends/${friendshipId}`, { method: "DELETE" });
 
-		setItems((prev) => prev.filter((friend) => friend.id !== id));
-	}, []);
+				if (!response.ok) {
+					throw new Error("Failed to remove friend");
+				}
 
-	return { items, loading, error, refresh, invite, revoke, accept, deny } as const;
+				const result = await response.json();
+				if (!result.success) {
+					throw new Error(result.message || "Failed to remove friend");
+				}
+			} catch (err) {
+				// Rollback on error
+				if (targetItem) {
+					setState((prev) => ({
+						...prev,
+						friends: [targetItem, ...prev.friends].sort(sortByName),
+					}));
+				}
+				throw err;
+			}
+		},
+		[state.friends]
+	);
+
+	return {
+		friends: state.friends,
+		incoming: state.incoming,
+		outgoing: state.outgoing,
+		loading: state.loading,
+		error: state.error,
+		refresh,
+		sendRequest,
+		acceptRequest,
+		rejectRequest,
+		cancelRequest,
+		removeFriend,
+	} as const;
 }
 
 export type UseFriendsReturn = ReturnType<typeof useFriends>;
+
+export function useUserSearch() {
+	const [query, setQuery] = useState("");
+	const [results, setResults] = useState<UserSearchResult[]>([]);
+	const [loading, setLoading] = useState(false);
+
+	useEffect(() => {
+		if (query.length < 2) {
+			setResults([]);
+			return;
+		}
+
+		const controller = new AbortController();
+		const timeoutId = setTimeout(async () => {
+			setLoading(true);
+			try {
+				const response = await xfetch(`/friends/search?q=${encodeURIComponent(query)}`, {
+					method: "GET",
+					signal: controller.signal,
+				});
+
+				if (!response.ok) {
+					throw new Error("Search failed");
+				}
+
+				const result = await response.json();
+				if (result.success) {
+					setResults(result.data.users);
+				}
+			} catch (err) {
+				if (err instanceof Error && err.name !== "AbortError") {
+					console.error("Search error:", err);
+				}
+			} finally {
+				setLoading(false);
+			}
+		}, 300);
+
+		return () => {
+			clearTimeout(timeoutId);
+			controller.abort();
+		};
+	}, [query]);
+
+	const clearSearch = useCallback(() => {
+		setQuery("");
+		setResults([]);
+	}, []);
+
+	return { query, setQuery, results, loading, clearSearch } as const;
+}

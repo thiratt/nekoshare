@@ -1,5 +1,15 @@
 import { flexRender, type Table as TanstackTable } from "@tanstack/react-table";
-import { LuChevronLeft, LuChevronRight, LuLoader, LuRefreshCcw, LuTrash2, LuUserPlus } from "react-icons/lu";
+import {
+	LuChevronLeft,
+	LuChevronRight,
+	LuInbox,
+	LuLoader,
+	LuRefreshCcw,
+	LuSend,
+	LuTrash2,
+	LuUserPlus,
+	LuUsers,
+} from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
@@ -8,8 +18,9 @@ import { SearchInput } from "@workspace/ui/components/search-input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/table";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
-import type { FriendProps } from "@workspace/app-ui/types/friends";
+import type { FriendItem } from "@workspace/app-ui/types/friends";
 
+import { FriendRequestCard } from "./components";
 import { PAGE_SIZE } from "./constants";
 import { AddFriendDialog } from "./dialogs";
 
@@ -23,11 +34,11 @@ interface FriendsHeaderProps {
 	onClearQuery: () => void;
 	onRevokeSelected: () => void;
 	onAddDialogChange: (open: boolean) => void;
-	onInvite: (data: { email: string; message?: string }) => Promise<void>;
+	onSendRequest: (userId: string) => Promise<void>;
 }
 
 interface FriendsTableProps {
-	table: TanstackTable<FriendProps>;
+	table: TanstackTable<FriendItem>;
 	loading: boolean;
 	columnsLength: number;
 	searchQuery: string;
@@ -45,8 +56,19 @@ interface FriendsContentProps {
 	error: string | null;
 	children: React.ReactNode;
 }
+
 interface FriendsCardProps {
 	children: React.ReactNode;
+}
+
+interface RequestsSectionProps {
+	title: string;
+	subtitle?: string;
+	items: FriendItem[];
+	onAccept?: (friendshipId: string) => void;
+	onReject?: (friendshipId: string) => void;
+	onCancel?: (friendshipId: string) => void;
+	actionLoading?: string | null;
 }
 
 export function FriendsHeader({
@@ -59,7 +81,7 @@ export function FriendsHeader({
 	onClearQuery,
 	onRevokeSelected,
 	onAddDialogChange,
-	onInvite,
+	onSendRequest,
 }: FriendsHeaderProps) {
 	return (
 		<CardHeader>
@@ -96,11 +118,46 @@ export function FriendsHeader({
 								เพิ่มเพื่อน
 							</Button>
 						</DialogTrigger>
-						<AddFriendDialog onSubmit={onInvite} />
+						<AddFriendDialog onSubmit={onSendRequest} />
 					</Dialog>
 				</div>
 			</div>
 		</CardHeader>
+	);
+}
+
+export function RequestsSection({
+	title,
+	subtitle,
+	items,
+	onAccept,
+	onReject,
+	onCancel,
+	actionLoading,
+}: RequestsSectionProps) {
+	const isIncoming = items[0]?.status === "incoming";
+	const Icon = isIncoming ? LuInbox : LuSend;
+
+	return (
+		<div className="mb-6">
+			<div className="flex items-center gap-2 mb-3">
+				<Icon className="w-4 h-4 text-muted-foreground" />
+				<h3 className="font-semibold text-sm">{title}</h3>
+				{subtitle && <span className="text-xs text-muted-foreground">({subtitle})</span>}
+			</div>
+			<div className="grid gap-2">
+				{items.map((item) => (
+					<FriendRequestCard
+						key={item.friendshipId}
+						friend={item}
+						onAccept={onAccept}
+						onReject={onReject}
+						onCancel={onCancel}
+						loading={actionLoading === item.friendshipId}
+					/>
+				))}
+			</div>
+		</div>
 	);
 }
 
@@ -136,7 +193,17 @@ export function FriendsTable({ table, loading, columnsLength, searchQuery }: Fri
 					) : table.getRowModel().rows.length === 0 ? (
 						<TableRow>
 							<TableCell colSpan={columnsLength} className="text-center py-8">
-								{searchQuery ? `ไม่พบเพื่อนที่ตรงกับ "${searchQuery}"` : "ยังไม่มีเพื่อน"}
+								<div className="flex flex-col items-center gap-2 text-muted-foreground">
+									<LuUsers className="w-8 h-8" />
+									{searchQuery ? (
+										<span>ไม่พบเพื่อนที่ตรงกับ &quot;{searchQuery}&quot;</span>
+									) : (
+										<>
+											<span className="font-medium">ยังไม่มีเพื่อน</span>
+											<span className="text-sm">เริ่มต้นด้วยการเพิ่มเพื่อนคนแรกของคุณ</span>
+										</>
+									)}
+								</div>
 							</TableCell>
 						</TableRow>
 					) : (

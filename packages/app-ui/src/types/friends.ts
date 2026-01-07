@@ -1,39 +1,42 @@
-export type FriendStatus = "active" | "pending";
+export type FriendStatus = "none" | "outgoing" | "incoming" | "friend" | "blocked";
 
-export interface FriendProps {
+export interface FriendItem {
 	id: string;
+	friendshipId: string;
 	name: string;
 	email: string;
 	avatarUrl?: string;
 	status: FriendStatus;
 	sharedCount: number;
 	lastActive: string;
-	invitedAt: string;
-}
-
-export interface RowActionsProps {
-	onCopy: () => void;
-	onRevoke: () => void;
-}
-
-export interface RevokeConfirmDialogProps {
-	open: boolean;
-	count: number;
-	onConfirm: () => void;
-	onCancel: () => void;
+	createdAt: string;
 }
 
 export interface FriendListResponse {
-	friends: FriendProps[];
+	friends: FriendItem[];
+	incoming: FriendItem[];
+	outgoing: FriendItem[];
+	total: { friends: number; incoming: number; outgoing: number };
+}
+
+export interface UserSearchResult {
+	id: string;
+	name: string;
+	email: string;
+	avatarUrl?: string;
+	friendStatus: FriendStatus;
+}
+
+export interface UserSearchResponse {
+	users: UserSearchResult[];
 	total: number;
 }
 
-export interface FriendInviteResponse {
-	friend: FriendProps;
-	isNew: boolean;
+export interface FriendActionResponse {
+	success: boolean;
+	friendshipId: string;
+	status: FriendStatus;
 }
 
-export interface FriendRevokeResponse {
-	deleted: string[];
-	count: number;
-}
+// Legacy types for backward compatibility during migration
+export type FriendProps = FriendItem;
