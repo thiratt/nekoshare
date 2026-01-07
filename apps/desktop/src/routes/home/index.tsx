@@ -4,14 +4,29 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import { HomeUI } from "@workspace/app-ui/components/ui/home/index";
 
-import { useFiles } from "@/hooks/useFiles";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 export const Route = createFileRoute("/home/")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const { files, directoryPath, loading, refresh } = useFiles();
+  const { files, directoryPath, status, refresh } = useWorkspace();
+
+  const isLoading = status === "loading";
+
+  if (status === "unavailable") {
+    return (
+      <HomeUI
+        onItemClick={() => {}}
+        onItemReveal={() => Promise.resolve()}
+        onItemRemove={() => Promise.resolve()}
+        onBulkDelete={() => {}}
+        data={[]}
+        loading={false}
+      />
+    );
+  }
 
   return (
     <HomeUI
@@ -30,8 +45,8 @@ function RouteComponent() {
           try {
             await remove(file.path, { recursive: file.isDirectory });
             await refresh();
-          } catch (error) {
-            console.error("Failed to delete file:", error);
+          } catch (err) {
+            console.error("Failed to delete file:", err);
           }
         }
       }}
@@ -39,7 +54,7 @@ function RouteComponent() {
         console.log("Bulk delete items with ids:", ids);
       }}
       data={files}
-      loading={loading}
+      loading={isLoading}
     />
   );
 }

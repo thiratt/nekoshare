@@ -6,7 +6,9 @@ import { NekoShareProvider } from "@workspace/app-ui/context/nekoshare";
 import { ThemeProvider } from "@workspace/app-ui/providers/theme-provider";
 import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
 
+import { NSDesktopProvider } from "@/context/NSDesktopContext";
 import { getDeviceInfo } from "@/lib/device";
+
 export const Route = createRootRoute({
   component: RouteComponent,
 });
@@ -33,7 +35,9 @@ function RouteComponent() {
         currentDevice={deviceInfo}
         globalLoading={{ loading, setLoading }}
       >
-        <Outlet />
+        <NSDesktopProvider>
+          <Outlet />
+        </NSDesktopProvider>
       </NekoShareProvider>
     </ThemeProvider>
   );

@@ -19,17 +19,13 @@ import { Switch } from "@workspace/ui/components/switch";
 
 import { AnimatedContainer } from "@workspace/app-ui/components/provide-animate";
 
-import { useStore } from "@/hooks/useStore";
+import { useNSDesktop } from "@/context/NSDesktopContext";
 
 const FOLDER_NAME = "Nekoshare";
 const DIALOG_TITLE = "Select Save Location";
 
-function SetupApplicationUI({
-  onSetupComplete,
-}: {
-  onSetupComplete?: () => void;
-}) {
-  const { set: saveToStore } = useStore();
+function SetupApplicationUI() {
+  const { setFileLocation } = useNSDesktop();
 
   const [defaultDocPath, setDefaultDocPath] = useState<string>("");
   const [selectedPath, setSelectedPath] = useState<string>("");
@@ -101,12 +97,7 @@ function SetupApplicationUI({
         await mkdir(finalPath, { recursive: true });
       }
 
-      await saveToStore("appConfig", {
-        isSetup: true,
-        fileLocation: finalPath,
-      });
-
-      onSetupComplete?.();
+      await setFileLocation(finalPath);
     } catch {
       setError("ไม่สามารถบันทึกการตั้งค่าได้");
     } finally {

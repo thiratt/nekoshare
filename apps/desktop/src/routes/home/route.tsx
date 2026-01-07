@@ -20,7 +20,7 @@ import { useTheme } from "@workspace/app-ui/providers/theme-provider";
 
 import { DesktopTitlebar } from "@/components/navbar";
 import { SetupApplicationUI } from "@/components/setup";
-import { useAppSetup } from "@/hooks/useAppSetup";
+import { useNSDesktop } from "@/context/NSDesktopContext";
 import { getCachedSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/home")({
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/home")({
 });
 
 function RouteComponent() {
-  const { isSetup, isLoading, setIsSetup } = useAppSetup();
+  const { status, isReady } = useNSDesktop();
 
   const location = useLocation();
   const { globalLoading, notificationStatus, toggleNotification, setMode } =
@@ -72,11 +72,13 @@ function RouteComponent() {
     send(PacketType.SYSTEM_HEARTBEAT);
   }, 7000);
 
-  if (globalLoading || isLoading) return null;
+  if (globalLoading || status === "loading") {
+    return null;
+  }
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {isSetup ? (
+      {isReady ? (
         <>
           <DesktopTitlebar helperActions={titlebarHelperActions} />
           <div className="flex flex-1 divide-x overflow-hidden">
@@ -96,7 +98,7 @@ function RouteComponent() {
         <>
           <DesktopTitlebar />
           <div className="flex flex-1 divide-x items-center justify-center">
-            <SetupApplicationUI onSetupComplete={() => setIsSetup(true)} />
+            <SetupApplicationUI />
           </div>
         </>
       )}
