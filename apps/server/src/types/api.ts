@@ -1,5 +1,3 @@
-import type { device } from "@/adapters/db/schemas";
-
 export type ApiSuccessResponse<T> = {
 	success: true;
 	data: T;
@@ -68,40 +66,47 @@ export type DeviceRegistrationResponse = {
 	isNew: boolean;
 };
 
-export const FRIEND_STATUSES = ["active", "pending"] as const;
+export const FRIEND_STATUSES = ["none", "outgoing", "incoming", "friend", "blocked"] as const;
 export type FriendStatus = (typeof FRIEND_STATUSES)[number];
 
-export type Friend = {
+export type FriendItem = {
 	id: string;
+	friendshipId: string;
 	name: string;
 	email: string;
 	avatarUrl?: string;
 	status: FriendStatus;
 	sharedCount: number;
 	lastActive: string;
-	invitedAt: string;
+	createdAt: string;
 };
 
 export type FriendListResponse = {
-	friends: Friend[];
-	total: number;
+	friends: FriendItem[];
+	incoming: FriendItem[];
+	outgoing: FriendItem[];
+	total: { friends: number; incoming: number; outgoing: number };
 };
 
-export type FriendInviteRequest = {
+export type FriendRequestPayload = {
+	userId: string;
+};
+
+export type FriendActionResponse = {
+	success: boolean;
+	friendshipId: string;
+	status: FriendStatus;
+};
+
+export type UserSearchResult = {
+	id: string;
+	name: string;
 	email: string;
-	message?: string;
+	avatarUrl?: string;
+	friendStatus: FriendStatus;
 };
 
-export type FriendInviteResponse = {
-	friend: Friend;
-	isNew: boolean;
-};
-
-export type FriendRevokeRequest = {
-	ids: string[];
-};
-
-export type FriendRevokeResponse = {
-	deleted: string[];
-	count: number;
+export type UserSearchResponse = {
+	users: UserSearchResult[];
+	total: number;
 };
