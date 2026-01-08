@@ -6,8 +6,13 @@ import { userPreference } from "@/adapters/db/schemas/n";
 import { env } from "@/config/env";
 import { hashPassword, verifyPassword } from "@/core/crypto/hash";
 import { Logger } from "@/core/logger";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
 const RESERVED_USERNAMES = ["admin", "dev", "system", "root", "nekoshare"] as const;
+
+const databaseOptions: BetterAuthOptions["database"] = drizzleAdapter(db, {
+	provider: "mysql",
+});
 
 const databaseHookOptions: BetterAuthOptions["databaseHooks"] = {
 	user: {
@@ -70,6 +75,7 @@ const loggerOptions: BetterAuthOptions["logger"] = {
 
 export {
 	db, // for convenience
+	databaseOptions,
 	databaseHookOptions,
 	emailAndPasswordOptions,
 	socialProvidersOptions,

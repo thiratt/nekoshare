@@ -12,28 +12,31 @@ export const userPreference = mysqlTable("user_preference", {
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
 
-export const device = mysqlTable("device", {
-	id: varchar("id", { length: 36 }).primaryKey(),
-	sessionId: varchar("session_id", { length: 36 })
-		.notNull()
-		.references(() => session.id, { onDelete: "cascade" }),
-	// userId: varchar("user_id", { length: 36 })
-	// 	.notNull()
-	// 	.references(() => user.id, { onDelete: "cascade" }),
-	name: varchar("name", { length: 255 }).notNull(),
-	os: mysqlEnum("os", ["android", "windows", "web", "other"]).notNull(),
-	os_version: varchar("os_version", { length: 100 }).notNull(),
-	os_long_version: varchar("os_long_version", { length: 255 }).notNull(),
-	is_tailscale: boolean("is_tailscale").default(false).notNull(),
-	publicKey: text("public_key").notNull(),
-	batterySupported: boolean("battery_supported").default(false).notNull(),
-	batteryCharging: boolean("battery_charging").default(false).notNull(),
-	batteryPercent: bigint("battery_percent", { mode: "number" }).default(100).notNull(),
-	ipv4: text("ipv4").notNull(),
-	ipv6: text("ipv6"),
-	lastActiveAt: timestamp("last_active_at").defaultNow().notNull(),
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const device = mysqlTable(
+	"device",
+	{
+		id: varchar("id", { length: 36 }).primaryKey(),
+		sessionId: varchar("session_id", { length: 36 }).references(() => session.id, { onDelete: "set null" }),
+		userId: varchar("user_id", { length: 36 })
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		deviceIdentifier: varchar("device_identifier", { length: 255 }).notNull(),
+		name: varchar("name", { length: 255 }).notNull(),
+		os: mysqlEnum("os", ["android", "windows", "web", "other"]).notNull(),
+		os_version: varchar("os_version", { length: 100 }).notNull(),
+		os_long_version: varchar("os_long_version", { length: 255 }).notNull(),
+		is_tailscale: boolean("is_tailscale").default(false).notNull(),
+		publicKey: text("public_key").notNull(),
+		batterySupported: boolean("battery_supported").default(false).notNull(),
+		batteryCharging: boolean("battery_charging").default(false).notNull(),
+		batteryPercent: bigint("battery_percent", { mode: "number" }).default(100).notNull(),
+		ipv4: text("ipv4").notNull(),
+		ipv6: text("ipv6"),
+		lastActiveAt: timestamp("last_active_at").defaultNow().notNull(),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+	},
+	(table) => [unique("device_user_deviceIdentifier_unique").on(table.userId, table.deviceIdentifier)]
+);
 
 export const friend = mysqlTable(
 	"friend",
@@ -73,6 +76,8 @@ export const transferHistory = mysqlTable("transfer_history", {
 		.notNull()
 		.references(() => user.id, { onDelete: "cascade" }),
 	receiverId: varchar("receiver_id", { length: 36 }),
+	senderDeviceId: varchar("sender_device_id", { length: 36 }),
+	receiverDeviceId: varchar("receiver_device_id", { length: 36 }),
 	fileName: varchar("file_name", { length: 255 }).notNull(),
 	fileSize: bigint("file_size", { mode: "number" }).notNull(),
 	transferMethod: mysqlEnum("transfer_method", ["local", "relay", "flash_share"]).notNull(),

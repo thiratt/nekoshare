@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { mysqlTable, varchar, text, timestamp, boolean, index } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, text, timestamp, boolean, index, mysqlEnum } from "drizzle-orm/mysql-core";
 
 export const user = mysqlTable("user", {
 	id: varchar("id", { length: 36 }).primaryKey(),
@@ -14,6 +14,8 @@ export const user = mysqlTable("user", {
 		.notNull(),
 	username: varchar("username", { length: 255 }).unique(),
 	displayUsername: text("display_username"),
+	role: mysqlEnum(["admin", "user"]).default("user").notNull(),
+	isBanned: boolean("is_banned").default(false).notNull(),
 });
 
 export const session = mysqlTable(
