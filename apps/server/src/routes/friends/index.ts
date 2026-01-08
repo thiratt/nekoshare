@@ -1,7 +1,7 @@
 import { eq, or, and, count, sql, like } from "drizzle-orm";
 
 import { db } from "@/adapters/db";
-import { friendship, user, transferHistory } from "@/adapters/db/schemas";
+import { friend, user, transferHistory } from "@/adapters/db/schemas";
 import { createRouter } from "@/core/utils/router";
 import { success, error } from "@/types";
 import type { FriendItem, FriendStatus, FriendListResponse, UserSearchResult } from "@/types/api";
@@ -10,8 +10,8 @@ const uuidv4 = () => crypto.randomUUID();
 
 const app = createRouter();
 
-async function mapFriendshipToItem(
-	f: typeof friendship.$inferSelect,
+async function mapFriendToItem(
+	f: typeof friend.$inferSelect,
 	currentUserId: string,
 	friendUser: typeof user.$inferSelect | undefined,
 	sharedCountMap: Map<string, number>
@@ -32,7 +32,7 @@ async function mapFriendshipToItem(
 
 	return {
 		id: friendUserId,
-		friendshipId: f.id,
+		friendId: f.id,
 		name: friendUser?.name ?? "Unknown",
 		email: friendUser?.email ?? "",
 		avatarUrl: friendUser?.image ?? undefined,
@@ -46,11 +46,11 @@ async function mapFriendshipToItem(
 app.get("/", async (c) => {
 	const currentUser = c.get("user");
 
-	const friendships = await db.query.friendship.findMany({
-		where: or(eq(friendship.requesterId, currentUser.id), eq(friendship.receiverId, currentUser.id)),
+	const friends = await db.query.friend.findMany({
+		where: or(eq(friend.requesterId, currentUser.id), eq(friend.receiverId, currentUser.id)),
 	});
 
-	if (friendships.length === 0) {
+	if (friends.length === 0) {
 		return c.json(
 			success<FriendListResponse>({
 				friends: [],
@@ -61,7 +61,7 @@ app.get("/", async (c) => {
 		);
 	}
 
-	const friendUserIds = friendships.map((f) => (f.requesterId === currentUser.id ? f.receiverId : f.requesterId));
+	const friendUserIds = friends.map((f) => (f.requesterId === currentUser.id ? f.receiverId : f.requesterId));
 
 	const friendUsers = await db.query.user.findMany({
 		where: sql`${user.id} IN (${sql.join(
@@ -85,17 +85,17 @@ app.get("/", async (c) => {
 	const sharedCountMap = new Map(sharedCounts.map((sc) => [sc.friendId, sc.count]));
 	const userMap = new Map(friendUsers.map((u) => [u.id, u]));
 
-	const friends: FriendItem[] = [];
+	const friendsList: FriendItem[] = [];
 	const incoming: FriendItem[] = [];
 	const outgoing: FriendItem[] = [];
 
-	for (const f of friendships) {
+	for (const f of friends) {
 		const friendUserId = f.requesterId === currentUser.id ? f.receiverId : f.requesterId;
 		const friendUser = userMap.get(friendUserId);
-		const item = await mapFriendshipToItem(f, currentUser.id, friendUser, sharedCountMap);
+		const item = await mapFriendToItem(f, currentUser.id, friendUser, sharedCountMap);
 
 		if (item.status === "friend") {
-			friends.push(item);
+			friendsList.push(item);
 		} else if (item.status === "incoming") {
 			incoming.push(item);
 		} else if (item.status === "outgoing") {
@@ -104,13 +104,13 @@ app.get("/", async (c) => {
 	}
 
 	const sortByName = (a: FriendItem, b: FriendItem) => a.name.localeCompare(b.name);
-	friends.sort(sortByName);
+	friendsList.sort(sortByName);
 	incoming.sort(sortByName);
 	outgoing.sort(sortByName);
 
 	return c.json(
 		success<FriendListResponse>({
-			friends,
+			friends: friendsList,
 			incoming,
 			outgoing,
 			total: { friends: friends.length, incoming: incoming.length, outgoing: outgoing.length },
@@ -144,23 +144,23 @@ app.post("/request", async (c) => {
 		return c.json(error("VALIDATION_ERROR", "Cannot add yourself as a friend"), 400);
 	}
 
-	const existingFriendship = await db.query.friendship.findFirst({
+	const existingfriend = await db.query.friend.findFirst({
 		where: or(
-			and(eq(friendship.requesterId, currentUser.id), eq(friendship.receiverId, targetUser.id)),
-			and(eq(friendship.requesterId, targetUser.id), eq(friendship.receiverId, currentUser.id))
+			and(eq(friend.requesterId, currentUser.id), eq(friend.receiverId, targetUser.id)),
+			and(eq(friend.requesterId, targetUser.id), eq(friend.receiverId, currentUser.id))
 		),
 	});
 
-	if (existingFriendship) {
-		if (existingFriendship.status === "accepted") {
+	if (existingfriend) {
+		if (existingfriend.status === "accepted") {
 			return c.json(error("ALREADY_EXISTS", "Already friends"), 409);
 		}
-		if (existingFriendship.status === "pending") {
-			if (existingFriendship.requesterId === targetUser.id) {
-				await db.update(friendship).set({ status: "accepted" }).where(eq(friendship.id, existingFriendship.id));
+		if (existingfriend.status === "pending") {
+			if (existingfriend.requesterId === targetUser.id) {
+				await db.update(friend).set({ status: "accepted" }).where(eq(friend.id, existingfriend.id));
 				return c.json(
 					success({
-						friendshipId: existingFriendship.id,
+						friendId: existingfriend.id,
 						status: "friend" as FriendStatus,
 						message: "Friend request accepted (mutual request)",
 					}),
@@ -169,14 +169,14 @@ app.post("/request", async (c) => {
 			}
 			return c.json(error("ALREADY_EXISTS", "Friend request already sent"), 409);
 		}
-		if (existingFriendship.status === "blocked") {
+		if (existingfriend.status === "blocked") {
 			return c.json(error("BLOCKED", "Cannot send request to this user"), 403);
 		}
 	}
 
-	const newFriendshipId = uuidv4();
-	await db.insert(friendship).values({
-		id: newFriendshipId,
+	const newfriendId = uuidv4();
+	await db.insert(friend).values({
+		id: newfriendId,
 		requesterId: currentUser.id,
 		receiverId: targetUser.id,
 		status: "pending",
@@ -184,7 +184,7 @@ app.post("/request", async (c) => {
 
 	return c.json(
 		success({
-			friendshipId: newFriendshipId,
+			friendId: newfriendId,
 			status: "outgoing" as FriendStatus,
 			user: {
 				id: targetUser.id,
@@ -199,25 +199,21 @@ app.post("/request", async (c) => {
 
 app.patch("/:id/accept", async (c) => {
 	const currentUser = c.get("user");
-	const friendshipId = c.req.param("id");
+	const friendId = c.req.param("id");
 
-	const existingFriendship = await db.query.friendship.findFirst({
-		where: and(
-			eq(friendship.id, friendshipId),
-			eq(friendship.receiverId, currentUser.id),
-			eq(friendship.status, "pending")
-		),
+	const existingfriend = await db.query.friend.findFirst({
+		where: and(eq(friend.id, friendId), eq(friend.receiverId, currentUser.id), eq(friend.status, "pending")),
 	});
 
-	if (!existingFriendship) {
+	if (!existingfriend) {
 		return c.json(error("NOT_FOUND", "Friend request not found"), 404);
 	}
 
-	await db.update(friendship).set({ status: "accepted" }).where(eq(friendship.id, friendshipId));
+	await db.update(friend).set({ status: "accepted" }).where(eq(friend.id, friendId));
 
 	return c.json(
 		success({
-			friendshipId,
+			friendId,
 			status: "friend" as FriendStatus,
 		})
 	);
@@ -225,25 +221,21 @@ app.patch("/:id/accept", async (c) => {
 
 app.delete("/:id/reject", async (c) => {
 	const currentUser = c.get("user");
-	const friendshipId = c.req.param("id");
+	const friendId = c.req.param("id");
 
-	const existingFriendship = await db.query.friendship.findFirst({
-		where: and(
-			eq(friendship.id, friendshipId),
-			eq(friendship.receiverId, currentUser.id),
-			eq(friendship.status, "pending")
-		),
+	const existingfriend = await db.query.friend.findFirst({
+		where: and(eq(friend.id, friendId), eq(friend.receiverId, currentUser.id), eq(friend.status, "pending")),
 	});
 
-	if (!existingFriendship) {
+	if (!existingfriend) {
 		return c.json(error("NOT_FOUND", "Friend request not found"), 404);
 	}
 
-	await db.delete(friendship).where(eq(friendship.id, friendshipId));
+	await db.delete(friend).where(eq(friend.id, friendId));
 
 	return c.json(
 		success({
-			friendshipId,
+			friendId,
 			status: "none" as FriendStatus,
 		})
 	);
@@ -251,25 +243,21 @@ app.delete("/:id/reject", async (c) => {
 
 app.delete("/:id/cancel", async (c) => {
 	const currentUser = c.get("user");
-	const friendshipId = c.req.param("id");
+	const friendId = c.req.param("id");
 
-	const existingFriendship = await db.query.friendship.findFirst({
-		where: and(
-			eq(friendship.id, friendshipId),
-			eq(friendship.requesterId, currentUser.id),
-			eq(friendship.status, "pending")
-		),
+	const existingfriend = await db.query.friend.findFirst({
+		where: and(eq(friend.id, friendId), eq(friend.requesterId, currentUser.id), eq(friend.status, "pending")),
 	});
 
-	if (!existingFriendship) {
+	if (!existingfriend) {
 		return c.json(error("NOT_FOUND", "Friend request not found"), 404);
 	}
 
-	await db.delete(friendship).where(eq(friendship.id, friendshipId));
+	await db.delete(friend).where(eq(friend.id, friendId));
 
 	return c.json(
 		success({
-			friendshipId,
+			friendId,
 			status: "none" as FriendStatus,
 		})
 	);
@@ -277,24 +265,24 @@ app.delete("/:id/cancel", async (c) => {
 
 app.delete("/:id", async (c) => {
 	const currentUser = c.get("user");
-	const friendshipId = c.req.param("id");
+	const friendId = c.req.param("id");
 
-	const existingFriendship = await db.query.friendship.findFirst({
+	const existingfriend = await db.query.friend.findFirst({
 		where: and(
-			eq(friendship.id, friendshipId),
-			or(eq(friendship.requesterId, currentUser.id), eq(friendship.receiverId, currentUser.id))
+			eq(friend.id, friendId),
+			or(eq(friend.requesterId, currentUser.id), eq(friend.receiverId, currentUser.id))
 		),
 	});
 
-	if (!existingFriendship) {
-		return c.json(error("NOT_FOUND", "Friendship not found"), 404);
+	if (!existingfriend) {
+		return c.json(error("NOT_FOUND", "friend not found"), 404);
 	}
 
-	await db.delete(friendship).where(eq(friendship.id, friendshipId));
+	await db.delete(friend).where(eq(friend.id, friendId));
 
 	return c.json(
 		success({
-			friendshipId,
+			friendId,
 			status: "none" as FriendStatus,
 		})
 	);
@@ -333,15 +321,15 @@ app.get("/search", async (c) => {
 	}
 
 	const userIds = matchingUsers.map((u) => u.id);
-	const friendships = await db.query.friendship.findMany({
+	const friends = await db.query.friend.findMany({
 		where: and(
-			or(eq(friendship.requesterId, currentUser.id), eq(friendship.receiverId, currentUser.id)),
+			or(eq(friend.requesterId, currentUser.id), eq(friend.receiverId, currentUser.id)),
 			or(
-				sql`${friendship.requesterId} IN (${sql.join(
+				sql`${friend.requesterId} IN (${sql.join(
 					userIds.map((id) => sql`${id}`),
 					sql`, `
 				)})`,
-				sql`${friendship.receiverId} IN (${sql.join(
+				sql`${friend.receiverId} IN (${sql.join(
 					userIds.map((id) => sql`${id}`),
 					sql`, `
 				)})`
@@ -349,17 +337,17 @@ app.get("/search", async (c) => {
 		),
 	});
 
-	const friendshipMap = new Map<string, { status: string; isRequester: boolean }>();
-	for (const f of friendships) {
+	const friendMap = new Map<string, { status: string; isRequester: boolean }>();
+	for (const f of friends) {
 		const otherUserId = f.requesterId === currentUser.id ? f.receiverId : f.requesterId;
-		friendshipMap.set(otherUserId, {
+		friendMap.set(otherUserId, {
 			status: f.status,
 			isRequester: f.requesterId === currentUser.id,
 		});
 	}
 
 	const users: UserSearchResult[] = matchingUsers.map((u) => {
-		const fs = friendshipMap.get(u.id);
+		const fs = friendMap.get(u.id);
 		let friendStatus: FriendStatus = "none";
 
 		if (fs) {

@@ -71,7 +71,7 @@ export type FriendStatus = (typeof FRIEND_STATUSES)[number];
 
 export type FriendItem = {
 	id: string;
-	friendshipId: string;
+	friendId: string;
 	name: string;
 	email: string;
 	avatarUrl?: string;
@@ -94,7 +94,7 @@ export type FriendRequestPayload = {
 
 export type FriendActionResponse = {
 	success: boolean;
-	friendshipId: string;
+	friendId: string;
 	status: FriendStatus;
 };
 

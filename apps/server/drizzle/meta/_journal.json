@@ -64,6 +64,13 @@
       "when": 1766528333831,
       "tag": "0008_thick_black_bird",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1767875595381,
+      "tag": "0009_clumsy_james_howlett",
+      "breakpoints": true
     }
   ]
 }

@@ -35,8 +35,8 @@ export const device = mysqlTable("device", {
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const friendship = mysqlTable(
-	"friendship",
+export const friend = mysqlTable(
+	"friend",
 	{
 		id: varchar("id", { length: 36 }).primaryKey(),
 		requesterId: varchar("requester_id", { length: 36 })
