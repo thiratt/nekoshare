@@ -1,1 +1,0 @@
-ALTER TABLE `user_preference` MODIFY COLUMN `language` enum('en','th') NOT NULL DEFAULT 'th';

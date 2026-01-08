@@ -1,1 +1,0 @@
-ALTER TABLE `device` MODIFY COLUMN `last_active_at` timestamp NOT NULL DEFAULT (now());
