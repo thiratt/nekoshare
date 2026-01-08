@@ -132,7 +132,9 @@ app.post("/register", async (c) => {
 
 		await db.insert(device).values({
 			id: body.id,
+			userId: session.userId,
 			sessionId: session.id,
+			deviceIdentifier: "-",
 			...dbValues,
 		});
 
