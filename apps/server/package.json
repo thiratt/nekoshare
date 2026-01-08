@@ -6,6 +6,7 @@
 		"ba:g": "pnpm dlx @better-auth/cli@latest generate --config .\\src\\core\\auth --output .\\src\\adapters\\db\\schemas\\auth-new.ts -y",
 		"dz:g": "drizzle-kit generate --config ./drizzle.config.ts",
 		"dz:m": "drizzle-kit migrate --config ./drizzle.config.ts",
+		"dz:p": "drizzle-kit push --config ./drizzle.config.ts",
 		"build": "tsc",
 		"start": "node dist/index.js"
 	},
