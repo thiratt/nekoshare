@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tauri dev",
     "dev:w": "vite --port 7787",
-    "build": "vite build && tsc",
+    "build": "tauri build",
+    "build:w": "vite build && tsc",
     "serve": "vite preview",
     "test": "vitest run",
     "lint": "eslint",
