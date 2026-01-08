@@ -1,6 +1,6 @@
 import type { IconType } from "react-icons";
 
-import { LinkComponent } from "./link";
+import type { LinkComponent } from "./link";
 
 export type SettingCategory =
 	| "account"

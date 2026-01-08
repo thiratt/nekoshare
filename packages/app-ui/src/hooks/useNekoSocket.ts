@@ -5,10 +5,10 @@ import {
 	BinaryWriter,
 	NekoSocket,
 	PacketParsers,
-	PacketPayloads,
+	type PacketPayloads,
 	PacketType,
 	socketClient,
-	SocketStatus,
+	type SocketStatus,
 } from "@workspace/app-ui/lib/nk-socket/index";
 
 function useNekoSocket() {

@@ -1,4 +1,4 @@
-import { LocalDeviceInfo } from "./device";
+import type { LocalDeviceInfo } from "./device";
 
 export type Mode = "home" | "settings";
 export type NotificationStatus = "on" | "off";

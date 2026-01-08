@@ -1,5 +1,3 @@
-import * as React from "react";
-
 const EnglishFlagSvg = () => (
 	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480">
 		<path fill="#bd3d44" d="M0 0h640v480H0"></path>

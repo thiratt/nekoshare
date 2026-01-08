@@ -6,12 +6,12 @@ import { FaGoogle } from "react-icons/fa";
 
 import { Button } from "@workspace/ui/components/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import { Form,FormControl, FormField, FormItem, FormLabel, FormMessage } from "@workspace/ui/components/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
 
 import { signupFormSchema } from "@workspace/app-ui/schemas/auth";
-import { TSignupSchema } from "@workspace/app-ui/types/schema";
 import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
+import type { TSignupSchema } from "@workspace/app-ui/types/schema";
 
 import { CardTransition } from "./ext/card-transition";
 import { ExtendLink } from "./ext/link";

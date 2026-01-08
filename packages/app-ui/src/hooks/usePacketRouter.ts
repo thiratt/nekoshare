@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import {
 	BinaryReader,
 	PacketParsers,
-	PacketPayloads,
+	type PacketPayloads,
 	PacketType,
 	useNekoSocket,
 } from "@workspace/app-ui/hooks/useNekoSocket";
