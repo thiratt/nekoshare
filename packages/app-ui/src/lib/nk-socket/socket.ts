@@ -1,3 +1,4 @@
+import { config } from "../config";
 import { BinaryReader, BinaryWriter } from "./binary-utils";
 import { PacketType } from "./protocol";
 
@@ -216,4 +217,4 @@ export class NekoSocket {
 	}
 }
 
-export const socketClient = new NekoSocket("ws://localhost:7780/ws");
+export const socketClient = new NekoSocket(config.webSocketBaseUrl);

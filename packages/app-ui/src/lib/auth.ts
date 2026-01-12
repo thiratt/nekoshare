@@ -2,8 +2,10 @@ import { usernameClient } from "better-auth/client/plugins";
 import { oneTimeTokenClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
+import { config } from "./config";
+
 export const authClient = createAuthClient({
-	baseURL: "http://localhost:7780",
+	baseURL: config.apiBaseUrl,
 	basePath: "/auth",
 	plugins: [usernameClient(), oneTimeTokenClient()],
 });

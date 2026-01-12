@@ -1,6 +1,7 @@
 {
 	"$schema": "https://turborepo.com/schema.json",
 	"ui": "tui",
+	"globalEnv": ["VITE_API_BASE_URL", "VITE_WS_BASE_URL", "VITE_NS_URL", "VITE_NS_PORT"],
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
@@ -13,9 +14,6 @@
 		"check-types": {
 			"dependsOn": ["^check-types"]
 		},
-		"outputs": {
-
-    },
 		"dev": {
 			"cache": false,
 			"persistent": true
