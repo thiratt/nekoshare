@@ -9,8 +9,8 @@ function requireEnvVar(name: string): string {
 const env = {
 	NODE_ENV: process.env.NODE_ENV || "development",
 
-	PORT: Number(process.env.PORT) || 7780,
-	TCP_SOCKET_PORT: Number(process.env.TCP_SOCKET_PORT) || 7781,
+	PORT: 7780,
+	TCP_SOCKET_PORT: 7781,
 
 	// MAIL_SERVER_KEY: requireEnvVar("MAIL_SERVER_KEY"),
 
