@@ -1,20 +1,20 @@
 {
 	"compilerOptions": {
-		"target": "es2024",
+		"target": "es2022",
 		"module": "esnext",
 		"moduleResolution": "bundler",
 		"strict": true,
-		"verbatimModuleSyntax": true,
 		"skipLibCheck": true,
 		"types": ["node"],
 		"jsx": "react-jsx",
 		"jsxImportSource": "hono/jsx",
-		"noEmit": true,
 		"baseUrl": ".",
 		"paths": {
 			"@/*": ["src/*"]
 		},
-		"outDir": "./dist"
+		"noEmit": true,
+		"isolatedModules": true,
+		"esModuleInterop": true
 	},
-	"exclude": ["node_modules"]
+	"exclude": ["node_modules", "dist"]
 }
