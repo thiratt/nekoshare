@@ -1,4 +1,4 @@
-name: nekoshare
+name: nekoshare-prod
 
 services:
     database:
@@ -27,17 +27,42 @@ services:
             - DB_NAME=${MYSQL_DATABASE}
             - DB_PORT=3306
             - BETTER_AUTH_SECRET=some_random_secret_key # see https://www.better-auth.com/docs/installation#set-environment-variables
-            - BETTER_AUTH_URL=http://localhost:7780
+            - BETTER_AUTH_URL=https://replace_with_your_domain.com
+            - GOOGLE_CLIENT_ID=replace_with_your_client_id.apps.googleusercontent.com
+            - GOOGLE_CLIENT_SECRET=replace_with_your_client_secret
         networks:
             - nekoshare-net
-        ports:
-            - "7780:7780"
-            - "7781:7781"
         depends_on:
             - database
 
+    nginx:
+        build:
+            context: ../nginx
+        container_name: nekoshare-nginx
+        networks:
+            - nekoshare-net
+        volumes:
+            - ../ca/cloudflare:/etc/nginx/ssl:ro
+            - ../ca/certbot/conf:/etc/letsencrypt
+            - ../ca/www:/var/www/certbot
+        ports:
+            - "80:80"
+            - "443:443"
+        depends_on:
+            - backend
+
+    certbot-renew:
+        image: certbot/certbot
+        container_name: nekoshare-certbot
+        volumes:
+            - ./ca/certbot/conf:/etc/letsencrypt
+            - ./ca/www:/var/www/certbot
+        entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
 volumes:
     mysql-data:
+    certbot-conf:
+    certbot-www:
 
 networks:
     nekoshare-net:
