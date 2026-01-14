@@ -6,6 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import { Checkbox } from "@workspace/ui/components/checkbox";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
 
 import type { ShareItem } from "@workspace/app-ui/types/home";
 
@@ -72,12 +73,29 @@ export function useColumns({ onItemReveal, onItemDelete }: UseColumnsProps): Col
 						</div>
 					);
 				},
-				cell: ({ row }) => (
-					<div className="flex items-center gap-2">
-						<FileIcon type={row.original.type || "file"} />
-						<span>{row.original.name}</span>
-					</div>
-				),
+				cell: ({ row }) => {
+					const name = row.original.name;
+					const shouldNameCut = name.length > 40;
+
+					return (
+						<div className="flex items-center gap-2">
+							<FileIcon type={row.original.type || "file"} />
+
+							{shouldNameCut ? (
+								<Tooltip delayDuration={300}>
+									<TooltipTrigger asChild>
+										<span className="cursor-help">{name.slice(0, 40)}...</span>
+									</TooltipTrigger>
+									<TooltipContent>
+										<div className="max-w-md break-all whitespace-normal text-sm p-1">{name}</div>
+									</TooltipContent>
+								</Tooltip>
+							) : (
+								<span>{name}</span>
+							)}
+						</div>
+					);
+				},
 			},
 			{
 				accessorKey: "from",

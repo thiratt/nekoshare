@@ -8,6 +8,7 @@ import {
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
+import Fuse from "fuse.js";
 import { LuChevronDown, LuCopy, LuGlobe, LuLoader, LuRefreshCcw, LuTrash2 } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
@@ -43,22 +44,21 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
+	const fuse = useMemo(
+		() =>
+			new Fuse(items, {
+				keys: ["name", "device", "friendName"],
+				threshold: 0.4,
+			}),
+		[items]
+	);
+
 	const filteredItems = useMemo(() => {
-		const trimmedQuery = deferredQuery.trim().toLowerCase();
+		const trimmedQuery = deferredQuery.trim();
 		if (!trimmedQuery) return items;
 
-		return items.filter((item) => {
-			if (trimmedQuery) {
-				return (
-					item.name.toLowerCase().includes(trimmedQuery) ||
-					item.device?.toLowerCase().includes(trimmedQuery) ||
-					item.friendName?.toLowerCase().includes(trimmedQuery)
-				);
-			}
-
-			return true;
-		});
-	}, [items, deferredQuery]);
+		return fuse.search(trimmedQuery).map((result) => result.item);
+	}, [items, deferredQuery, fuse]);
 
 	const handleItemDelete = useCallback((id: number) => {
 		setDeleteItemId(id);
