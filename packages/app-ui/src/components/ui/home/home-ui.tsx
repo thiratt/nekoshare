@@ -138,11 +138,10 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 						</div>
 						<div className="flex items-center ms-auto gap-2">
 							<SearchInput
-								placeholder="ค้นหา..."
 								searchQuery={query}
 								onSearchQuery={setQuery}
 								onClearSearch={() => setQuery("")}
-								className="w-42 xl:w-64"
+								className="w-64"
 							/>
 							<ButtonGroup>
 								<Button>แชร์ไฟล์</Button>
