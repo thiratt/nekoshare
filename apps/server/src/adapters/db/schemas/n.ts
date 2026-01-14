@@ -3,7 +3,7 @@ import { mysqlTable, varchar, text, timestamp, boolean, mysqlEnum, bigint, uniqu
 import { account, session, user } from "./auth";
 
 // --- CUSTOM TABLES ---
-export const userPreference = mysqlTable("user_preference", {
+const userPreference = mysqlTable("user_preference", {
 	userId: varchar("user_id", { length: 36 })
 		.primaryKey()
 		.references(() => user.id, { onDelete: "cascade" }),
@@ -12,7 +12,7 @@ export const userPreference = mysqlTable("user_preference", {
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
 
-export const device = mysqlTable(
+const device = mysqlTable(
 	"device",
 	{
 		id: varchar("id", { length: 36 }).primaryKey(),
@@ -38,7 +38,7 @@ export const device = mysqlTable(
 	(table) => [unique("device_user_deviceIdentifier_unique").on(table.userId, table.deviceIdentifier)]
 );
 
-export const friend = mysqlTable(
+const friend = mysqlTable(
 	"friend",
 	{
 		id: varchar("id", { length: 36 }).primaryKey(),
@@ -55,7 +55,7 @@ export const friend = mysqlTable(
 	(table) => [unique("friendship_unique_pair").on(table.requesterId, table.receiverId)]
 );
 
-export const flashShare = mysqlTable("flash_share", {
+const flashShare = mysqlTable("flash_share", {
 	id: varchar("id", { length: 36 }).primaryKey(),
 	uploaderId: varchar("uploader_id", { length: 36 })
 		.notNull()
@@ -70,7 +70,7 @@ export const flashShare = mysqlTable("flash_share", {
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const transferHistory = mysqlTable("transfer_history", {
+const transferHistory = mysqlTable("transfer_history", {
 	id: varchar("id", { length: 36 }).primaryKey(),
 	senderId: varchar("sender_id", { length: 36 })
 		.notNull()
@@ -86,7 +86,7 @@ export const transferHistory = mysqlTable("transfer_history", {
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const notification = mysqlTable("notification", {
+const notification = mysqlTable("notification", {
 	id: varchar("id", { length: 36 }).primaryKey(),
 	userId: varchar("user_id", { length: 36 })
 		.notNull()
@@ -100,7 +100,7 @@ export const notification = mysqlTable("notification", {
 });
 
 // --- RELATIONS DEFINITIONS ---
-export const userRelations = relations(user, ({ many, one }) => ({
+const userRelations = relations(user, ({ many, one }) => ({
 	sessions: many(session),
 	accounts: many(account),
 	devices: many(device),
@@ -111,28 +111,28 @@ export const userRelations = relations(user, ({ many, one }) => ({
 	flashShares: many(flashShare),
 }));
 
-export const deviceRelations = relations(device, ({ one }) => ({
+const deviceRelations = relations(device, ({ one }) => ({
 	session: one(session, {
 		fields: [device.sessionId],
 		references: [session.id],
 	}),
 }));
 
-export const userPreferenceRelations = relations(userPreference, ({ one }) => ({
+const userPreferenceRelations = relations(userPreference, ({ one }) => ({
 	user: one(user, {
 		fields: [userPreference.userId],
 		references: [user.id],
 	}),
 }));
 
-export const flashShareRelations = relations(flashShare, ({ one }) => ({
+const flashShareRelations = relations(flashShare, ({ one }) => ({
 	uploader: one(user, {
 		fields: [flashShare.uploaderId],
 		references: [user.id],
 	}),
 }));
 
-export const transferHistoryRelations = relations(transferHistory, ({ one }) => ({
+const transferHistoryRelations = relations(transferHistory, ({ one }) => ({
 	sender: one(user, {
 		fields: [transferHistory.senderId],
 		references: [user.id],
@@ -145,9 +145,24 @@ export const transferHistoryRelations = relations(transferHistory, ({ one }) => 
 	}),
 }));
 
-export const notificationRelations = relations(notification, ({ one }) => ({
+const notificationRelations = relations(notification, ({ one }) => ({
 	user: one(user, {
 		fields: [notification.userId],
 		references: [user.id],
 	}),
 }));
+
+export {
+	userPreference,
+	device,
+	friend,
+	flashShare,
+	transferHistory,
+	notification,
+	userRelations,
+	deviceRelations,
+	userPreferenceRelations,
+	flashShareRelations,
+	transferHistoryRelations,
+	notificationRelations,
+};

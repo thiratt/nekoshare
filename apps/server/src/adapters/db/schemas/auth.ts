@@ -1,7 +1,7 @@
 import { relations } from "drizzle-orm";
 import { mysqlTable, varchar, text, timestamp, boolean, index, mysqlEnum } from "drizzle-orm/mysql-core";
 
-export const user = mysqlTable("user", {
+const user = mysqlTable("user", {
 	id: varchar("id", { length: 36 }).primaryKey(),
 	name: varchar("name", { length: 255 }).notNull(),
 	email: varchar("email", { length: 255 }).notNull().unique(),
@@ -18,7 +18,7 @@ export const user = mysqlTable("user", {
 	isBanned: boolean("is_banned").default(false).notNull(),
 });
 
-export const session = mysqlTable(
+const session = mysqlTable(
 	"session",
 	{
 		id: varchar("id", { length: 36 }).primaryKey(),
@@ -37,7 +37,7 @@ export const session = mysqlTable(
 	(table) => [index("session_userId_idx").on(table.userId)]
 );
 
-export const account = mysqlTable(
+const account = mysqlTable(
 	"account",
 	{
 		id: varchar("id", { length: 36 }).primaryKey(),
@@ -61,7 +61,7 @@ export const account = mysqlTable(
 	(table) => [index("account_userId_idx").on(table.userId)]
 );
 
-export const verification = mysqlTable(
+const verification = mysqlTable(
 	"verification",
 	{
 		id: varchar("id", { length: 36 }).primaryKey(),
@@ -77,16 +77,18 @@ export const verification = mysqlTable(
 	(table) => [index("verification_identifier_idx").on(table.identifier)]
 );
 
-export const sessionRelations = relations(session, ({ one }) => ({
+const sessionRelations = relations(session, ({ one }) => ({
 	user: one(user, {
 		fields: [session.userId],
 		references: [user.id],
 	}),
 }));
 
-export const accountRelations = relations(account, ({ one }) => ({
+const accountRelations = relations(account, ({ one }) => ({
 	user: one(user, {
 		fields: [account.userId],
 		references: [user.id],
 	}),
 }));
+
+export { user, session, account, verification, sessionRelations, accountRelations };

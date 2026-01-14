@@ -5,6 +5,7 @@ import { createApp, shutdownApp } from "./app";
 import { Logger, LogLevel } from "./core/logger";
 import { env } from "./config/env";
 import { createTCPSocketInstance } from "./core/socket/tcp";
+import { initializeDatabase } from "./adapters/db";
 
 let httpServer: ServerType | null = null;
 let socketServer: NetServer | null = null;
@@ -14,6 +15,9 @@ async function startServers(): Promise<void> {
 		if (env.NODE_ENV === "development") {
 			Logger.setLevel(LogLevel.DEBUG);
 		}
+
+		Logger.info("Main", "Checking database connection and tables...");
+		await initializeDatabase();
 
 		Logger.info("Main", "Starting HTTP server...");
 		httpServer = await createApp();
