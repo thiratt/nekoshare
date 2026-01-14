@@ -9,11 +9,28 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import Fuse from "fuse.js";
-import { LuChevronDown, LuCopy, LuGlobe, LuLoader, LuRefreshCcw, LuTrash2 } from "react-icons/lu";
+import {
+	LuChevronDown,
+	LuCopy,
+	LuFile,
+	LuFolderInput,
+	LuGlobe,
+	LuLoader,
+	LuRefreshCcw,
+	LuTrash2,
+	LuType,
+} from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import { ButtonGroup } from "@workspace/ui/components/button-group";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuTrigger,
+} from "@workspace/ui/components/context-menu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -25,6 +42,7 @@ import { ScrollArea, ScrollBar } from "@workspace/ui/components/scroll-area";
 import { SearchInput } from "@workspace/ui/components/search-input";
 import { Separator } from "@workspace/ui/components/separator";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/table";
+import { useToast } from "@workspace/ui/hooks/use-toast";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
 import type { HomeProps } from "@workspace/app-ui/types/home";
@@ -43,6 +61,8 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+
+	const { toast } = useToast();
 
 	const fuse = useMemo(
 		() =>
@@ -86,6 +106,17 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 
 	const selectedRowCount = table.getSelectedRowModel().rows.length;
 
+	const handleCopyFilename = useCallback(
+		(id: number) => {
+			const item = items.find((item) => item.id === id);
+			if (item) {
+				window.navigator.clipboard.writeText(item.name);
+				toast("คัดลอกชื่อไฟล์แล้ว");
+			}
+		},
+		[items, toast]
+	);
+
 	const handleCopyFiles = useCallback(() => {
 		const ids = table.getSelectedRowModel().rows.map((r) => r.original.id);
 		console.log("Copy files with ids:", ids);
@@ -100,8 +131,9 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 		if (deleteItemId !== null) {
 			await onItemRemove(deleteItemId);
 			setDeleteItemId(null);
+			toast("ลบรายการเรียบร้อยแล้ว");
 		}
-	}, [deleteItemId, onItemRemove]);
+	}, [deleteItemId, onItemRemove, toast]);
 
 	const handleConfirmBulkDelete = useCallback(async () => {
 		const idsToDelete = new Set(deleteBulkIds);
@@ -202,13 +234,44 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 									</TableRow>
 								) : (
 									table.getRowModel().rows.map((row) => (
-										<TableRow key={row.id} onClick={() => onItemClick(row.original.id)}>
-											{row.getVisibleCells().map((cell) => (
-												<TableCell key={cell.id}>
-													{flexRender(cell.column.columnDef.cell, cell.getContext())}
-												</TableCell>
-											))}
-										</TableRow>
+										<ContextMenu key={row.id}>
+											<ContextMenuTrigger asChild>
+												<TableRow
+													onClick={() => onItemClick(row.original.id)}
+													className="data-[state=open]:bg-muted/50"
+												>
+													{row.getVisibleCells().map((cell) => (
+														<TableCell key={cell.id}>
+															{flexRender(cell.column.columnDef.cell, cell.getContext())}
+														</TableCell>
+													))}
+												</TableRow>
+											</ContextMenuTrigger>
+
+											<ContextMenuContent className="w-52">
+												<ContextMenuItem>
+													<LuFile />
+													คัดลอกไฟล์
+												</ContextMenuItem>
+												<ContextMenuItem onSelect={() => handleCopyFilename(row.original.id)}>
+													<LuType />
+													คัดลอกชื่อไฟล์
+												</ContextMenuItem>
+												<ContextMenuSeparator />
+												<ContextMenuItem onSelect={() => onItemReveal(row.original.id)}>
+													<LuFolderInput />
+													เปิดตำแหน่งไฟล์
+												</ContextMenuItem>
+												<ContextMenuSeparator />
+												<ContextMenuItem
+													variant="destructive"
+													onSelect={() => handleItemDelete(row.original.id)}
+												>
+													<LuTrash2 />
+													ลบ
+												</ContextMenuItem>
+											</ContextMenuContent>
+										</ContextMenu>
 									))
 								)}
 							</TableBody>
@@ -216,7 +279,6 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 						<ScrollBar className="z-20" barClassname="bg-primary" />
 						<ScrollBar orientation="horizontal" barClassname="bg-primary" />
 					</ScrollArea>
-
 					<div className="flex text-sm text-muted-foreground pt-4 gap-2 border-t">
 						<p>{filteredItems.length} รายการ</p>
 						{selectedRowCount > 0 && <p>({selectedRowCount} รายการที่เลือก)</p>}
