@@ -173,31 +173,41 @@ export function useColumns({ onItemReveal, onItemDelete }: UseColumnsProps): Col
 				cell: ({ row }) => (
 					<div className="flex gap-1">
 						{row.original.canDownload && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary"
-								onClick={(e) => {
-									e.stopPropagation();
-									onItemReveal(row.original.id);
-								}}
-								aria-label="Download item"
-							>
-								<LuFolderInput className="h-4 w-4" />
-							</Button>
+							<Tooltip delayDuration={150}>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary"
+										onClick={(e) => {
+											e.stopPropagation();
+											onItemReveal(row.original.id);
+										}}
+										aria-label="Download item"
+									>
+										<LuFolderInput className="h-4 w-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>เปิดตำแหน่งไฟล์</TooltipContent>
+							</Tooltip>
 						)}
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 hover:bg-destructive hover:text-primary-foreground dark:hover:bg-destructive/60 dark:hover:text-foreground"
-							onClick={(e) => {
-								e.stopPropagation();
-								onItemDelete(row.original.id);
-							}}
-							aria-label="Delete item"
-						>
-							<LuTrash2 className="h-4 w-4" />
-						</Button>
+						<Tooltip delayDuration={150}>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 hover:bg-destructive hover:text-primary-foreground dark:hover:bg-destructive/60 dark:hover:text-foreground"
+									onClick={(e) => {
+										e.stopPropagation();
+										onItemDelete(row.original.id);
+									}}
+									aria-label="Delete item"
+								>
+									<LuTrash2 className="h-4 w-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>ลบ</TooltipContent>
+						</Tooltip>
 					</div>
 				),
 			},
