@@ -33,8 +33,11 @@
   font-style: normal;
 }
 
-html {
+* {
   font-family: "LINESeedSansTH", sans-serif;
+}
+
+html {
   user-select: none;
   overflow: hidden;
   --webkit-touch-callout: none;
