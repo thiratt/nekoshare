@@ -12,6 +12,7 @@ import { Logger, nekoShareLogger } from "./core/logger";
 import { createWebSocketInstance } from "./core/socket/ws";
 import { env } from "./config/env";
 
+import rootRouter from "@/routes/root";
 import authRouter from "@/routes/auth";
 import accountRouter from "@/routes/account";
 import devicesRouter from "@/routes/devices";
@@ -45,6 +46,7 @@ export async function createApp(): Promise<ServerType> {
 	app.onError(onError);
 
 	const routes = [
+		["/", rootRouter],
 		["/auth", authRouter],
 		["/account", accountRouter],
 		["/devices", devicesRouter],
