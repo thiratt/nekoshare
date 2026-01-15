@@ -1,5 +1,5 @@
 import type { BetterAuthOptions } from "better-auth";
-import { oneTimeToken, username } from "better-auth/plugins";
+import { bearer, oneTimeToken, username } from "better-auth/plugins";
 
 import { db } from "@/adapters/db";
 import { userPreference } from "@/adapters/db/schemas/n";
@@ -55,6 +55,7 @@ const pluginsOptions = [
 		},
 	}),
 	oneTimeToken(),
+	bearer(),
 ];
 
 const trustedOriginsOptions: BetterAuthOptions["trustedOrigins"] = ["http://localhost:7780", "http://localhost:7787"];
@@ -65,6 +66,10 @@ const loggerOptions: BetterAuthOptions["logger"] = {
 		Logger[level]("App (Better Auth)", message, ...args);
 	},
 };
+
+const advancedOptions: BetterAuthOptions["advanced"] = {
+	cookiePrefix: "c_nekoshare_auth_",
+}
 
 // const sessionOptions: BetterAuthOptions["session"] = {
 // 	cookieCache: {
@@ -82,5 +87,6 @@ export {
 	pluginsOptions,
 	trustedOriginsOptions,
 	loggerOptions,
+	advancedOptions,
 	// sessionOptions,
 };

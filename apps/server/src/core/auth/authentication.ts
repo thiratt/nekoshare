@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 
 import {
+	advancedOptions,
 	databaseHookOptions,
 	databaseOptions,
 	emailAndPasswordOptions,
@@ -22,6 +23,7 @@ export const auth = betterAuth({
 	trustedOrigins: trustedOriginsOptions,
 	logger: loggerOptions,
 	user: userSchemaOptions,
+	advanced: advancedOptions,
 });
 
 export type AuthType = {
