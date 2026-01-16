@@ -59,7 +59,7 @@ const NekoShareProvider = <TRouter extends Router>({
 }: NekoShareProviderProps<TRouter>) => {
 	const [mode, setMode] = useState<Mode>("home");
 	const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>("off");
-	const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const loadingTimeoutRef = useRef<number | null>(null);
 
 	const toggleNotification = useCallback(() => {
 		setNotificationStatus((previousStatus) => (previousStatus === "on" ? "off" : "on"));
