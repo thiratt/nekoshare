@@ -24,6 +24,7 @@ export interface ApiBatteryInfo {
 
 export interface ApiDevice {
 	id: string;
+	deviceIdentifier: string;
 	name: string;
 	platform: ApiPlatform;
 	ip: ApiIp;
@@ -42,7 +43,6 @@ export interface ApiDeviceRegistrationPayload {
 	platform: ApiPlatform;
 	ip: ApiIp;
 	battery: ApiBatteryInfo;
-	publicKey: string;
 }
 
 export interface ApiDeviceRegistrationResponse {
