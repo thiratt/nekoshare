@@ -84,7 +84,7 @@ app.get("/", async (c) => {
 	const session = c.get("session");
 
 	const devices = await db.query.device.findMany({
-		where: (devices) => eq(devices.sessionId, session.id),
+		where: (devices) => eq(devices.userId, session.userId),
 	});
 
 	return c.json(
@@ -114,10 +114,12 @@ app.post("/register", async (c) => {
 		const dbValues = mapDeviceToDbValues(body);
 
 		if (existingDevice) {
+			const { name, ...otherDbValues } = dbValues;
+
 			await db
 				.update(device)
 				.set({
-					...dbValues,
+					...otherDbValues,
 					sessionId: session.id,
 					deviceIdentifier: machineId,
 				})
@@ -184,7 +186,7 @@ app.patch("/:id", async (c) => {
 		const body = deviceUpdateSchema.parse(rawBody);
 
 		const existingDevice = await db.query.device.findFirst({
-			where: and(eq(device.id, deviceId), eq(device.sessionId, session.id)),
+			where: and(eq(device.id, deviceId), eq(device.userId, session.userId)),
 		});
 
 		if (!existingDevice) {
@@ -220,7 +222,7 @@ app.delete("/:id", async (c) => {
 	const deviceId = c.req.param("id");
 
 	const existingDevice = await db.query.device.findFirst({
-		where: and(eq(device.id, deviceId), eq(device.sessionId, session.id)),
+		where: and(eq(device.id, deviceId), eq(device.userId, session.userId)),
 	});
 
 	if (!existingDevice) {
