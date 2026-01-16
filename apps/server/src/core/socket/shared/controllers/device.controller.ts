@@ -88,6 +88,7 @@ export function registerDeviceHandlers<T extends IConnection>(router: PacketRout
 			const userSessions = wsSessionManager.getSessionsByUserId(userId);
 			const broadcastPayload = JSON.stringify({
 				id: data.id,
+				deviceIdentifier: existingDevice.deviceIdentifier || null,
 				terminatedBy: actorDeviceName,
 			});
 
