@@ -30,6 +30,15 @@ export function useDevices(): UseDevicesReturn {
 				setRemoteDevices((prev) => prev.filter((d) => d.id !== r.data.id));
 			}
 		},
+		[PacketType.DEVICE_ADDED]: (r) => {
+			if (r.success) {
+				const newDevice = transformApiDevice(r.data, localDeviceInfo?.id);
+				setRemoteDevices((prev) => {
+					if (prev.some((d) => d.id === newDevice.id)) return prev;
+					return [...prev, newDevice];
+				});
+			}
+		},
 	});
 
 	const [loading, setLoading] = useState(true);

@@ -3,9 +3,10 @@ import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { LuRefreshCcw } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
-import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { SearchInput } from "@workspace/ui/components/search-input";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
@@ -105,7 +106,39 @@ export function DevicesUI() {
 			<CardContent className="pt-0">
 				{error && <div className="mb-4 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">{error}</div>}
 
-				{hasDevices ? (
+				{loading && !hasDevices && !showNoResults ? (
+					<ScrollArea className="h-[calc(100vh-14rem)]">
+						<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">
+							{[...Array(6)].map((_, i) => (
+								<Card key={i} className="dark:border-accent">
+									<CardHeader className="flex flex-row justify-between space-y-0 pb-2">
+										<div className="flex items-center gap-2">
+											<Skeleton className="size-10 rounded-full" />
+											<div className="space-y-1">
+												<Skeleton className="h-4 w-32" />
+												<Skeleton className="h-3 w-16" />
+											</div>
+										</div>
+									</CardHeader>
+									<CardContent className="space-y-2">
+										<div className="flex justify-between items-center">
+											<Skeleton className="h-4 w-24" />
+											<Skeleton className="h-4 w-16" />
+										</div>
+										<div className="flex justify-between items-center">
+											<Skeleton className="h-4 w-20" />
+											<Skeleton className="h-4 w-24" />
+										</div>
+									</CardContent>
+									<CardFooter className="justify-end gap-2">
+										<Skeleton className="h-9 w-20" />
+										<Skeleton className="h-9 w-8" />
+									</CardFooter>
+								</Card>
+							))}
+						</div>
+					</ScrollArea>
+				) : hasDevices ? (
 					<ScrollArea className="h-[calc(100vh-14rem)]">
 						<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">
 							{filteredDevices.map((device) => (
