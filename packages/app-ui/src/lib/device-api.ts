@@ -14,12 +14,10 @@ export function transformApiDevice(apiDevice: ApiDevice, currentDeviceId?: strin
 
 	const os = `${apiDevice.platform.os.charAt(0).toUpperCase() + apiDevice.platform.os.slice(1)} ${apiDevice.platform.version}`;
 
-	const ip = apiDevice.ip.ipv6 ? `${apiDevice.ip.ipv4} / ${apiDevice.ip.ipv6}` : apiDevice.ip.ipv4;
-
 	const formatLastSeen = (date: Date): string => {
 		try {
 			const now = new Date();
-			const diffMs = now.getTime() - date.getTime();
+			const diffMs = now.getTime() - new Date(date).getTime();
 			const diffMinutes = Math.floor(diffMs / (1000 * 60));
 			const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
 			const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -29,7 +27,7 @@ export function transformApiDevice(apiDevice: ApiDevice, currentDeviceId?: strin
 			if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
 			if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
 
-			return date.toLocaleDateString("th-TH", {
+			return new Date(date).toLocaleDateString("th-TH", {
 				day: "numeric",
 				month: "short",
 				year: "numeric",
@@ -40,18 +38,19 @@ export function transformApiDevice(apiDevice: ApiDevice, currentDeviceId?: strin
 	};
 
 	const isOnline = apiDevice.lastActiveAt
-		? new Date().getTime() - new Date(apiDevice.lastActiveAt).getTime() < 5 * 60 * 1000
+		? new Date().getTime() - new Date(apiDevice.lastActiveAt).getTime() < 1 * 60 * 1000
 		: false;
 
 	const status: UiDevice["status"] = isCurrent || isOnline ? "online" : "offline";
 
 	return {
 		id: apiDevice.id,
+		deviceIdentifier: apiDevice.deviceIdentifier,
 		name: apiDevice.name,
 		isCurrent,
 		platform: apiDevice.platform.os,
 		os,
-		ip,
+		ip: apiDevice.ip.ipv6 ? `${apiDevice.ip.ipv4} / ${apiDevice.ip.ipv6}` : apiDevice.ip.ipv4,
 		isTailscale: apiDevice.ip.is_tailscale,
 		status,
 		lastSeen: isCurrent ? "ตอนนี้" : formatLastSeen(apiDevice.lastActiveAt),

@@ -5,7 +5,10 @@ import { AnimatePresence, motion, type Transition, type Variants } from "motion/
 import { Toaster } from "@workspace/ui/components/sonner";
 
 import LoadingOverlay from "@workspace/app-ui/components/global-loading";
+import { SessionTerminatedDialog } from "@workspace/app-ui/components/session-terminated-dialog";
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
+import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
+import { PacketType } from "@workspace/app-ui/lib/nk-socket/index";
 import type { Mode, NekoShareContextType, NotificationStatus, Router } from "@workspace/app-ui/types/context";
 import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
 
@@ -61,6 +64,25 @@ const NekoShareProvider = <TRouter extends Router>({
 	const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>("off");
 	const loadingTimeoutRef = useRef<number | null>(null);
 
+	const [sessionTerminated, setSessionTerminated] = useState<{ open: boolean; terminator: string }>({
+		open: false,
+		terminator: "",
+	});
+
+	usePacketRouter({
+		[PacketType.DEVICE_REMOVED]: (r) => {
+			console.log("DEVICE_REMOVED packet received:", r);
+			if (r.success) {
+				if (currentDevice && r.data.id === currentDevice.id) {
+					setSessionTerminated({
+						open: true,
+						terminator: r.data.terminatedBy,
+					});
+				}
+			}
+		},
+	});
+
 	const toggleNotification = useCallback(() => {
 		setNotificationStatus((previousStatus) => (previousStatus === "on" ? "off" : "on"));
 	}, []);
@@ -72,8 +94,7 @@ const NekoShareProvider = <TRouter extends Router>({
 				loadingTimeoutRef.current = null;
 			}
 			if (isLoading) {
-				requestAnimationFrame(() => {
-				});
+				requestAnimationFrame(() => {});
 			} else {
 				loadingTimeoutRef.current = setTimeout(() => {
 					globalLoading.setLoading(isLoading);
@@ -92,6 +113,11 @@ const NekoShareProvider = <TRouter extends Router>({
 		setNotificationStatus(status);
 	}, []);
 
+	const handleSessionTerminationComplete = useCallback(() => {
+		router.navigate({ to: "/login" });
+		setSessionTerminated({ open: false, terminator: "" });
+	}, [router]);
+
 	const contextValue = useMemo<NekoShareContextType>(
 		() => ({
 			globalLoading: globalLoading.loading,
@@ -105,7 +131,7 @@ const NekoShareProvider = <TRouter extends Router>({
 			toggleNotification,
 		}),
 		[
-			globalLoading,
+			globalLoading.loading,
 			mode,
 			notificationStatus,
 			router,
@@ -160,6 +186,11 @@ const NekoShareProvider = <TRouter extends Router>({
 			<AnimatePresence>
 				{globalLoading.loading && <LoadingOverlay key="global-loading-overlay" />}
 			</AnimatePresence>
+			<SessionTerminatedDialog
+				open={sessionTerminated.open}
+				terminatorName={sessionTerminated.terminator}
+				onComplete={handleSessionTerminationComplete}
+			/>
 			<Toaster richColors position="top-right" offset={{ top: "3rem" }} />
 		</NekoShareContext.Provider>
 	);

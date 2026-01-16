@@ -60,6 +60,7 @@ export interface LocalDeviceInfo {
 
 export interface UiDevice {
 	id: string;
+	deviceIdentifier?: string;
 	name: string;
 	platform: Os;
 	os: string;
@@ -69,4 +70,14 @@ export interface UiDevice {
 	isCurrent: boolean;
 	status: DeviceStatus;
 	lastSeen: string;
+}
+
+export interface SocketDeviceUpdatedPayload {
+	id: string;
+	name: string;
+};
+
+export interface SocketDeviceRemovedPayload {
+	id: string;
+	terminatedBy: string;
 }

@@ -26,7 +26,7 @@ export function usePacketRouter(handlers: TypedHandlerMap) {
 
 		const subscribe = <T extends PacketType>(type: T) => {
 			const userHandler = handlersRef.current[type] as ((data: PacketPayloads[T]) => void) | undefined;
-			const parser = PacketParsers[type] as ((r: BinaryReader) => PacketPayloads[T]) | undefined;
+			const parser = PacketParsers[type as keyof typeof PacketParsers] as ((r: BinaryReader) => PacketPayloads[T]) | undefined;
 
 			if (userHandler) {
 				const unsub = on(type, (reader) => {

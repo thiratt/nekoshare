@@ -1,35 +1,54 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
+import { useNekoSocket } from "@workspace/app-ui/hooks/useNekoSocket";
 import {
 	deleteDevice as deleteDeviceApi,
 	fetchDevices,
 	transformApiDevice,
-	transformLocalDevice,
 	updateDevice as updateDeviceApi,
 } from "@workspace/app-ui/lib/device-api";
+import { PacketType } from "@workspace/app-ui/lib/nk-socket/index";
 import type { UiDevice } from "@workspace/app-ui/types/device";
 import type { UseDevicesReturn } from "@workspace/app-ui/types/hooks";
 
+import { usePacketRouter } from "./usePacketRouter";
+
 export function useDevices(): UseDevicesReturn {
 	const { currentDevice: localDeviceInfo } = useNekoShare();
+	const { send } = useNekoSocket();
 	const [remoteDevices, setRemoteDevices] = useState<UiDevice[]>([]);
+
+	usePacketRouter({
+		[PacketType.DEVICE_UPDATED]: (r) => {
+			if (r.success) {
+				setRemoteDevices((prev) => prev.map((d) => (d.id === r.data.id ? { ...d, name: r.data.name } : d)));
+			}
+		},
+		[PacketType.DEVICE_REMOVED]: (r) => {
+			if (r.success) {
+				setRemoteDevices((prev) => prev.filter((d) => d.id !== r.data.id));
+			}
+		},
+	});
+
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
-	const localDevice = useMemo<UiDevice | null>(() => {
-		if (!localDeviceInfo) return null;
-		return transformLocalDevice(localDeviceInfo);
-	}, [localDeviceInfo]);
-
 	const devices = useMemo(() => {
-		const filteredRemote = localDevice ? remoteDevices.filter((d) => d.id !== localDevice.id) : remoteDevices;
+		const result = localDeviceInfo
+			? remoteDevices.map((d) => ({
+					...d,
+					isCurrent: d.id === localDeviceInfo.id || d.deviceIdentifier === localDeviceInfo.id,
+				}))
+			: [...remoteDevices];
 
-		if (localDevice) {
-			return [localDevice, ...filteredRemote];
-		}
-		return filteredRemote;
-	}, [localDevice, remoteDevices]);
+		return result.sort((a, b) => {
+			if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
+			if (a.status !== b.status) return a.status === "online" ? -1 : 1;
+			return a.name.localeCompare(b.name);
+		});
+	}, [localDeviceInfo, remoteDevices]);
 
 	const loadDevices = useCallback(
 		async (signal?: AbortSignal) => {
@@ -63,15 +82,20 @@ export function useDevices(): UseDevicesReturn {
 		await loadDevices();
 	}, [loadDevices]);
 
-	const updateDevice = useCallback(async (id: string, data: { name: string }) => {
-		try {
-			await updateDeviceApi(id, data);
-			setRemoteDevices((prev) => prev.map((device) => (device.id === id ? { ...device, ...data } : device)));
-		} catch (err) {
-			console.error("Failed to update device:", err);
-			throw err;
-		}
-	}, []);
+	const updateDevice = useCallback(
+		async (id: string, data: { name: string }) => {
+			try {
+				const payload = JSON.stringify({ id, name: data.name });
+				setRemoteDevices((prev) => prev.map((device) => (device.id === id ? { ...device, ...data } : device)));
+
+				send(PacketType.DEVICE_RENAME, (w) => w.writeString(payload));
+			} catch (err) {
+				console.error("Failed to update device:", err);
+				await updateDeviceApi(id, data);
+			}
+		},
+		[send]
+	);
 
 	const deleteDevice = useCallback(
 		async (id: string) => {
@@ -80,14 +104,15 @@ export function useDevices(): UseDevicesReturn {
 			}
 
 			try {
-				await deleteDeviceApi(id);
 				setRemoteDevices((prev) => prev.filter((device) => device.id !== id));
+				const payload = JSON.stringify({ id });
+				send(PacketType.DEVICE_DELETE, (w) => w.writeString(payload));
 			} catch (err) {
 				console.error("Failed to delete device:", err);
-				throw err;
+				await deleteDeviceApi(id);
 			}
 		},
-		[localDeviceInfo]
+		[localDeviceInfo, send]
 	);
 
 	return {
