@@ -10,7 +10,7 @@ import type {
 import { xfetch } from "./xfetch";
 
 export function transformApiDevice(apiDevice: ApiDevice, currentDeviceId?: string): UiDevice {
-	const isCurrent = apiDevice.id === currentDeviceId;
+	const isCurrent = apiDevice.deviceIdentifier === currentDeviceId || apiDevice.id === currentDeviceId;
 
 	const os = `${apiDevice.platform.os.charAt(0).toUpperCase() + apiDevice.platform.os.slice(1)} ${apiDevice.platform.version}`;
 
