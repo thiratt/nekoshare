@@ -1,4 +1,5 @@
 import { createNodeWebSocket } from "@hono/node-ws";
+import { randomUUID } from "node:crypto";
 import { Logger } from "@/core/logger";
 import type { User } from "@/core/auth";
 import type { createRouter } from "@/core/utils/router";
@@ -25,13 +26,14 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 						}
 
 						Logger.info("WebSocket", `User ${currentUser.name} connected via WebSocket.`);
-						connection = new WSConnection(currentUser.id, ws);
-						wsSessionManager.addSession(connection);
+						connection = new WSConnection(randomUUID(), ws);
 
 						connection.setAuthenticated({
 							session: c.get("session"),
 							user: currentUser,
 						});
+
+						wsSessionManager.addSession(connection);
 
 						connection.sendPacket(PacketType.SYSTEM_HANDSHAKE, 0);
 					} catch (error) {

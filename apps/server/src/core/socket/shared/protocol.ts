@@ -59,6 +59,14 @@ export enum PacketType {
 	INPUT_MOUSE_MOVE = 0x71,
 
 	// ==========================================
+	// 0x90 - 0x9F: Device Management
+	// ==========================================
+	DEVICE_RENAME = 0x90,
+	DEVICE_DELETE = 0x91,
+	DEVICE_UPDATED = 0x92,
+	DEVICE_REMOVED = 0x93,
+
+	// ==========================================
 	// 0xE0 - 0xEF: Debug & Metrics
 	// ==========================================
 	DEBUG_LOG = 0xe0,

@@ -3,6 +3,7 @@ import type { IConnection, ISessionManager, TransportType } from "./types";
 
 export class SessionManager<T extends IConnection> implements ISessionManager<T> {
 	private sessions = new Map<string, T>();
+	private userSessions = new Map<string, Set<string>>();
 	private transportType: TransportType;
 
 	constructor(transportType: TransportType) {
@@ -10,23 +11,52 @@ export class SessionManager<T extends IConnection> implements ISessionManager<T>
 	}
 
 	addSession(connection: T) {
-		if (this.sessions.has(connection.id)) {
-			Logger.warn(this.transportType, `Duplicate login for ${connection.id}. Replacing session.`);
-			const oldSession = this.sessions.get(connection.id);
-			oldSession?.close();
-		}
 		this.sessions.set(connection.id, connection);
-		Logger.debug(this.transportType, `User ${connection.id} connected. Total: ${this.sessions.size}`);
+
+		if (connection.user?.id) {
+			this.addUserSession(connection.user.id, connection.id);
+		}
+
+		Logger.debug(this.transportType, `Connection ${connection.id} added. Total: ${this.sessions.size}`);
 	}
 
-	getSession(userId: string): T | undefined {
-		return this.sessions.get(userId);
+	private addUserSession(userId: string, connectionId: string) {
+		if (!this.userSessions.has(userId)) {
+			this.userSessions.set(userId, new Set());
+		}
+		this.userSessions.get(userId)!.add(connectionId);
 	}
 
-	removeSession(userId: string) {
-		if (this.sessions.has(userId)) {
-			this.sessions.delete(userId);
-			Logger.debug(this.transportType, `User ${userId} disconnected. Total: ${this.sessions.size}`);
+	getSession(connectionId: string): T | undefined {
+		return this.sessions.get(connectionId);
+	}
+
+	getSessionsByUserId(userId: string): T[] {
+		const connectionIds = this.userSessions.get(userId);
+		if (!connectionIds) return [];
+
+		const connections: T[] = [];
+		for (const id of connectionIds) {
+			const conn = this.sessions.get(id);
+			if (conn) connections.push(conn);
+		}
+		return connections;
+	}
+
+	removeSession(connectionId: string) {
+		const connection = this.sessions.get(connectionId);
+		if (connection) {
+			if (connection.user?.id) {
+				const userSess = this.userSessions.get(connection.user.id);
+				if (userSess) {
+					userSess.delete(connectionId);
+					if (userSess.size === 0) {
+						this.userSessions.delete(connection.user.id);
+					}
+				}
+			}
+			this.sessions.delete(connectionId);
+			Logger.debug(this.transportType, `Connection ${connectionId} disconnected. Total: ${this.sessions.size}`);
 		}
 	}
 

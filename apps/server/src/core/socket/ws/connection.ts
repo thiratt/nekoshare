@@ -1,6 +1,6 @@
 import type { WSContext } from "hono/ws";
 import { BaseConnection, PacketRouter, SessionManager, type TransportType } from "../shared";
-import { registerSystemHandlers, registerUserHandlers } from "../shared/controllers";
+import { registerDeviceHandlers, registerSystemHandlers, registerUserHandlers } from "../shared/controllers";
 
 export const wsRouter = new PacketRouter<WSConnection>("WebSocket");
 export const wsSessionManager = new SessionManager<WSConnection>("WebSocket");
@@ -37,4 +37,5 @@ export function bootstrapWSControllers() {
 
 	registerSystemHandlers(wsRouter, "WebSocket");
 	registerUserHandlers(wsRouter, "WebSocket");
+	registerDeviceHandlers(wsRouter, "WebSocket");
 }
