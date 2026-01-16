@@ -69,7 +69,13 @@ const loggerOptions: BetterAuthOptions["logger"] = {
 
 const advancedOptions: BetterAuthOptions["advanced"] = {
 	cookiePrefix: "c_nekoshare_auth_",
-}
+	useSecureCookies: true,
+	defaultCookieAttributes: {
+		sameSite: "none",
+		secure: true,
+		httpOnly: true,
+	},
+};
 
 // const sessionOptions: BetterAuthOptions["session"] = {
 // 	cookieCache: {
