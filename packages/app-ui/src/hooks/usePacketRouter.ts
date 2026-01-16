@@ -25,16 +25,22 @@ export function usePacketRouter(handlers: TypedHandlerMap) {
 		const unsubs: (() => void)[] = [];
 
 		const subscribe = <T extends PacketType>(type: T) => {
-			const userHandler = handlersRef.current[type] as ((data: PacketPayloads[T]) => void) | undefined;
-			const parser = PacketParsers[type as keyof typeof PacketParsers] as ((r: BinaryReader) => PacketPayloads[T]) | undefined;
+			const hasHandler = !!handlersRef.current[type];
+			const parser = PacketParsers[type as keyof typeof PacketParsers] as
+				| ((r: BinaryReader) => PacketPayloads[T])
+				| undefined;
 
-			if (userHandler) {
+			if (hasHandler) {
 				const unsub = on(type, (reader) => {
-					if (parser) {
-						const data = parser(reader);
-						userHandler(data);
-					} else {
-						userHandler(undefined as unknown as PacketPayloads[T]);
+					const currentHandler = handlersRef.current[type] as ((data: PacketPayloads[T]) => void) | undefined;
+
+					if (currentHandler) {
+						if (parser) {
+							const data = parser(reader);
+							currentHandler(data);
+						} else {
+							currentHandler(undefined as unknown as PacketPayloads[T]);
+						}
 					}
 				});
 				unsubs.push(unsub);

@@ -45,12 +45,9 @@ export function SessionTerminatedDialog({ open, terminatorName, onComplete }: Se
 						<LuMonitorX className="size-8 text-destructive" />
 					</div>
 					<AlertDialogTitle className="text-center">เซสชันถูกระงับ</AlertDialogTitle>
-					<AlertDialogDescription className="text-center space-y-2">
-						<p>
-							เซสชันการใช้งานของคุณสิ้นสุดลง
-							{terminatorName && <span> โดย {terminatorName}</span>}
-						</p>
-						<p className="text-xs text-muted-foreground">ระบบกำลังนำคุณออกจากระบบใน 3 วินาที...</p>
+					<AlertDialogDescription className="text-center space-x-2">
+						เซสชันการใช้งานของคุณสิ้นสุดลง
+						{terminatorName && <span> โดย {terminatorName}</span>} ระบบกำลังนำคุณออกจากระบบใน 3 วินาที...
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<div className="mt-4">

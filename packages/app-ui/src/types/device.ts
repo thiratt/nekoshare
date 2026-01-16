@@ -75,9 +75,10 @@ export interface UiDevice {
 export interface SocketDeviceUpdatedPayload {
 	id: string;
 	name: string;
-};
+}
 
 export interface SocketDeviceRemovedPayload {
 	id: string;
+	deviceIdentifier?: string | null;
 	terminatedBy: string;
 }

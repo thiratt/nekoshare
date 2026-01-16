@@ -8,9 +8,11 @@ import LoadingOverlay from "@workspace/app-ui/components/global-loading";
 import { SessionTerminatedDialog } from "@workspace/app-ui/components/session-terminated-dialog";
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
 import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
-import { PacketType } from "@workspace/app-ui/lib/nk-socket/index";
+import { PacketType, socketClient } from "@workspace/app-ui/lib/nk-socket/index";
 import type { Mode, NekoShareContextType, NotificationStatus, Router } from "@workspace/app-ui/types/context";
 import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
+
+import { authClient, invalidateSessionCache } from "../lib/auth";
 
 const NekoShareContext = createContext<NekoShareContextType | null>(null);
 
@@ -73,7 +75,10 @@ const NekoShareProvider = <TRouter extends Router>({
 		[PacketType.DEVICE_REMOVED]: (r) => {
 			console.log("DEVICE_REMOVED packet received:", r);
 			if (r.success) {
-				if (currentDevice && r.data.id === currentDevice.id) {
+				const isCurrentDeviceRemoved =
+					currentDevice && (r.data.id === currentDevice.id || r.data.deviceIdentifier === currentDevice.id);
+
+				if (isCurrentDeviceRemoved) {
 					setSessionTerminated({
 						open: true,
 						terminator: r.data.terminatedBy,
@@ -113,9 +118,17 @@ const NekoShareProvider = <TRouter extends Router>({
 		setNotificationStatus(status);
 	}, []);
 
-	const handleSessionTerminationComplete = useCallback(() => {
-		router.navigate({ to: "/login" });
-		setSessionTerminated({ open: false, terminator: "" });
+	const handleSessionTerminationComplete = useCallback(async () => {
+		socketClient.disconnect();
+		await authClient.signOut({
+			fetchOptions: {
+				onSuccess: () => {
+					invalidateSessionCache();
+					setSessionTerminated({ open: false, terminator: "" });
+					router.navigate({ to: "/login" });
+				},
+			},
+		});
 	}, [router]);
 
 	const contextValue = useMemo<NekoShareContextType>(
