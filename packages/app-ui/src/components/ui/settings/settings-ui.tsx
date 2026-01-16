@@ -8,7 +8,6 @@ import { SearchInput } from "@workspace/ui/components/search-input";
 
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import { authClient, invalidateSessionCache } from "@workspace/app-ui/lib/auth";
-import { deleteDevice } from "@workspace/app-ui/lib/device-api";
 import { socketClient } from "@workspace/app-ui/lib/nk-socket/index";
 import type { SettingCategory } from "@workspace/app-ui/types/settings";
 
@@ -18,7 +17,7 @@ import { CATEGORY_MAP, CONTENT_COMPONENTS, SETTING_CATEGORIES } from "./constant
 import { LogoutDialog } from "./dialogs";
 
 export function SettingsUI() {
-	const { router, setMode, setGlobalLoading, currentDevice } = useNekoShare();
+	const { router, setMode, setGlobalLoading } = useNekoShare();
 	const [activeCategory, setActiveCategory] = useState<SettingCategory>("account");
 	const [confirmLogout, setConfirmLogout] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -57,10 +56,10 @@ export function SettingsUI() {
 		setGlobalLoading(true);
 
 		try {
-			if (currentDevice) {
-				await deleteDevice(currentDevice.id);
-			}
-			
+			// if (currentDevice) {
+			// 	await deleteDevice(currentDevice.id);
+			// }
+
 			socketClient.disconnect();
 
 			await authClient.signOut({
@@ -76,7 +75,7 @@ export function SettingsUI() {
 		} catch (error) {
 			console.error("Failed to delete device on logout:", error);
 		}
-	}, [router, setMode, currentDevice, setGlobalLoading]);
+	}, [router, setMode, setGlobalLoading]);
 
 	useEffect(() => {
 		if (!isEscapeEnabled) return;
