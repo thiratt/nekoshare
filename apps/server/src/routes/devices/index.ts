@@ -13,6 +13,8 @@ import {
 	type DeviceRegistrationResponse,
 } from "@/types";
 import { createRouter } from "@/core/utils/router";
+import { wsSessionManager } from "@/core/socket/ws/connection";
+import { PacketType } from "@/core/socket/shared/protocol";
 
 const deviceRegistrationSchema = z.object({
 	id: z.string().min(1),
@@ -157,6 +159,20 @@ app.post("/register", async (c) => {
 
 		if (!newDevice) {
 			return c.json(error("INTERNAL_ERROR", "Failed to retrieve new device"), 500);
+		}
+
+		try {
+			const userSessions = wsSessionManager.getSessionsByUserId(session.userId);
+			if (userSessions.length > 0) {
+				const dto = mapDeviceToDto(newDevice);
+				const payload = JSON.stringify(dto);
+
+				for (const s of userSessions) {
+					s.sendPacket(PacketType.DEVICE_ADDED, (w) => w.writeString(payload));
+				}
+			}
+		} catch (e) {
+			console.error("Failed to broadcast DEVICE_ADDED:", e);
 		}
 
 		return c.json(

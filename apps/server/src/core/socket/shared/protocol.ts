@@ -65,6 +65,7 @@ export enum PacketType {
 	DEVICE_DELETE = 0x91,
 	DEVICE_UPDATED = 0x92,
 	DEVICE_REMOVED = 0x93,
+	DEVICE_ADDED = 0x94,
 
 	// ==========================================
 	// 0xE0 - 0xEF: Debug & Metrics
