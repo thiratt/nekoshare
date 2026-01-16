@@ -26,7 +26,6 @@ const device = mysqlTable(
 		os_version: varchar("os_version", { length: 100 }).notNull(),
 		os_long_version: varchar("os_long_version", { length: 255 }).notNull(),
 		is_tailscale: boolean("is_tailscale").default(false).notNull(),
-		publicKey: text("public_key").notNull(),
 		batterySupported: boolean("battery_supported").default(false).notNull(),
 		batteryCharging: boolean("battery_charging").default(false).notNull(),
 		batteryPercent: bigint("battery_percent", { mode: "number" }).default(100).notNull(),

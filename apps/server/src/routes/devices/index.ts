@@ -1,4 +1,5 @@
-import { eq, and } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { eq, and, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/adapters/db";
@@ -31,7 +32,6 @@ const deviceRegistrationSchema = z.object({
 		charging: z.boolean(),
 		percent: z.number().min(0).max(100),
 	}),
-	publicKey: z.string().min(1),
 });
 
 const deviceUpdateSchema = z.object({
@@ -41,6 +41,7 @@ const deviceUpdateSchema = z.object({
 function mapDeviceToDto(d: typeof device.$inferSelect): Device {
 	return {
 		id: d.id,
+		deviceIdentifier: d.deviceIdentifier,
 		name: d.name,
 		platform: {
 			os: d.os,
@@ -67,7 +68,6 @@ function mapDeviceToDbValues(body: z.infer<typeof deviceRegistrationSchema>) {
 		os: body.platform.os,
 		os_version: body.platform.version,
 		os_long_version: body.platform.long_version,
-		publicKey: body.publicKey,
 		batterySupported: body.battery.supported,
 		batteryCharging: body.battery.charging,
 		batteryPercent: body.battery.percent,
@@ -102,8 +102,13 @@ app.post("/register", async (c) => {
 		const rawBody = await c.req.json();
 		const body = deviceRegistrationSchema.parse(rawBody);
 
+		const machineId = body.id;
+
 		const existingDevice = await db.query.device.findFirst({
-			where: eq(device.id, body.id),
+			where: and(
+				eq(device.userId, session.userId),
+				or(eq(device.deviceIdentifier, machineId), eq(device.id, machineId))
+			),
 		});
 
 		const dbValues = mapDeviceToDbValues(body);
@@ -111,11 +116,15 @@ app.post("/register", async (c) => {
 		if (existingDevice) {
 			await db
 				.update(device)
-				.set({ ...dbValues, sessionId: session.id })
-				.where(eq(device.id, body.id));
+				.set({
+					...dbValues,
+					sessionId: session.id,
+					deviceIdentifier: machineId,
+				})
+				.where(eq(device.id, existingDevice.id));
 
 			const updatedDevice = await db.query.device.findFirst({
-				where: eq(device.id, body.id),
+				where: eq(device.id, existingDevice.id),
 			});
 
 			if (!updatedDevice) {
@@ -130,16 +139,18 @@ app.post("/register", async (c) => {
 			);
 		}
 
+		const newDeviceId = randomUUID();
+
 		await db.insert(device).values({
-			id: body.id,
+			id: newDeviceId,
 			userId: session.userId,
 			sessionId: session.id,
-			deviceIdentifier: "-",
+			deviceIdentifier: machineId,
 			...dbValues,
 		});
 
 		const newDevice = await db.query.device.findFirst({
-			where: eq(device.id, body.id),
+			where: eq(device.id, newDeviceId),
 		});
 
 		if (!newDevice) {

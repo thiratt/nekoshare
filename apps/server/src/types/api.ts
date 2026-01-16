@@ -24,6 +24,7 @@ export const error = (error: string, message?: string): ApiErrorResponse => ({
 
 export interface Device {
 	id: string;
+	deviceIdentifier: string;
 	name: string;
 	platform: Platform;
 	ip: Ip;
@@ -54,9 +55,7 @@ export type DeviceListResponse = {
 	total: number;
 };
 
-export interface DeviceRegistrationRequest extends Device {
-	publicKey: string;
-}
+export interface DeviceRegistrationRequest extends Device {}
 
 export const OS_TYPES = ["windows", "android", "web", "other"] as const;
 export type Os = (typeof OS_TYPES)[number];
