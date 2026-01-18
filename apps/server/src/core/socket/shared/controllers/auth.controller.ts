@@ -16,10 +16,16 @@ export function registerAuthHandlers<T extends IConnection>(router: PacketRouter
 				client.sendPacket(
 					PacketType.AUTH_LOGIN_RESPONSE,
 					(w) => {
+						const data = {
+							id: client.user?.id,
+							name: client.user?.name,
+						};
+						const payload = JSON.stringify(data);
+
 						w.writeUInt8(1);
-						w.writeString(client.user?.name ?? "");
+						w.writeString(payload);
 					},
-					requestId
+					requestId,
 				);
 				return;
 			}
@@ -33,7 +39,7 @@ export function registerAuthHandlers<T extends IConnection>(router: PacketRouter
 						w.writeUInt8(0);
 						w.writeString("No session token provided");
 					},
-					requestId
+					requestId,
 				);
 				client.shutdown();
 				return;
@@ -51,7 +57,7 @@ export function registerAuthHandlers<T extends IConnection>(router: PacketRouter
 						w.writeUInt8(0);
 						w.writeString("Invalid or expired session");
 					},
-					requestId
+					requestId,
 				);
 				client.shutdown();
 				return;
@@ -61,10 +67,16 @@ export function registerAuthHandlers<T extends IConnection>(router: PacketRouter
 			client.sendPacket(
 				PacketType.AUTH_LOGIN_RESPONSE,
 				(w) => {
+					const $data = {
+						id: data.user.id,
+						name: data.user.name,
+					};
+					const payload = JSON.stringify($data);
+
 					w.writeUInt8(1);
-					w.writeString(data.user.name);
+					w.writeString(payload);
 				},
-				requestId
+				requestId,
 			);
 
 			Logger.info(transportType, `Client ${client.id} authenticated as ${data.user.name}`);
@@ -77,7 +89,7 @@ export function registerAuthHandlers<T extends IConnection>(router: PacketRouter
 					w.writeUInt8(0);
 					w.writeString("Authentication error");
 				},
-				requestId
+				requestId,
 			);
 		}
 	};
