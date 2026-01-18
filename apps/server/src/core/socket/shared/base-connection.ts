@@ -57,7 +57,7 @@ export abstract class BaseConnection {
 	public sendPacket(
 		type: PacketType,
 		payloadWriterOrRequestId?: ((w: BinaryWriter) => void) | number,
-		requestId?: number
+		requestId?: number,
 	) {
 		const writer = new BinaryWriter();
 
