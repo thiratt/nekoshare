@@ -28,9 +28,33 @@ export async function createTCPSocketInstance() {
 			return;
 		}
 
+		let inputBuffer = Buffer.alloc(0);
+
 		socket.on("data", (data: Buffer) => {
-			if (connection) {
-				connection.handleMessage(data);
+			if (!connection) return;
+
+			inputBuffer = Buffer.concat([inputBuffer, data]);
+
+			while (true) {
+				if (inputBuffer.length < 4) {
+					break;
+				}
+
+				const frameLength = inputBuffer.readUInt32LE(0);
+
+				if (inputBuffer.length < 4 + frameLength) {
+					break;
+				}
+
+				const frame = inputBuffer.subarray(4, 4 + frameLength);
+
+				try {
+					connection.handleMessage(frame);
+				} catch (err) {
+					Logger.error("TCP", `Error handling frame: ${err}`);
+				}
+
+				inputBuffer = inputBuffer.subarray(4 + frameLength);
 			}
 		});
 

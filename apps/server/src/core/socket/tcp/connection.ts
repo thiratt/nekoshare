@@ -21,6 +21,9 @@ export class TCPConnection extends BaseConnection {
 
 	protected sendRaw(buffer: Buffer): void {
 		if (!this.socket.destroyed) {
+			const lenBuffer = Buffer.allocUnsafe(4);
+			lenBuffer.writeUInt32LE(buffer.length, 0);
+			this.socket.write(lenBuffer);
 			this.socket.write(buffer);
 		}
 	}
