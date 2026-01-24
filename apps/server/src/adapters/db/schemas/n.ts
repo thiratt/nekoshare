@@ -26,6 +26,7 @@ const device = mysqlTable(
 		os_version: varchar("os_version", { length: 100 }).notNull(),
 		os_long_version: varchar("os_long_version", { length: 255 }).notNull(),
 		is_tailscale: boolean("is_tailscale").default(false).notNull(),
+		fingerprint: varchar("fingerprint", { length: 128 }),
 		batterySupported: boolean("battery_supported").default(false).notNull(),
 		batteryCharging: boolean("battery_charging").default(false).notNull(),
 		batteryPercent: bigint("battery_percent", { mode: "number" }).default(100).notNull(),
@@ -34,7 +35,7 @@ const device = mysqlTable(
 		lastActiveAt: timestamp("last_active_at").defaultNow().notNull(),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 	},
-	(table) => [unique("device_user_deviceIdentifier_unique").on(table.userId, table.deviceIdentifier)]
+	(table) => [unique("device_user_deviceIdentifier_unique").on(table.userId, table.deviceIdentifier)],
 );
 
 const friend = mysqlTable(
@@ -51,7 +52,7 @@ const friend = mysqlTable(
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
-	(table) => [unique("friendship_unique_pair").on(table.requesterId, table.receiverId)]
+	(table) => [unique("friendship_unique_pair").on(table.requesterId, table.receiverId)],
 );
 
 const flashShare = mysqlTable("flash_share", {

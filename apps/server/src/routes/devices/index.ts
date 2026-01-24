@@ -34,6 +34,7 @@ const deviceRegistrationSchema = z.object({
 		charging: z.boolean(),
 		percent: z.number().min(0).max(100),
 	}),
+	fingerprint: z.string().min(1).max(128).optional(),
 });
 
 const deviceUpdateSchema = z.object({
@@ -60,6 +61,7 @@ function mapDeviceToDto(d: typeof device.$inferSelect): Device {
 			charging: d.batteryCharging,
 			percent: d.batteryPercent,
 		},
+		fingerprint: d.fingerprint || undefined,
 		lastActiveAt: d.lastActiveAt,
 	};
 }
@@ -76,6 +78,7 @@ function mapDeviceToDbValues(body: z.infer<typeof deviceRegistrationSchema>) {
 		ipv4: body.ip.ipv4,
 		ipv6: body.ip.ipv6 || null,
 		is_tailscale: body.ip.is_tailscale,
+		fingerprint: body.fingerprint || null,
 		lastActiveAt: new Date(),
 	};
 }
@@ -93,7 +96,7 @@ app.get("/", async (c) => {
 		success<DeviceListResponse>({
 			devices: devices.map(mapDeviceToDto),
 			total: devices.length,
-		})
+		}),
 	);
 });
 
@@ -109,7 +112,7 @@ app.post("/register", async (c) => {
 		const existingDevice = await db.query.device.findFirst({
 			where: and(
 				eq(device.userId, session.userId),
-				or(eq(device.deviceIdentifier, machineId), eq(device.id, machineId))
+				or(eq(device.deviceIdentifier, machineId), eq(device.id, machineId)),
 			),
 		});
 
@@ -139,7 +142,7 @@ app.post("/register", async (c) => {
 				success<DeviceRegistrationResponse>({
 					device: mapDeviceToDto(updatedDevice),
 					isNew: false,
-				})
+				}),
 			);
 		}
 
@@ -180,13 +183,13 @@ app.post("/register", async (c) => {
 				device: mapDeviceToDto(newDevice),
 				isNew: true,
 			}),
-			201
+			201,
 		);
 	} catch (err) {
 		if (err instanceof z.ZodError) {
 			return c.json(
 				error("VALIDATION_ERROR", err.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")),
-				400
+				400,
 			);
 		}
 		throw err;
@@ -226,7 +229,7 @@ app.patch("/:id", async (c) => {
 		if (err instanceof z.ZodError) {
 			return c.json(
 				error("VALIDATION_ERROR", err.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")),
-				400
+				400,
 			);
 		}
 		throw err;

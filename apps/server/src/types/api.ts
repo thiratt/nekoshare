@@ -29,6 +29,7 @@ export interface Device {
 	platform: Platform;
 	ip: Ip;
 	battery: BatteryInfo;
+	fingerprint?: string;
 	lastActiveAt: Date;
 }
 
