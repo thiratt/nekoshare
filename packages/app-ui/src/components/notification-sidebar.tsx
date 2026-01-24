@@ -187,7 +187,7 @@ export function NotificationSidebar() {
 													>
 														{notification.title}
 														{!notification.read && (
-															<div className="h-2 w-2 rounded-full bg-primary"></div>
+															<span className="h-2 w-2 rounded-full bg-primary"></span>
 														)}
 													</p>
 												</div>
