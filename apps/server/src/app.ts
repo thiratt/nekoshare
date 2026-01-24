@@ -18,10 +18,21 @@ import accountRouter from "@/routes/account";
 import devicesRouter from "@/routes/devices";
 import friendsRouter from "@/routes/friends";
 
-// Constants for configuration
 const CORS_CONFIG = {
-	// origin: env.CORS_ORIGIN ?? "http://localhost:7787",
-	origin: "http://localhost:7787",
+	origin: (origin: string) => {
+		const allowedOrigins = [
+			"http://localhost:7787",
+			"http://127.0.0.1:7787",
+			"http://tauri.localhost",
+			"tauri://localhost",
+		];
+
+		if (allowedOrigins.includes(origin) || !origin) {
+			return origin;
+		}
+
+		return null;
+	},
 	allowHeaders: ["Content-Type", "Authorization"],
 	allowMethods: ["GET", "HEAD", "PUT", "POST", "PATCH", "DELETE", "OPTIONS"],
 	exposeHeaders: ["Content-Length"],
@@ -68,7 +79,7 @@ export async function createApp(): Promise<ServerType> {
 				},
 				(info) => {
 					Logger.info("APP", `HTTP Server started on ${info.address}:${info.port}`);
-				}
+				},
 			);
 
 			webSocketInstance(httpServer);
