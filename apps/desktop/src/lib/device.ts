@@ -6,8 +6,17 @@ import type {
   LocalDeviceInfo,
 } from "@workspace/app-ui/types/device";
 
+interface DeviceInfoWithKey {
+  device_info: LocalDeviceInfo;
+  fingerprint: string;
+}
+
 export async function getDeviceInfo(): Promise<LocalDeviceInfo> {
-  return invoke<LocalDeviceInfo>("ns_get_device_info");
+  const result = await invoke<DeviceInfoWithKey>("ns_get_device_info_with_key");
+  return {
+    ...result.device_info,
+    fingerprint: result.fingerprint,
+  };
 }
 
 function toRegistrationPayload(
@@ -19,6 +28,7 @@ function toRegistrationPayload(
     platform: deviceInfo.platform,
     battery: deviceInfo.battery,
     ip: deviceInfo.ip,
+    fingerprint: deviceInfo.fingerprint,
   };
 }
 
