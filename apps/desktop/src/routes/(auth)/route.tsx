@@ -9,9 +9,14 @@ import { getCachedSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/(auth)")({
   async beforeLoad() {
-    const { isAuthenticated } = await getCachedSession();
-    if (isAuthenticated) {
-      throw redirect({ to: "/home" });
+    const result = await getCachedSession();
+
+    if (result.status === "success") {
+      if (result.data.isAuthenticated) {
+        throw redirect({ to: "/home" });
+      }
+    } else {
+      console.error("Failed to fetch session:", result.error.toUserMessage());
     }
   },
   component: RouteComponent,
