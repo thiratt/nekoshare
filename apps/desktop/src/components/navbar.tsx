@@ -22,21 +22,21 @@ function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
   const { isMaximized, minimize, toggleMaximize, close } = useTitlebarControl();
 
   return (
-    <div className="flex items-center w-full h-10 bg-primary">
+    <div className="flex items-center w-full h-11 bg-primary dark:bg-background border-b-2">
       <div data-tauri-drag-region className="flex-1 h-full flex items-center">
-        <h1 className="pointer-events-none select-none pl-3 font-semibold text-background text-sm lg:text-base">
+        <h1 className="pointer-events-none select-none pl-3 font-semibold text-background dark:text-foreground text-sm lg:text-base">
           Nekoshare Desktop
         </h1>
       </div>
-      <div className="flex items-center h-full text-background">
+      <div className="flex items-center h-full text-background dark:text-foreground">
         {helperActions && (
           <div className="space-x-1 mr-1">
             {helperActions.map((action, index) => (
               <Button
                 key={index}
                 className={cn(
-                  "relative hover:bg-muted/20 hover:text-background dark:hover:bg-muted/20 size-6",
-                  action.actived && "bg-muted/20",
+                  "relative size-6 hover:bg-muted/20 hover:text-background dark:hover:bg-[#373737] dark:hover:text-foreground",
+                  action.actived && "bg-muted/20 dark:bg-[#373737]",
                 )}
                 variant="ghost"
                 title={action.title}
@@ -52,7 +52,7 @@ function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
           </div>
         )}
         <Button
-          className="h-full w-12 rounded-none hover:bg-muted/20 hover:text-background dark:hover:bg-muted/20"
+          className="h-full w-12 rounded-none hover:bg-muted dark:hover:bg-[#373737]"
           variant="ghost"
           size="icon"
           title="Minimize"
@@ -63,7 +63,7 @@ function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
         </Button>
 
         <Button
-          className="h-full w-12 rounded-none right-0 focus:ring-0 focus-visible:ring-0 hover:bg-muted/20 hover:text-backgroun dark:hover:bg-muted/20"
+          className="h-full w-12 rounded-none right-0 focus:ring-0 focus-visible:ring-0 dark:hover:bg-[#373737]"
           variant="ghost"
           size="icon"
           title={isMaximized ? "Restore" : "Maximize"}
