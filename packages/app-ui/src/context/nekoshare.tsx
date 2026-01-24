@@ -9,7 +9,13 @@ import { SessionTerminatedDialog } from "@workspace/app-ui/components/session-te
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
 import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
 import { PacketType, socketClient } from "@workspace/app-ui/lib/nk-socket/index";
-import type { Mode, NekoShareContextType, NotificationStatus, Router } from "@workspace/app-ui/types/context";
+import type {
+	GlobalLoadingState,
+	Mode,
+	NekoShareContextType,
+	NotificationStatus,
+	Router,
+} from "@workspace/app-ui/types/context";
 import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
 
 import { authClient, invalidateSessionCache } from "../lib/auth";
@@ -48,11 +54,22 @@ const OVERLAY_VARIANTS: Variants = {
 
 const CONTENT_SCALE_ACTIVE = { scale: 1, y: 0 };
 const CONTENT_SCALE_INACTIVE = { scale: 0.97, y: -10 };
+const LOADING_HIDE_DELAY_MS = 500;
+
+interface SessionTerminatedState {
+	readonly open: boolean;
+	readonly terminator: string;
+}
+
+const INITIAL_SESSION_STATE: SessionTerminatedState = {
+	open: false,
+	terminator: "",
+};
 
 interface NekoShareProviderProps<TRouter extends Router = Router> {
 	router: TRouter;
 	children: ReactNode;
-	globalLoading: { loading: boolean; setLoading: (loading: boolean) => void };
+	globalLoading: GlobalLoadingState;
 	currentDevice: LocalDeviceInfo | undefined;
 }
 
@@ -61,74 +78,89 @@ const NekoShareProvider = <TRouter extends Router>({
 	children,
 	globalLoading,
 	currentDevice,
-}: NekoShareProviderProps<TRouter>) => {
+}: NekoShareProviderProps<TRouter>): React.ReactElement => {
 	const [mode, setMode] = useState<Mode>("home");
 	const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>("off");
-	const loadingTimeoutRef = useRef<number | null>(null);
+	const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	const [sessionTerminated, setSessionTerminated] = useState<{ open: boolean; terminator: string }>({
-		open: false,
-		terminator: "",
-	});
+	const [sessionTerminated, setSessionTerminated] = useState<SessionTerminatedState>(INITIAL_SESSION_STATE);
 
 	usePacketRouter({
-		[PacketType.DEVICE_REMOVED]: (r) => {
-			console.log("DEVICE_REMOVED packet received:", r);
-			if (r.success) {
-				const isCurrentDeviceRemoved =
-					currentDevice && (r.data.id === currentDevice.id || r.data.deviceIdentifier === currentDevice.id);
+		[PacketType.DEVICE_REMOVED]: (result) => {
+			if (result.status !== "success") {
+				console.error("[NekoShareProvider] Failed to parse DEVICE_REMOVED packet:", result.error.message);
+				return;
+			}
 
-				if (isCurrentDeviceRemoved) {
-					setSessionTerminated({
-						open: true,
-						terminator: r.data.terminatedBy,
-					});
-				}
+			const { id, deviceIdentifier, terminatedBy } = result.data;
+
+			const isCurrentDeviceRemoved =
+				currentDevice && (id === currentDevice.id || deviceIdentifier === currentDevice.id);
+
+			if (isCurrentDeviceRemoved) {
+				console.log("[NekoShareProvider] Current device was removed, showing termination dialog");
+				setSessionTerminated({
+					open: true,
+					terminator: terminatedBy,
+				});
 			}
 		},
 	});
 
-	const toggleNotification = useCallback(() => {
+	const toggleNotification = useCallback((): void => {
 		setNotificationStatus((previousStatus) => (previousStatus === "on" ? "off" : "on"));
 	}, []);
 
 	const handleSetGlobalLoading = useCallback(
-		(isLoading: boolean) => {
+		(isLoading: boolean): void => {
 			if (loadingTimeoutRef.current) {
 				clearTimeout(loadingTimeoutRef.current);
 				loadingTimeoutRef.current = null;
 			}
+
 			if (isLoading) {
-				requestAnimationFrame(() => {});
+				globalLoading.setLoading(true);
 			} else {
 				loadingTimeoutRef.current = setTimeout(() => {
-					globalLoading.setLoading(isLoading);
+					globalLoading.setLoading(false);
 					loadingTimeoutRef.current = null;
-				}, 500);
+				}, LOADING_HIDE_DELAY_MS);
 			}
 		},
-		[globalLoading]
+		[globalLoading],
 	);
 
-	const handleSetMode = useCallback((newMode: Mode) => {
+	const handleSetMode = useCallback((newMode: Mode): void => {
 		setMode(newMode);
 	}, []);
 
-	const handleSetNotification = useCallback((status: NotificationStatus) => {
+	const handleSetNotification = useCallback((status: NotificationStatus): void => {
 		setNotificationStatus(status);
 	}, []);
 
-	const handleSessionTerminationComplete = useCallback(async () => {
-		socketClient.disconnect();
-		await authClient.signOut({
-			fetchOptions: {
-				onSuccess: () => {
-					invalidateSessionCache();
-					setSessionTerminated({ open: false, terminator: "" });
-					router.navigate({ to: "/login" });
+	const handleSessionTerminationComplete = useCallback(async (): Promise<void> => {
+		try {
+			socketClient.disconnect();
+
+			await authClient.signOut({
+				fetchOptions: {
+					onSuccess: () => {
+						invalidateSessionCache();
+						setSessionTerminated(INITIAL_SESSION_STATE);
+						router.navigate({ to: "/login" });
+					},
 				},
-			},
-		});
+			});
+		} catch (error) {
+			console.error(
+				"[NekoShareProvider] Error during session termination:",
+				error instanceof Error ? error.message : error,
+			);
+
+			invalidateSessionCache();
+			setSessionTerminated(INITIAL_SESSION_STATE);
+			router.navigate({ to: "/login" });
+		}
 	}, [router]);
 
 	const contextValue = useMemo<NekoShareContextType>(
@@ -153,7 +185,7 @@ const NekoShareProvider = <TRouter extends Router>({
 			handleSetMode,
 			handleSetNotification,
 			toggleNotification,
-		]
+		],
 	);
 
 	const isHomeMode = mode === "home";
