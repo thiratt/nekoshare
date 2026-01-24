@@ -3,82 +3,146 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import { useNekoSocket } from "@workspace/app-ui/hooks/useNekoSocket";
 import {
-	deleteDevice as deleteDeviceApi,
+	deleteDevice as $deleteDevice,
 	fetchDevices,
 	transformApiDevice,
-	updateDevice as updateDeviceApi,
+	updateDevice as $updateDevice,
 } from "@workspace/app-ui/lib/device-api";
+import { AppError } from "@workspace/app-ui/lib/errors";
 import { PacketType } from "@workspace/app-ui/lib/nk-socket/index";
 import type { UiDevice } from "@workspace/app-ui/types/device";
 import type { UseDevicesReturn } from "@workspace/app-ui/types/hooks";
 
 import { usePacketRouter } from "./usePacketRouter";
 
+export const DeviceErrorCode = {
+	CANNOT_DELETE_CURRENT: "CANNOT_DELETE_CURRENT",
+	DEVICE_NOT_FOUND: "DEVICE_NOT_FOUND",
+	UPDATE_FAILED: "UPDATE_FAILED",
+	DELETE_FAILED: "DELETE_FAILED",
+	FETCH_FAILED: "FETCH_FAILED",
+} as const;
+
+export type DeviceErrorCode = (typeof DeviceErrorCode)[keyof typeof DeviceErrorCode];
+
+interface DevicesState {
+	remoteDevices: UiDevice[];
+	loading: boolean;
+	error: string | null;
+}
+
+function sortDevices(devices: UiDevice[]): UiDevice[] {
+	return [...devices].sort((a, b) => {
+		if (a.isCurrent !== b.isCurrent) {
+			return a.isCurrent ? -1 : 1;
+		}
+		if (a.status !== b.status) {
+			return a.status === "online" ? -1 : 1;
+		}
+
+		return a.name.localeCompare(b.name);
+	});
+}
+
 export function useDevices(): UseDevicesReturn {
 	const { currentDevice: localDeviceInfo } = useNekoShare();
 	const { send } = useNekoSocket();
-	const [remoteDevices, setRemoteDevices] = useState<UiDevice[]>([]);
+	const [state, setState] = useState<DevicesState>({
+		remoteDevices: [],
+		loading: true,
+		error: null,
+	});
 
 	usePacketRouter({
-		[PacketType.DEVICE_UPDATED]: (r) => {
-			if (r.success) {
-				setRemoteDevices((prev) => prev.map((d) => (d.id === r.data.id ? { ...d, name: r.data.name } : d)));
+		[PacketType.DEVICE_UPDATED]: (result) => {
+			if (result.status === "success") {
+				const updatedDevice = result.data;
+				setState((prev) => ({
+					...prev,
+					remoteDevices: prev.remoteDevices.map((device) =>
+						device.id === updatedDevice.id ? { ...device, name: updatedDevice.name } : device,
+					),
+				}));
+			} else {
+				console.error("[useDevices] Failed to parse DEVICE_UPDATED packet:", result.error.message);
 			}
 		},
-		[PacketType.DEVICE_REMOVED]: (r) => {
-			if (r.success) {
-				setRemoteDevices((prev) => prev.filter((d) => d.id !== r.data.id));
+
+		[PacketType.DEVICE_REMOVED]: (result) => {
+			if (result.status === "success") {
+				const removedDevice = result.data;
+				setState((prev) => ({
+					...prev,
+					remoteDevices: prev.remoteDevices.filter((device) => device.id !== removedDevice.id),
+				}));
+			} else {
+				console.error("[useDevices] Failed to parse DEVICE_REMOVED packet:", result.error.message);
 			}
 		},
-		[PacketType.DEVICE_ADDED]: (r) => {
-			if (r.success) {
-				const newDevice = transformApiDevice(r.data, localDeviceInfo?.id);
-				setRemoteDevices((prev) => {
-					if (prev.some((d) => d.id === newDevice.id)) return prev;
-					return [...prev, newDevice];
+
+		[PacketType.DEVICE_ADDED]: (result) => {
+			if (result.status === "success") {
+				const addedDevice = result.data;
+				const newDevice = transformApiDevice(addedDevice, localDeviceInfo?.id);
+
+				setState((prev) => {
+					if (prev.remoteDevices.some((device) => device.id === newDevice.id)) {
+						return prev;
+					}
+					return {
+						...prev,
+						remoteDevices: [...prev.remoteDevices, newDevice],
+					};
 				});
+			} else {
+				console.error("[useDevices] Failed to parse DEVICE_ADDED packet:", result.error.message);
 			}
 		},
 	});
 
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-
 	const devices = useMemo(() => {
-		const result = localDeviceInfo
-			? remoteDevices.map((d) => ({
-					...d,
-					isCurrent: d.id === localDeviceInfo.id || d.deviceIdentifier === localDeviceInfo.id,
+		const enrichedDevices = localDeviceInfo
+			? state.remoteDevices.map((device) => ({
+					...device,
+					isCurrent: device.id === localDeviceInfo.id || device.deviceIdentifier === localDeviceInfo.id,
 				}))
-			: [...remoteDevices];
+			: [...state.remoteDevices];
 
-		return result.sort((a, b) => {
-			if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
-			if (a.status !== b.status) return a.status === "online" ? -1 : 1;
-			return a.name.localeCompare(b.name);
-		});
-	}, [localDeviceInfo, remoteDevices]);
+		return sortDevices(enrichedDevices);
+	}, [localDeviceInfo, state.remoteDevices]);
 
 	const loadDevices = useCallback(
 		async (signal?: AbortSignal) => {
-			setLoading(true);
-			setError(null);
+			setState((prev) => ({ ...prev, loading: true, error: null }));
 
-			try {
-				const response = await fetchDevices(signal);
-				const transformed = response.devices.map((d) => transformApiDevice(d, localDeviceInfo?.id));
-				setRemoteDevices(transformed);
-			} catch (err) {
-				if (err instanceof Error && err.name === "AbortError") {
+			const result = await fetchDevices(signal);
+
+			if (result.status === "error") {
+				if (result.error.isAbortError()) {
 					return;
 				}
-				setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
-				console.error("Failed to fetch devices:", err);
-			} finally {
-				setLoading(false);
+
+				setState((prev) => ({
+					...prev,
+					loading: false,
+					error: result.error.toUserMessage(),
+				}));
+
+				console.error("[useDevices] Failed to fetch devices:", result.error.toDetailedMessage());
+				return;
 			}
+
+			const transformedDevices = result.data.devices.map((device) =>
+				transformApiDevice(device, localDeviceInfo?.id),
+			);
+
+			setState({
+				remoteDevices: transformedDevices,
+				loading: false,
+				error: null,
+			});
 		},
-		[localDeviceInfo?.id]
+		[localDeviceInfo?.id],
 	);
 
 	useEffect(() => {
@@ -87,47 +151,89 @@ export function useDevices(): UseDevicesReturn {
 		return () => controller.abort();
 	}, [loadDevices]);
 
-	const refresh = useCallback(async () => {
+	const refresh = useCallback(async (): Promise<void> => {
 		await loadDevices();
 	}, [loadDevices]);
 
 	const updateDevice = useCallback(
-		async (id: string, data: { name: string }) => {
+		async (id: string, data: { name: string }): Promise<void> => {
+			const previousDevice = state.remoteDevices.find((device) => device.id === id);
+
+			if (!previousDevice) {
+				throw new AppError(`Device with ID "${id}" not found`, "INTERNAL" as const, "NOT_FOUND" as const, {
+					operation: "Update device",
+				});
+			}
+
+			setState((prev) => ({
+				...prev,
+				remoteDevices: prev.remoteDevices.map((device) => (device.id === id ? { ...device, ...data } : device)),
+			}));
+
 			try {
 				const payload = JSON.stringify({ id, name: data.name });
-				setRemoteDevices((prev) => prev.map((device) => (device.id === id ? { ...device, ...data } : device)));
+				send(PacketType.DEVICE_RENAME, (writer) => writer.writeString(payload));
+			} catch (error) {
+				console.error("[useDevices] WebSocket send failed, falling back to API:", error);
 
-				send(PacketType.DEVICE_RENAME, (w) => w.writeString(payload));
-			} catch (err) {
-				console.error("Failed to update device:", err);
-				await updateDeviceApi(id, data);
+				try {
+					await $updateDevice(id, data);
+				} catch (apiError) {
+					setState((prev) => ({
+						...prev,
+						remoteDevices: prev.remoteDevices.map((device) => (device.id === id ? previousDevice : device)),
+					}));
+					throw apiError;
+				}
 			}
 		},
-		[send]
+		[state.remoteDevices, send],
 	);
 
 	const deleteDevice = useCallback(
-		async (id: string) => {
-			if (localDeviceInfo && id === localDeviceInfo.id) {
-				throw new Error("ไม่สามารถลบอุปกรณ์ที่กำลังใช้งานอยู่ได้");
+		async (id: string): Promise<void> => {
+			if (localDeviceInfo && (id === localDeviceInfo.id || id === localDeviceInfo.fingerprint)) {
+				throw new AppError(
+					"Cannot delete the device you are currently using. Please log out from another device if you want to remove this one.",
+					"INTERNAL" as const,
+					"VALIDATION" as const,
+					{ operation: "Delete device" },
+				);
 			}
 
+			const previousDevice = state.remoteDevices.find((device) => device.id === id);
+
+			setState((prev) => ({
+				...prev,
+				remoteDevices: prev.remoteDevices.filter((device) => device.id !== id),
+			}));
+
 			try {
-				setRemoteDevices((prev) => prev.filter((device) => device.id !== id));
 				const payload = JSON.stringify({ id });
-				send(PacketType.DEVICE_DELETE, (w) => w.writeString(payload));
-			} catch (err) {
-				console.error("Failed to delete device:", err);
-				await deleteDeviceApi(id);
+				send(PacketType.DEVICE_DELETE, (writer) => writer.writeString(payload));
+			} catch (error) {
+				console.error("[useDevices] WebSocket send failed, falling back to API:", error);
+
+				try {
+					await $deleteDevice(id);
+				} catch (apiError) {
+					if (previousDevice) {
+						setState((prev) => ({
+							...prev,
+							remoteDevices: [...prev.remoteDevices, previousDevice],
+						}));
+					}
+					throw apiError;
+				}
 			}
 		},
-		[localDeviceInfo, send]
+		[localDeviceInfo, state.remoteDevices, send],
 	);
 
 	return {
 		devices,
-		loading,
-		error,
+		loading: state.loading,
+		error: state.error,
 		refresh,
 		updateDevice,
 		deleteDevice,

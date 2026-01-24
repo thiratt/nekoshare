@@ -7,13 +7,16 @@ import {
 	PacketType,
 	useNekoSocket,
 } from "@workspace/app-ui/hooks/useNekoSocket";
+import type { Result, ResultError } from "@workspace/app-ui/lib/errors";
 
-type Resolve<T> = T extends (...args: unknown[]) => unknown ? T : { [K in keyof T]: T[K] };
-type TypedHandlerMap = {
-	[K in PacketType]?: (data: Resolve<PacketPayloads[K]>) => void;
+type Resolve<T> = T extends (...args: never[]) => unknown ? T : { [K in keyof T]: T[K] };
+type PacketHandler<T extends PacketType> = (data: Resolve<PacketPayloads[T]>) => void;
+
+export type TypedHandlerMap = {
+	[K in PacketType]?: PacketHandler<K>;
 };
 
-export function usePacketRouter(handlers: TypedHandlerMap) {
+export function usePacketRouter(handlers: TypedHandlerMap): void {
 	const { on } = useNekoSocket();
 	const handlersRef = useRef(handlers);
 
@@ -22,39 +25,60 @@ export function usePacketRouter(handlers: TypedHandlerMap) {
 	}, [handlers]);
 
 	useEffect(() => {
-		const unsubs: (() => void)[] = [];
+		const unsubscribes: (() => void)[] = [];
 
-		const subscribe = <T extends PacketType>(type: T) => {
-			const hasHandler = !!handlersRef.current[type];
+		const subscribe = <T extends PacketType>(type: T): void => {
+			const hasHandler = type in handlersRef.current && handlersRef.current[type] !== undefined;
+
+			if (!hasHandler) {
+				return;
+			}
+
 			const parser = PacketParsers[type as keyof typeof PacketParsers] as
-				| ((r: BinaryReader) => PacketPayloads[T])
+				| ((reader: BinaryReader) => PacketPayloads[T])
 				| undefined;
 
-			if (hasHandler) {
-				const unsub = on(type, (reader) => {
-					const currentHandler = handlersRef.current[type] as ((data: PacketPayloads[T]) => void) | undefined;
+			const unsubscribe = on(type, (reader) => {
+				const currentHandler = handlersRef.current[type] as PacketHandler<T> | undefined;
 
-					if (currentHandler) {
-						if (parser) {
-							const data = parser(reader);
-							currentHandler(data);
-						} else {
-							currentHandler(undefined as unknown as PacketPayloads[T]);
-						}
+				if (!currentHandler) {
+					return;
+				}
+
+				try {
+					if (parser) {
+						const data = parser(reader);
+						currentHandler(data as Resolve<PacketPayloads[T]>);
+					} else {
+						currentHandler(undefined as Resolve<PacketPayloads[T]>);
 					}
-				});
-				unsubs.push(unsub);
-			}
+				} catch (error) {
+					console.error(
+						`[usePacketRouter] Error processing packet type ${PacketType[type]}:`,
+						error instanceof Error ? error.message : error,
+					);
+				}
+			});
+
+			unsubscribes.push(unsubscribe);
 		};
 
-		Object.keys(handlersRef.current).forEach((key) => {
-			const type = Number(key) as PacketType;
+		const handlerTypes = Object.keys(handlersRef.current)
+			.map(Number)
+			.filter((key): key is PacketType => !isNaN(key) && key in PacketType);
 
-			if (!isNaN(type)) {
-				subscribe(type);
-			}
-		});
+		handlerTypes.forEach(subscribe);
 
-		return () => unsubs.forEach((u) => u());
+		return () => {
+			unsubscribes.forEach((unsubscribe) => unsubscribe());
+		};
 	}, [on]);
+}
+
+export function isPacketSuccess<T>(result: Result<T>): result is { status: "success"; data: T } {
+	return result.status === "success";
+}
+
+export function isPacketError<T>(result: Result<T>): result is ResultError {
+	return result.status === "error";
 }

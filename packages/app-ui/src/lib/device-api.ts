@@ -7,40 +7,89 @@ import type {
 	UiDevice,
 } from "@workspace/app-ui/types/device";
 
-import { xfetch } from "./xfetch";
+import { createInternalError, failure, isSuccess, type Result, success } from "./errors";
+import { xfetchApi } from "./xfetch";
+
+const DEVICE_API_ENDPOINTS = {
+	LIST: "/devices",
+	REGISTER: "/devices/register",
+	DEVICE: (id: string) => `/devices/${id}`,
+} as const;
+
+const TIME_UNITS = {
+	MINUTE_MS: 60 * 1000,
+	HOUR_MS: 60 * 60 * 1000,
+	DAY_MS: 24 * 60 * 60 * 1000,
+	WEEK_MS: 7 * 24 * 60 * 60 * 1000,
+} as const;
+
+const ONLINE_THRESHOLD_MS = 1 * TIME_UNITS.MINUTE_MS;
+
+function formatLastSeen(date: Date | string | null | undefined): string {
+	if (!date) {
+		return "Unknown";
+	}
+
+	try {
+		const dateObj = date instanceof Date ? date : new Date(date);
+
+		if (isNaN(dateObj.getTime())) {
+			return "Unknown";
+		}
+
+		const now = new Date();
+		const diffMs = now.getTime() - dateObj.getTime();
+
+		if (diffMs < 0) {
+			return "Just now";
+		}
+
+		const diffMinutes = Math.floor(diffMs / TIME_UNITS.MINUTE_MS);
+		const diffHours = Math.floor(diffMs / TIME_UNITS.HOUR_MS);
+		const diffDays = Math.floor(diffMs / TIME_UNITS.DAY_MS);
+
+		if (diffMinutes < 1) return "Just now";
+		if (diffMinutes === 1) return "1 minute ago";
+		if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+		if (diffHours === 1) return "1 hour ago";
+		if (diffHours < 24) return `${diffHours} hours ago`;
+		if (diffDays === 1) return "1 day ago";
+		if (diffDays < 7) return `${diffDays} days ago`;
+
+		return dateObj.toLocaleDateString("en-US", {
+			day: "numeric",
+			month: "short",
+			year: "numeric",
+		});
+	} catch {
+		return "Unknown";
+	}
+}
+
+function capitalizeFirst(str: string): string {
+	if (!str || str.length === 0) return str;
+	return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function isDeviceOnline(lastActiveAt: Date | string | null | undefined): boolean {
+	if (!lastActiveAt) return false;
+
+	try {
+		const lastActive = lastActiveAt instanceof Date ? lastActiveAt : new Date(lastActiveAt);
+		return new Date().getTime() - lastActive.getTime() < ONLINE_THRESHOLD_MS;
+	} catch {
+		return false;
+	}
+}
 
 export function transformApiDevice(apiDevice: ApiDevice, currentDeviceId?: string): UiDevice {
 	const isCurrent = apiDevice.deviceIdentifier === currentDeviceId || apiDevice.id === currentDeviceId;
 
-	const os = `${apiDevice.platform.os.charAt(0).toUpperCase() + apiDevice.platform.os.slice(1)} ${apiDevice.platform.version}`;
+	const osDisplay = `${capitalizeFirst(apiDevice.platform.os)} ${apiDevice.platform.version}`;
 
-	const formatLastSeen = (date: Date): string => {
-		try {
-			const now = new Date();
-			const diffMs = now.getTime() - new Date(date).getTime();
-			const diffMinutes = Math.floor(diffMs / (1000 * 60));
-			const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-			const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+	const ipDisplay = apiDevice.ip.ipv6 ? `${apiDevice.ip.ipv4} / ${apiDevice.ip.ipv6}` : apiDevice.ip.ipv4;
 
-			if (diffMinutes < 1) return "ตอนนี้";
-			if (diffMinutes < 60) return `${diffMinutes} นาทีที่แล้ว`;
-			if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
-			if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
-
-			return new Date(date).toLocaleDateString("th-TH", {
-				day: "numeric",
-				month: "short",
-				year: "numeric",
-			});
-		} catch {
-			return "ไม่ทราบ";
-		}
-	};
-
-	const isOnline = apiDevice.lastActiveAt
-		? new Date().getTime() - new Date(apiDevice.lastActiveAt).getTime() < 1 * 60 * 1000
-		: false;
-
+	const isOnline = isDeviceOnline(apiDevice.lastActiveAt);
 	const status: UiDevice["status"] = isCurrent || isOnline ? "online" : "offline";
 
 	return {
@@ -49,96 +98,95 @@ export function transformApiDevice(apiDevice: ApiDevice, currentDeviceId?: strin
 		name: apiDevice.name,
 		isCurrent,
 		platform: apiDevice.platform.os,
-		os,
-		ip: apiDevice.ip.ipv6 ? `${apiDevice.ip.ipv4} / ${apiDevice.ip.ipv6}` : apiDevice.ip.ipv4,
+		os: osDisplay,
+		ip: ipDisplay,
 		isTailscale: apiDevice.ip.is_tailscale,
 		status,
-		lastSeen: isCurrent ? "ตอนนี้" : formatLastSeen(apiDevice.lastActiveAt),
+		lastSeen: isCurrent ? "Now" : formatLastSeen(apiDevice.lastActiveAt),
 		battery: apiDevice.battery,
 	};
 }
 
 export function transformLocalDevice(localDevice: LocalDeviceInfo): UiDevice {
-	const os = `${localDevice.platform.os.charAt(0).toUpperCase() + localDevice.platform.os.slice(1)} ${localDevice.platform.version}`;
+	const osDisplay = `${capitalizeFirst(localDevice.platform.os)} ${localDevice.platform.version}`;
 
-	const ip = localDevice.ip.ipv6 ? `${localDevice.ip.ipv4} / ${localDevice.ip.ipv6}` : localDevice.ip.ipv4;
+	const ipDisplay = localDevice.ip.ipv6 ? `${localDevice.ip.ipv4} / ${localDevice.ip.ipv6}` : localDevice.ip.ipv4;
 
 	return {
 		id: localDevice.id,
 		name: localDevice.name,
 		isCurrent: true,
 		platform: localDevice.platform.os,
-		os,
-		ip,
+		os: osDisplay,
+		ip: ipDisplay,
 		isTailscale: localDevice.ip.is_tailscale,
 		status: "online",
-		lastSeen: "ตอนนี้",
+		lastSeen: "Now",
 		battery: localDevice.battery,
 	};
 }
 
-export async function fetchDevices(signal?: AbortSignal): Promise<ApiDeviceListResponse> {
-	const response = await xfetch("/devices", {
+export async function fetchDevices(signal?: AbortSignal): Promise<Result<ApiDeviceListResponse>> {
+	return xfetchApi<ApiDeviceListResponse>(DEVICE_API_ENDPOINTS.LIST, {
 		method: "GET",
 		signal,
+		operation: "Fetch device list",
 	});
-
-	if (!response.ok) {
-		throw new Error("Failed to fetch devices");
-	}
-
-	const result = await response.json();
-
-	if (!result.success) {
-		throw new Error(result.message || "Failed to fetch devices");
-	}
-
-	return result.data;
 }
 
-export async function registerDevice(payload: ApiDeviceRegistrationPayload): Promise<ApiDeviceRegistrationResponse> {
-	const response = await xfetch("/devices/register", {
+export async function registerDevice(
+	payload: ApiDeviceRegistrationPayload,
+): Promise<Result<ApiDeviceRegistrationResponse>> {
+	if (!payload.id || payload.id.trim().length === 0) {
+		return failure(createInternalError("Device ID is required for registration", "Device Registration"));
+	}
+
+	if (!payload.name || payload.name.trim().length === 0) {
+		return failure(createInternalError("Device name is required for registration", "Device Registration"));
+	}
+
+	return xfetchApi<ApiDeviceRegistrationResponse>(DEVICE_API_ENDPOINTS.REGISTER, {
 		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(payload),
+		body: payload,
+		operation: "Register device",
 	});
-
-	if (!response.ok) {
-		const errorData = await response.json().catch(() => ({}));
-		throw new Error(errorData.message || "Failed to register device");
-	}
-
-	const result = await response.json();
-
-	if (!result.success) {
-		throw new Error(result.message || "Failed to register device");
-	}
-
-	return result.data;
 }
 
-export async function updateDevice(deviceId: string, data: Partial<Pick<ApiDevice, "name">>): Promise<void> {
-	const response = await xfetch(`/devices/${deviceId}`, {
+export async function updateDevice(deviceId: string, data: Partial<Pick<ApiDevice, "name">>): Promise<Result<void>> {
+	if (!deviceId || deviceId.trim().length === 0) {
+		return failure(createInternalError("Device ID is required for update operation", "Device Update"));
+	}
+
+	if (!data.name || data.name.trim().length === 0) {
+		return failure(createInternalError("Device name cannot be empty", "Device Update"));
+	}
+
+	const result = await xfetchApi<null>(DEVICE_API_ENDPOINTS.DEVICE(deviceId), {
 		method: "PATCH",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(data),
+		body: data,
+		operation: `Update device "${deviceId}"`,
 	});
 
-	if (!response.ok) {
-		throw new Error("Failed to update device");
+	if (isSuccess(result)) {
+		return success(undefined);
 	}
+
+	return result;
 }
 
-export async function deleteDevice(deviceId: string): Promise<void> {
-	const response = await xfetch(`/devices/${deviceId}`, {
+export async function deleteDevice(deviceId: string): Promise<Result<void>> {
+	if (!deviceId || deviceId.trim().length === 0) {
+		return failure(createInternalError("Device ID is required for delete operation", "Device Deletion"));
+	}
+
+	const result = await xfetchApi<null>(DEVICE_API_ENDPOINTS.DEVICE(deviceId), {
 		method: "DELETE",
+		operation: `Delete device "${deviceId}"`,
 	});
 
-	if (!response.ok) {
-		throw new Error("Failed to delete device");
+	if (isSuccess(result)) {
+		return success(undefined);
 	}
+
+	return result;
 }

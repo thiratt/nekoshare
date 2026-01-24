@@ -1,19 +1,53 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { xfetch } from "@workspace/app-ui/lib/xfetch";
+import { AppError, ErrorCategory, ErrorSource } from "@workspace/app-ui/lib/errors";
+import { xfetchApi } from "@workspace/app-ui/lib/xfetch";
 import type { FriendItem, FriendListResponse, UserSearchResult } from "@workspace/app-ui/types/friends";
 
-const sortByName = (a: FriendItem, b: FriendItem) => a.name.localeCompare(b.name);
+const FRIENDS_API_ENDPOINTS = {
+	LIST: "/friends",
+	REQUEST: "/friends/request",
+	ACCEPT: (id: string) => `/friends/${id}/accept`,
+	REJECT: (id: string) => `/friends/${id}/reject`,
+	CANCEL: (id: string) => `/friends/${id}/cancel`,
+	REMOVE: (id: string) => `/friends/${id}`,
+	SEARCH: (query: string) => `/friends/search?q=${encodeURIComponent(query)}`,
+} as const;
+
+const SEARCH_DEBOUNCE_MS = 300;
+const MINIMUM_SEARCH_LENGTH = 2;
+
+const sortByName = (a: FriendItem, b: FriendItem): number => a.name.localeCompare(b.name);
 
 export interface UseFriendsState {
-	friends: FriendItem[];
-	incoming: FriendItem[];
-	outgoing: FriendItem[];
-	loading: boolean;
-	error: string | null;
+	readonly friends: FriendItem[];
+	readonly incoming: FriendItem[];
+	readonly outgoing: FriendItem[];
+	readonly loading: boolean;
+	readonly error: string | null;
 }
 
-export function useFriends() {
+export interface UseFriendsActions {
+	readonly refresh: () => Promise<void>;
+	readonly sendRequest: (userId: string) => Promise<void>;
+	readonly acceptRequest: (friendshipId: string) => Promise<void>;
+	readonly rejectRequest: (friendshipId: string) => Promise<void>;
+	readonly cancelRequest: (friendshipId: string) => Promise<void>;
+	readonly removeFriend: (friendshipId: string) => Promise<void>;
+}
+
+export type UseFriendsReturn = UseFriendsState & UseFriendsActions;
+
+export interface UseUserSearchReturn {
+	readonly query: string;
+	readonly setQuery: (query: string) => void;
+	readonly results: UserSearchResult[];
+	readonly loading: boolean;
+	readonly error: string | null;
+	readonly clearSearch: () => void;
+}
+
+export function useFriends(): UseFriendsReturn {
 	const [state, setState] = useState<UseFriendsState>({
 		friends: [],
 		incoming: [],
@@ -22,39 +56,37 @@ export function useFriends() {
 		error: null,
 	});
 
-	const fetchFriends = useCallback(async (signal?: AbortSignal) => {
+	const fetchFriends = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setState((prev) => ({ ...prev, loading: true, error: null }));
 
-		try {
-			const response = await xfetch("/friends", { method: "GET", signal });
+		const result = await xfetchApi<FriendListResponse>(FRIENDS_API_ENDPOINTS.LIST, {
+			method: "GET",
+			signal,
+			operation: "Fetch friends list",
+		});
 
-			if (!response.ok) {
-				throw new Error("Failed to fetch friends");
+		if (result.status === "error") {
+			if (result.error.isAbortError()) {
+				return;
 			}
 
-			const result = await response.json();
-
-			if (!result.success) {
-				throw new Error(result.message || "Failed to fetch friends");
-			}
-
-			const data = result.data as FriendListResponse;
-			setState({
-				friends: data.friends.sort(sortByName),
-				incoming: data.incoming.sort(sortByName),
-				outgoing: data.outgoing.sort(sortByName),
-				loading: false,
-				error: null,
-			});
-		} catch (err) {
-			if (err instanceof Error && err.name === "AbortError") return;
 			setState((prev) => ({
 				...prev,
 				loading: false,
-				error: err instanceof Error ? err.message : "เกิดข้อผิดพลาด",
+				error: result.error.toUserMessage(),
 			}));
-			console.error("Failed to fetch friends:", err);
+
+			console.error("[useFriends] Failed to fetch friends:", result.error.toDetailedMessage());
+			return;
 		}
+
+		setState({
+			friends: result.data.friends.sort(sortByName),
+			incoming: result.data.incoming.sort(sortByName),
+			outgoing: result.data.outgoing.sort(sortByName),
+			loading: false,
+			error: null,
+		});
 	}, []);
 
 	useEffect(() => {
@@ -63,197 +95,177 @@ export function useFriends() {
 		return () => controller.abort();
 	}, [fetchFriends]);
 
-	const refresh = useCallback(async () => {
+	const refresh = useCallback(async (): Promise<void> => {
 		await fetchFriends();
 	}, [fetchFriends]);
 
-	// Send friend request
 	const sendRequest = useCallback(
 		async (userId: string): Promise<void> => {
-			const response = await xfetch("/friends/request", {
+			if (!userId || userId.trim().length === 0) {
+				throw new AppError(
+					"User ID is required to send a friend request",
+					ErrorSource.INTERNAL,
+					ErrorCategory.VALIDATION,
+					{ operation: "Send friend request" },
+				);
+			}
+
+			const result = await xfetchApi<{
+				friendshipId: string;
+				status: string;
+				user: { id: string; name: string; email: string; avatarUrl?: string };
+			}>(FRIENDS_API_ENDPOINTS.REQUEST, {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ userId }),
+				body: { userId },
+				operation: "Send friend request",
 			});
 
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(errorData.message || "Failed to send friend request");
+			if (result.status === "error") {
+				throw result.error;
 			}
 
-			const result = await response.json();
+			const responseData = result.data;
 
-			if (!result.success) {
-				throw new Error(result.message || "Failed to send friend request");
-			}
-
-			// If mutual request, they become friends immediately
-			if (result.data.status === "friend") {
+			if (responseData.status === "friend") {
 				await refresh();
-			} else {
-				// Add to outgoing list
-				const newItem: FriendItem = {
-					id: result.data.user.id,
-					friendshipId: result.data.friendshipId,
-					name: result.data.user.name,
-					email: result.data.user.email,
-					avatarUrl: result.data.user.avatarUrl,
-					status: "outgoing",
-					sharedCount: 0,
-					lastActive: new Date().toISOString(),
-					createdAt: new Date().toISOString(),
-				};
-				setState((prev) => ({
-					...prev,
-					outgoing: [newItem, ...prev.outgoing].sort(sortByName),
-				}));
+				return;
 			}
+
+			const newItem: FriendItem = {
+				id: responseData.user.id,
+				friendshipId: responseData.friendshipId,
+				name: responseData.user.name,
+				email: responseData.user.email,
+				avatarUrl: responseData.user.avatarUrl,
+				status: "outgoing",
+				sharedCount: 0,
+				lastActive: new Date().toISOString(),
+				createdAt: new Date().toISOString(),
+			};
+
+			setState((prev) => ({
+				...prev,
+				outgoing: [newItem, ...prev.outgoing].sort(sortByName),
+			}));
 		},
-		[refresh]
+		[refresh],
 	);
 
-	// Accept incoming request
 	const acceptRequest = useCallback(
 		async (friendshipId: string): Promise<void> => {
-			// Optimistic update
 			const targetItem = state.incoming.find((item) => item.friendshipId === friendshipId);
-			if (targetItem) {
+
+			if (!targetItem) {
+				throw new AppError(
+					`Friend request with ID "${friendshipId}" not found`,
+					ErrorSource.INTERNAL,
+					ErrorCategory.NOT_FOUND,
+					{ operation: "Accept friend request" },
+				);
+			}
+
+			setState((prev) => ({
+				...prev,
+				incoming: prev.incoming.filter((item) => item.friendshipId !== friendshipId),
+				friends: [{ ...targetItem, status: "friend" as const }, ...prev.friends].sort(sortByName),
+			}));
+
+			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.ACCEPT(friendshipId), {
+				method: "PATCH",
+				operation: "Accept friend request",
+			});
+
+			if (result.status === "error") {
 				setState((prev) => ({
 					...prev,
-					incoming: prev.incoming.filter((item) => item.friendshipId !== friendshipId),
-					friends: [{ ...targetItem, status: "friend" as const }, ...prev.friends].sort(sortByName),
+					friends: prev.friends.filter((item) => item.friendshipId !== friendshipId),
+					incoming: [targetItem, ...prev.incoming].sort(sortByName),
 				}));
-			}
-
-			try {
-				const response = await xfetch(`/friends/${friendshipId}/accept`, { method: "PATCH" });
-
-				if (!response.ok) {
-					throw new Error("Failed to accept friend request");
-				}
-
-				const result = await response.json();
-				if (!result.success) {
-					throw new Error(result.message || "Failed to accept friend request");
-				}
-			} catch (err) {
-				// Rollback on error
-				if (targetItem) {
-					setState((prev) => ({
-						...prev,
-						friends: prev.friends.filter((item) => item.friendshipId !== friendshipId),
-						incoming: [targetItem, ...prev.incoming].sort(sortByName),
-					}));
-				}
-				throw err;
+				throw result.error;
 			}
 		},
-		[state.incoming]
+		[state.incoming],
 	);
 
-	// Reject incoming request
 	const rejectRequest = useCallback(
 		async (friendshipId: string): Promise<void> => {
-			// Optimistic update
 			const targetItem = state.incoming.find((item) => item.friendshipId === friendshipId);
+
 			setState((prev) => ({
 				...prev,
 				incoming: prev.incoming.filter((item) => item.friendshipId !== friendshipId),
 			}));
 
-			try {
-				const response = await xfetch(`/friends/${friendshipId}/reject`, { method: "DELETE" });
+			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.REJECT(friendshipId), {
+				method: "DELETE",
+				operation: "Reject friend request",
+			});
 
-				if (!response.ok) {
-					throw new Error("Failed to reject friend request");
-				}
-
-				const result = await response.json();
-				if (!result.success) {
-					throw new Error(result.message || "Failed to reject friend request");
-				}
-			} catch (err) {
-				// Rollback on error
+			if (result.status === "error") {
 				if (targetItem) {
 					setState((prev) => ({
 						...prev,
 						incoming: [targetItem, ...prev.incoming].sort(sortByName),
 					}));
 				}
-				throw err;
+				throw result.error;
 			}
 		},
-		[state.incoming]
+		[state.incoming],
 	);
 
-	// Cancel outgoing request
 	const cancelRequest = useCallback(
 		async (friendshipId: string): Promise<void> => {
-			// Optimistic update
 			const targetItem = state.outgoing.find((item) => item.friendshipId === friendshipId);
+
 			setState((prev) => ({
 				...prev,
 				outgoing: prev.outgoing.filter((item) => item.friendshipId !== friendshipId),
 			}));
 
-			try {
-				const response = await xfetch(`/friends/${friendshipId}/cancel`, { method: "DELETE" });
+			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.CANCEL(friendshipId), {
+				method: "DELETE",
+				operation: "Cancel friend request",
+			});
 
-				if (!response.ok) {
-					throw new Error("Failed to cancel friend request");
-				}
-
-				const result = await response.json();
-				if (!result.success) {
-					throw new Error(result.message || "Failed to cancel friend request");
-				}
-			} catch (err) {
-				// Rollback on error
+			if (result.status === "error") {
 				if (targetItem) {
 					setState((prev) => ({
 						...prev,
 						outgoing: [targetItem, ...prev.outgoing].sort(sortByName),
 					}));
 				}
-				throw err;
+				throw result.error;
 			}
 		},
-		[state.outgoing]
+		[state.outgoing],
 	);
 
-	// Remove friend
 	const removeFriend = useCallback(
 		async (friendshipId: string): Promise<void> => {
-			// Optimistic update
 			const targetItem = state.friends.find((item) => item.friendshipId === friendshipId);
+
 			setState((prev) => ({
 				...prev,
 				friends: prev.friends.filter((item) => item.friendshipId !== friendshipId),
 			}));
 
-			try {
-				const response = await xfetch(`/friends/${friendshipId}`, { method: "DELETE" });
+			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.REMOVE(friendshipId), {
+				method: "DELETE",
+				operation: "Remove friend",
+			});
 
-				if (!response.ok) {
-					throw new Error("Failed to remove friend");
-				}
-
-				const result = await response.json();
-				if (!result.success) {
-					throw new Error(result.message || "Failed to remove friend");
-				}
-			} catch (err) {
-				// Rollback on error
+			if (result.status === "error") {
 				if (targetItem) {
 					setState((prev) => ({
 						...prev,
 						friends: [targetItem, ...prev.friends].sort(sortByName),
 					}));
 				}
-				throw err;
+				throw result.error;
 			}
 		},
-		[state.friends]
+		[state.friends],
 	);
 
 	return {
@@ -268,47 +280,46 @@ export function useFriends() {
 		rejectRequest,
 		cancelRequest,
 		removeFriend,
-	} as const;
+	};
 }
 
-export type UseFriendsReturn = ReturnType<typeof useFriends>;
-
-export function useUserSearch() {
+export function useUserSearch(): UseUserSearchReturn {
 	const [query, setQuery] = useState("");
 	const [results, setResults] = useState<UserSearchResult[]>([]);
 	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		if (query.length < 2) {
+		if (query.length < MINIMUM_SEARCH_LENGTH) {
 			setResults([]);
+			setError(null);
 			return;
 		}
 
 		const controller = new AbortController();
+
 		const timeoutId = setTimeout(async () => {
 			setLoading(true);
-			try {
-				const response = await xfetch(`/friends/search?q=${encodeURIComponent(query)}`, {
-					method: "GET",
-					signal: controller.signal,
-				});
+			setError(null);
 
-				if (!response.ok) {
-					throw new Error("Search failed");
-				}
+			const result = await xfetchApi<{ users: UserSearchResult[] }>(FRIENDS_API_ENDPOINTS.SEARCH(query), {
+				method: "GET",
+				signal: controller.signal,
+				operation: "Search users",
+			});
 
-				const result = await response.json();
-				if (result.success) {
-					setResults(result.data.users);
+			if (result.status === "error") {
+				if (!result.error.isAbortError()) {
+					setError(result.error.toUserMessage());
+					console.error("[useUserSearch] Search failed:", result.error.toDetailedMessage());
 				}
-			} catch (err) {
-				if (err instanceof Error && err.name !== "AbortError") {
-					console.error("Search error:", err);
-				}
-			} finally {
 				setLoading(false);
+				return;
 			}
-		}, 300);
+
+			setResults(result.data.users);
+			setLoading(false);
+		}, SEARCH_DEBOUNCE_MS);
 
 		return () => {
 			clearTimeout(timeoutId);
@@ -316,10 +327,18 @@ export function useUserSearch() {
 		};
 	}, [query]);
 
-	const clearSearch = useCallback(() => {
+	const clearSearch = useCallback((): void => {
 		setQuery("");
 		setResults([]);
+		setError(null);
 	}, []);
 
-	return { query, setQuery, results, loading, clearSearch } as const;
+	return {
+		query,
+		setQuery,
+		results,
+		loading,
+		error,
+		clearSearch,
+	};
 }
