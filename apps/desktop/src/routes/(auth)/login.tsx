@@ -31,34 +31,37 @@ function RouteComponent() {
   const onSubmit = async (data: TLoginSchema) => {
     const isEmail = EMAIL_REGEX.test(data.identifier);
 
-    const result = isEmail
-      ? await authClient.signIn.email({
-          email: data.identifier,
-          password: data.password,
-        })
-      : await authClient.signIn.username({
-          username: data.identifier,
-          password: data.password,
-        });
-
-    if (result.error) {
-      console.error("Login error:", result.error.message);
-      toast.error(result.error.message ?? "เข้าสู่ระบบไม่สำเร็จ");
-      throw new Error(result.error.message ?? "เข้าสู่ระบบไม่สำเร็จ");
-    }
-
-    invalidateSessionCache();
-
     try {
+      const result = isEmail
+        ? await authClient.signIn.email({
+            email: data.identifier,
+            password: data.password,
+          })
+        : await authClient.signIn.username({
+            username: data.identifier,
+            password: data.password,
+          });
+
+      if (result.error) {
+        throw new Error(
+          result.error.code +
+            ": -" +
+            result.error.message +
+            result.error.status +
+            " " +
+            result.error.statusText,
+        );
+      }
+
+      invalidateSessionCache();
       setGlobalLoading(true);
       await registerDevice();
       await router.navigate({ to: "/home" });
-    } catch (error) {
+    } catch {
       toast.error(
-        "Failed to register device: " +
-          (error instanceof Error ? error.message : String(error)),
+        "[500] ไม่สามารถเข้าสู่ระบบได้ เนื่องจากระบบขัดข้อง กรุณาลองใหม่ภายหลัง",
       );
-      console.error("Failed to register device:", error);
+      return;
     }
   };
 
