@@ -2,7 +2,7 @@
 	"extends": "@workspace/typescript-config/nextjs.json",
 	"compilerOptions": {
 		"baseUrl": ".",
-		"types": ["vite/client"],
+		"types": ["vite/client", "node"],
 		"paths": {
 			"@workspace/app-ui/*": ["./src/*"]
 		}
