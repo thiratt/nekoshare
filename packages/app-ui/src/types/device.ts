@@ -43,6 +43,7 @@ export interface ApiDeviceRegistrationPayload {
 	platform: ApiPlatform;
 	ip: ApiIp;
 	battery: ApiBatteryInfo;
+	fingerprint?: string;
 }
 
 export interface ApiDeviceRegistrationResponse {
@@ -56,6 +57,7 @@ export interface LocalDeviceInfo {
 	platform: ApiPlatform;
 	ip: ApiIp;
 	battery: ApiBatteryInfo;
+	fingerprint?: string;
 }
 
 export interface UiDevice {
