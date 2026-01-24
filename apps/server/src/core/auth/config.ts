@@ -58,7 +58,7 @@ const pluginsOptions = [
 	bearer(),
 ];
 
-const trustedOriginsOptions: BetterAuthOptions["trustedOrigins"] = ["http://localhost:7780", "http://localhost:7787"];
+const trustedOriginsOptions: BetterAuthOptions["trustedOrigins"] = ["http://localhost:7780", "http://localhost:7787", "http://tauri.localhost"];
 
 const loggerOptions: BetterAuthOptions["logger"] = {
 	level: env.NODE_ENV === "production" ? "info" : "debug",
