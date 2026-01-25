@@ -102,7 +102,8 @@ export abstract class BaseConnection {
 			// Auth check for TCP only (WS is pre-authenticated via middleware)
 			if (this.requiresAuth() && !this._authenticated && type !== PacketType.AUTH_LOGIN_REQUEST) {
 				Logger.warn(this.transportType, `Unauthenticated packet from ${this.id}, type: ${type}`);
-				this.sendPacket(PacketType.ERROR_PERMISSION, (w) => w.writeString("Authentication required"), 0);
+				const errorPayload = JSON.stringify({ message: "Authentication required" });
+				this.sendPacket(PacketType.ERROR_PERMISSION, (w) => w.writeString(errorPayload), 0);
 				this.shutdown();
 				return;
 			}

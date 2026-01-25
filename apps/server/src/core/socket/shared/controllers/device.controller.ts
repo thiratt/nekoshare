@@ -45,7 +45,8 @@ export function registerDeviceHandlers<T extends IConnection>(router: PacketRout
 		} catch (error) {
 			const msg = (error as Error).message;
 			Logger.error(transportType, `Failed to rename device: ${msg}`);
-			client.sendPacket(PacketType.ERROR_GENERIC, (w) => w.writeString("Rename failed: " + msg), requestId);
+			const errorPayload = JSON.stringify({ message: "Rename failed: " + msg });
+			client.sendPacket(PacketType.ERROR_GENERIC, (w) => w.writeString(errorPayload), requestId);
 		}
 	};
 
@@ -100,7 +101,8 @@ export function registerDeviceHandlers<T extends IConnection>(router: PacketRout
 		} catch (error) {
 			const msg = (error as Error).message;
 			Logger.error(transportType, `Failed to delete device: ${msg}`);
-			client.sendPacket(PacketType.ERROR_GENERIC, (w) => w.writeString("Delete failed: " + msg), requestId);
+			const errorPayload = JSON.stringify({ message: "Delete failed: " + msg });
+			client.sendPacket(PacketType.ERROR_GENERIC, (w) => w.writeString(errorPayload), requestId);
 		}
 	};
 
