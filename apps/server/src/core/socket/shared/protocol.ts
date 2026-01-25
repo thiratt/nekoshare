@@ -29,7 +29,15 @@ export enum PacketType {
 	// ==========================================
 	PEER_LIST_REQUEST = 0x30,
 	PEER_CONNECT_REQUEST = 0x31,
-	PEER_SIGNALING_DATA = 0x32,
+	PEER_CONNECT_RESPONSE = 0x32,
+	PEER_SOCKET_READY = 0x33,
+	PEER_CONNECTION_INFO = 0x34,
+	PEER_INCOMING_REQUEST = 0x35,
+	PEER_SIGNALING_DATA = 0x36,
+	PEER_CONNECTION_CONFIRM = 0x37,
+	PEER_DISCONNECT = 0x38,
+	PEER_DISCONNECTED = 0x39,
+	ACK = 0x3a,
 
 	// ==========================================
 	// 0x40 - 0x4F: File Transfer (Control Plane)

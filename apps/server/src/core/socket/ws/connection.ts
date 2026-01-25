@@ -1,6 +1,11 @@
 import type { WSContext } from "hono/ws";
 import { BaseConnection, PacketRouter, SessionManager, type TransportType } from "../shared";
-import { registerDeviceHandlers, registerSystemHandlers, registerUserHandlers } from "../shared/controllers";
+import {
+	registerDeviceHandlers,
+	registerPeerHandlers,
+	registerSystemHandlers,
+	registerUserHandlers,
+} from "../shared/controllers";
 
 export const wsRouter = new PacketRouter<WSConnection>("WebSocket");
 export const wsSessionManager = new SessionManager<WSConnection>("WebSocket");
@@ -8,11 +13,13 @@ export const wsSessionManager = new SessionManager<WSConnection>("WebSocket");
 export class WSConnection extends BaseConnection {
 	public readonly transportType: TransportType = "WebSocket";
 	public readonly ws: WSContext<WebSocket>;
+	public readonly remoteAddress: string | null;
 	protected router = wsRouter;
 
-	constructor(id: string, ws: WSContext<WebSocket>) {
+	constructor(id: string, ws: WSContext<WebSocket>, remoteAddress?: string) {
 		super(id, wsSessionManager);
 		this.ws = ws;
+		this.remoteAddress = remoteAddress ?? null;
 	}
 
 	protected requiresAuth(): boolean {
@@ -38,4 +45,5 @@ export function bootstrapWSControllers() {
 	registerSystemHandlers(wsRouter, "WebSocket");
 	registerUserHandlers(wsRouter, "WebSocket");
 	registerDeviceHandlers(wsRouter, "WebSocket");
+	registerPeerHandlers(wsRouter, "WebSocket");
 }

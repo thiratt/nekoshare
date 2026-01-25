@@ -1,6 +1,11 @@
 import type { Socket } from "net";
 import { BaseConnection, PacketRouter, SessionManager, type TransportType } from "../shared";
-import { registerAuthHandlers, registerSystemHandlers, registerUserHandlers } from "../shared/controllers";
+import {
+	registerAuthHandlers,
+	registerPeerHandlers,
+	registerSystemHandlers,
+	registerUserHandlers,
+} from "../shared/controllers";
 
 export const tcpRouter = new PacketRouter<TCPConnection>("TCP");
 export const tcpSessionManager = new SessionManager<TCPConnection>("TCP");
@@ -42,4 +47,5 @@ export function bootstrapTCPControllers() {
 	registerAuthHandlers(tcpRouter, "TCP");
 	registerSystemHandlers(tcpRouter, "TCP");
 	registerUserHandlers(tcpRouter, "TCP");
+	registerPeerHandlers(tcpRouter, "TCP");
 }

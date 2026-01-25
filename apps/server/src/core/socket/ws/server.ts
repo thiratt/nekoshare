@@ -5,6 +5,7 @@ import type { User } from "@/core/auth";
 import type { createRouter } from "@/core/utils/router";
 import { PacketType } from "../shared";
 import { WSConnection, wsSessionManager, bootstrapWSControllers } from "./connection";
+import { handleDeviceSocketDisconnect } from "../shared/controllers";
 
 export async function createWebSocketInstance(app: ReturnType<typeof createRouter>, path: string = "/ws") {
 	bootstrapWSControllers();
@@ -16,6 +17,29 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 		upgradeWebSocket((c) => {
 			let connection: WSConnection | undefined;
 
+			const getRemoteIp = (): string | undefined => {
+				const forwarded = c.req.header("x-forwarded-for");
+				if (forwarded) {
+					return forwarded.split(",")[0]?.trim();
+				}
+
+				const realIp = c.req.header("x-real-ip");
+				if (realIp) {
+					return realIp;
+				}
+
+				try {
+					const raw = c.req.raw as any;
+					if (raw?.socket?.remoteAddress) {
+						return raw.socket.remoteAddress.replace(/^::ffff:/, "");
+					}
+				} catch {
+					// Ignore errors
+				}
+
+				return undefined;
+			};
+
 			return {
 				async onOpen(evt, ws) {
 					try {
@@ -25,8 +49,12 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 							return;
 						}
 
-						Logger.info("WebSocket", `User ${currentUser.name} connected via WebSocket.`);
-						connection = new WSConnection(randomUUID(), ws);
+						const remoteIp = getRemoteIp();
+						Logger.info(
+							"WebSocket",
+							`User ${currentUser.name} connected via WebSocket from ${remoteIp || "unknown"}.`,
+						);
+						connection = new WSConnection(randomUUID(), ws, remoteIp);
 
 						connection.setAuthenticated({
 							session: c.get("session"),
@@ -55,12 +83,16 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 
 				onClose(evt, ws) {
 					if (connection) {
+						const sessionId = connection.session?.id;
+						if (sessionId) {
+							handleDeviceSocketDisconnect(sessionId);
+						}
 						connection.close();
 					}
 					Logger.info("WebSocket", `WebSocket connection closed (code: ${evt.code}).`);
 				},
 			};
-		})
+		}),
 	);
 
 	Logger.info("WebSocket", `WebSocket server initialized at path: ${path}`);

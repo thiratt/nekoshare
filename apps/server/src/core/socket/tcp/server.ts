@@ -2,6 +2,7 @@ import { createServer, Server as NetServer, Socket } from "net";
 import { Logger } from "@/core/logger";
 import { PacketType } from "../shared";
 import { TCPConnection, tcpSessionManager, bootstrapTCPControllers } from "./connection";
+import { handleDeviceSocketDisconnect } from "../shared/controllers";
 import { env } from "@/config/env";
 
 export async function createTCPSocketInstance() {
@@ -60,6 +61,10 @@ export async function createTCPSocketInstance() {
 
 		socket.on("close", () => {
 			if (connection) {
+				const sessionId = connection.session?.id;
+				if (sessionId) {
+					handleDeviceSocketDisconnect(sessionId);
+				}
 				connection.close();
 			}
 			Logger.info("TCP", `TCP connection closed.`);
