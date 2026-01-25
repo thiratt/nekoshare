@@ -140,6 +140,7 @@ const NekoShareProvider = <TRouter extends Router>({
 
 	const handleSessionTerminationComplete = useCallback(async (): Promise<void> => {
 		try {
+			socketClient.setAutoReconnect(false);
 			socketClient.disconnect();
 
 			await authClient.signOut({

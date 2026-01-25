@@ -60,6 +60,7 @@ export function SettingsUI() {
 			// 	await deleteDevice(currentDevice.id);
 			// }
 
+			socketClient.setAutoReconnect(false);
 			socketClient.disconnect();
 
 			await authClient.signOut({

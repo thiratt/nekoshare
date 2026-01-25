@@ -99,6 +99,13 @@ export class NekoSocket {
 		}
 	}
 
+	public setAutoReconnect(enabled: boolean): void {
+		this.shouldReconnect = enabled;
+		if (!enabled && this.status === "reconnecting") {
+			this.updateStatus("disconnected");
+		}
+	}
+
 	public getStatus(): SocketStatus {
 		return this.status;
 	}

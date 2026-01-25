@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { isAuthenticated } from "@workspace/app-ui/lib/auth";
 import {
 	BinaryReader,
 	BinaryWriter,
@@ -38,10 +39,21 @@ function useNekoSocket(): UseNekoSocketReturn {
 			setStats(socketClient.getStats());
 		});
 
-		if (socketClient.getStatus() === "disconnected") {
-			socketClient.connect();
-		}
+		const checkAndConnect = async () => {
+			const authenticated = await isAuthenticated();
 
+			if (authenticated && socketClient.getStatus() === "disconnected") {
+				socketClient.setAutoReconnect(true);
+				socketClient.connect();
+			} else if (!authenticated) {
+				socketClient.setAutoReconnect(false);
+				if (socketClient.getStatus() !== "disconnected") {
+					socketClient.disconnect();
+				}
+			}
+		};
+
+		checkAndConnect();
 		setStatus(socketClient.getStatus());
 		setStats(socketClient.getStats());
 
