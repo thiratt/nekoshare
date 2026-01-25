@@ -13,6 +13,7 @@ use crate::core::device::info::{DeviceInfo, DeviceInfoManager};
 pub struct DeviceInfoWithKey {
     pub device_info: DeviceInfo,
     pub key: KeyDer,
+    pub fingerprint: String,
 }
 
 pub fn get_device_info_with_key() -> DeviceResult<DeviceInfoWithKey> {
@@ -25,5 +26,11 @@ pub fn get_device_info_with_key() -> DeviceResult<DeviceInfoWithKey> {
         .get_or_create(device_info.ip.ipv4.clone())
         .context("Failed to get or create TLS certificates")?;
 
-    Ok(DeviceInfoWithKey { device_info, key })
+    let fingerprint = key.fingerprint.clone();
+
+    Ok(DeviceInfoWithKey { 
+        device_info, 
+        key,
+        fingerprint,
+    })
 }

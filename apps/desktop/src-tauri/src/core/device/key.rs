@@ -5,6 +5,7 @@ use anyhow::Context;
 use directories::ProjectDirs;
 use log::{debug, info, warn};
 use rcgen::{CertificateParams, KeyPair};
+use sha2::{Sha256, Digest};
 
 use super::error::{DeviceError, DeviceResult};
 
@@ -27,6 +28,25 @@ impl Default for KeyConfig {
 pub struct KeyDer {
     pub cert_der: Vec<u8>,
     pub key_der: Vec<u8>,
+    pub fingerprint: String,
+}
+
+impl KeyDer {
+    pub fn new(cert_der: Vec<u8>, key_der: Vec<u8>) -> Self {
+        let fingerprint = Self::compute_fingerprint(&cert_der);
+        Self {
+            cert_der,
+            key_der,
+            fingerprint,
+        }
+    }
+
+    pub fn compute_fingerprint(cert_der: &[u8]) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(cert_der);
+        let result = hasher.finalize();
+        hex::encode(result)
+    }
 }
 
 pub struct KeyManager {
@@ -66,12 +86,9 @@ impl KeyManager {
 
     pub fn get_or_create(&self, host: String) -> DeviceResult<KeyDer> {
         match self.load_certificates() {
-            Ok(certs) => {
+            Ok((cert_der, key_der)) => {
                 info!("Loaded existing certificates from {:?}", self.base_path);
-                Ok(KeyDer {
-                    cert_der: certs.0,
-                    key_der: certs.1,
-                })
+                Ok(KeyDer::new(cert_der, key_der))
             }
             Err(e) => {
                 debug!("Could not load certificates: {}, generating new ones", e);
@@ -150,11 +167,14 @@ impl KeyManager {
         fs::write(&der_key_path, &key_der)
             .with_context(|| format!("Failed to write DER key to {:?}", der_key_path))?;
 
+        let key_der_result = KeyDer::new(cert_der, key_der);
+
         info!(
-            "Successfully generated and saved TLS certificates to {:?}",
-            self.base_path
+            "Successfully generated and saved TLS certificates to {:?} (fingerprint: {})",
+            self.base_path,
+            key_der_result.fingerprint
         );
 
-        Ok(KeyDer { cert_der, key_der })
+        Ok(key_der_result)
     }
 }
