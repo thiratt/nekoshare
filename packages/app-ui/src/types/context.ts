@@ -55,3 +55,15 @@ export interface NekoShareProviderProps<TRouter extends Router = Router> {
 	globalLoading: GlobalLoadingState;
 	currentDevice: LocalDeviceInfo | undefined;
 }
+
+export interface UseNekoShareReturn {
+	readonly router: Router;
+	readonly currentDevice: LocalDeviceInfo | undefined;
+	readonly mode: Mode;
+	readonly notificationStatus: NotificationStatus;
+	readonly globalLoading: boolean;
+	readonly setMode: (mode: Mode) => void;
+	readonly setNotificationStatus: (status: NotificationStatus) => void;
+	readonly toggleNotification: () => void;
+	readonly setGlobalLoading: (loading: boolean) => void;
+}

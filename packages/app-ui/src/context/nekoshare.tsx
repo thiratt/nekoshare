@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 
 import { AnimatePresence, motion, type Transition, type Variants } from "motion/react";
 
@@ -9,18 +9,18 @@ import { SessionTerminatedDialog } from "@workspace/app-ui/components/session-te
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
 import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
 import { PacketType, socketClient } from "@workspace/app-ui/lib/nk-socket/index";
-import type {
-	GlobalLoadingState,
-	Mode,
-	NekoShareContextType,
-	NotificationStatus,
-	Router,
-} from "@workspace/app-ui/types/context";
+import { useGlobalLoading, useMode, useNekoShareStore } from "@workspace/app-ui/lib/store/nekoshareStore";
+import type { GlobalLoadingState, Router, UseNekoShareReturn } from "@workspace/app-ui/types/context";
 import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
 
 import { authClient, invalidateSessionCache } from "../lib/auth";
 
-const NekoShareContext = createContext<NekoShareContextType | null>(null);
+interface NekoShareContextValue {
+	readonly router: Router;
+	readonly currentDevice: LocalDeviceInfo | undefined;
+}
+
+const NekoShareContext = createContext<NekoShareContextValue | null>(null);
 
 const SPRING_TRANSITION: Transition = {
 	type: "spring",
@@ -54,7 +54,6 @@ const OVERLAY_VARIANTS: Variants = {
 
 const CONTENT_SCALE_ACTIVE = { scale: 1, y: 0 };
 const CONTENT_SCALE_INACTIVE = { scale: 0.97, y: -10 };
-const LOADING_HIDE_DELAY_MS = 500;
 
 interface SessionTerminatedState {
 	readonly open: boolean;
@@ -79,11 +78,16 @@ const NekoShareProvider = <TRouter extends Router>({
 	globalLoading,
 	currentDevice,
 }: NekoShareProviderProps<TRouter>): React.ReactElement => {
-	const [mode, setMode] = useState<Mode>("home");
-	const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>("off");
-	const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
 	const [sessionTerminated, setSessionTerminated] = useState<SessionTerminatedState>(INITIAL_SESSION_STATE);
+
+	const mode = useMode();
+
+	const storeSetGlobalLoading = useNekoShareStore((s) => s.setGlobalLoading);
+	useMemo(() => {
+		if (globalLoading.loading) {
+			storeSetGlobalLoading(true);
+		}
+	}, [globalLoading.loading, storeSetGlobalLoading]);
 
 	usePacketRouter({
 		[PacketType.DEVICE_REMOVED]: (result) => {
@@ -106,37 +110,6 @@ const NekoShareProvider = <TRouter extends Router>({
 			}
 		},
 	});
-
-	const toggleNotification = useCallback((): void => {
-		setNotificationStatus((previousStatus) => (previousStatus === "on" ? "off" : "on"));
-	}, []);
-
-	const handleSetGlobalLoading = useCallback(
-		(isLoading: boolean): void => {
-			if (loadingTimeoutRef.current) {
-				clearTimeout(loadingTimeoutRef.current);
-				loadingTimeoutRef.current = null;
-			}
-
-			if (isLoading) {
-				globalLoading.setLoading(true);
-			} else {
-				loadingTimeoutRef.current = setTimeout(() => {
-					globalLoading.setLoading(false);
-					loadingTimeoutRef.current = null;
-				}, LOADING_HIDE_DELAY_MS);
-			}
-		},
-		[globalLoading],
-	);
-
-	const handleSetMode = useCallback((newMode: Mode): void => {
-		setMode(newMode);
-	}, []);
-
-	const handleSetNotification = useCallback((status: NotificationStatus): void => {
-		setNotificationStatus(status);
-	}, []);
 
 	const handleSessionTerminationComplete = useCallback(async (): Promise<void> => {
 		try {
@@ -164,29 +137,12 @@ const NekoShareProvider = <TRouter extends Router>({
 		}
 	}, [router]);
 
-	const contextValue = useMemo<NekoShareContextType>(
+	const contextValue = useMemo<NekoShareContextValue>(
 		() => ({
-			globalLoading: globalLoading.loading,
-			mode,
-			notificationStatus,
 			router,
 			currentDevice,
-			setGlobalLoading: handleSetGlobalLoading,
-			setMode: handleSetMode,
-			setNotificationStatus: handleSetNotification,
-			toggleNotification,
 		}),
-		[
-			globalLoading.loading,
-			mode,
-			notificationStatus,
-			router,
-			currentDevice,
-			handleSetGlobalLoading,
-			handleSetMode,
-			handleSetNotification,
-			toggleNotification,
-		],
+		[router, currentDevice],
 	);
 
 	const isHomeMode = mode === "home";
@@ -229,9 +185,7 @@ const NekoShareProvider = <TRouter extends Router>({
 					)}
 				</AnimatePresence>
 			</div>
-			<AnimatePresence>
-				{globalLoading.loading && <LoadingOverlay key="global-loading-overlay" />}
-			</AnimatePresence>
+			<GlobalLoadingOverlay />
 			<SessionTerminatedDialog
 				open={sessionTerminated.open}
 				terminatorName={sessionTerminated.terminator}
@@ -242,12 +196,48 @@ const NekoShareProvider = <TRouter extends Router>({
 	);
 };
 
-const useNekoShare = (): NekoShareContextType => {
+const GlobalLoadingOverlay = (): React.ReactElement | null => {
+	const globalLoading = useGlobalLoading();
+
+	return <AnimatePresence>{globalLoading && <LoadingOverlay key="global-loading-overlay" />}</AnimatePresence>;
+};
+
+const useNekoShare = (): UseNekoShareReturn => {
 	const context = useContext(NekoShareContext);
 	if (context === null) {
 		throw new Error("useNekoShare must be used within a NekoShareProvider");
 	}
-	return context;
+
+	const mode = useNekoShareStore((state) => state.mode);
+	const notificationStatus = useNekoShareStore((state) => state.notificationStatus);
+	const globalLoading = useNekoShareStore((state) => state.globalLoading);
+	const setMode = useNekoShareStore((state) => state.setMode);
+	const setNotificationStatus = useNekoShareStore((state) => state.setNotificationStatus);
+	const toggleNotification = useNekoShareStore((state) => state.toggleNotification);
+	const setGlobalLoading = useNekoShareStore((state) => state.setGlobalLoading);
+
+	return {
+		router: context.router,
+		currentDevice: context.currentDevice,
+		mode,
+		notificationStatus,
+		globalLoading,
+		setMode,
+		setNotificationStatus,
+		toggleNotification,
+		setGlobalLoading,
+	};
 };
 
 export { NekoShareProvider, useNekoShare };
+
+export {
+	useGlobalLoading,
+	useMode,
+	useNekoShareStore,
+	useNotificationStatus,
+	useSetGlobalLoading,
+	useSetMode,
+	useSetNotificationStatus,
+	useToggleNotification,
+} from "@workspace/app-ui/lib/store/nekoshareStore";
