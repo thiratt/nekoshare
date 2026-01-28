@@ -6,6 +6,7 @@ import type { createRouter } from "@/core/utils/router";
 import { PacketType } from "../shared";
 import { WSConnection, wsSessionManager, bootstrapWSControllers } from "./connection";
 import { handleDeviceSocketDisconnect } from "../shared/controllers";
+import { generateConnectionId } from "../shared/utils";
 
 export async function createWebSocketInstance(app: ReturnType<typeof createRouter>, path: string = "/ws") {
 	bootstrapWSControllers();
@@ -54,7 +55,8 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 							"WebSocket",
 							`User ${currentUser.name} connected via WebSocket from ${remoteIp || "unknown"}.`,
 						);
-						connection = new WSConnection(randomUUID(), ws, remoteIp);
+						const connectionId = generateConnectionId("ws");
+						connection = new WSConnection(connectionId, ws, remoteIp);
 
 						connection.setAuthenticated({
 							session: c.get("session"),

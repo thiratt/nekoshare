@@ -4,6 +4,7 @@ import { PacketType } from "../shared";
 import { TCPConnection, tcpSessionManager, bootstrapTCPControllers } from "./connection";
 import { handleDeviceSocketDisconnect } from "../shared/controllers";
 import { env } from "@/config/env";
+import { generateConnectionId } from "../shared/utils";
 
 export async function createTCPSocketInstance() {
 	bootstrapTCPControllers();
@@ -11,7 +12,7 @@ export async function createTCPSocketInstance() {
 	const port = env.TCP_SOCKET_PORT;
 	const server: NetServer = createServer((socket: Socket) => {
 		let connection: TCPConnection | undefined;
-		const clientId = `tcp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+		const clientId = generateConnectionId("tcp");
 
 		try {
 			Logger.info("TCP", `Client ${clientId} connected via TCP.`);
