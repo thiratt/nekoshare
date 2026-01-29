@@ -14,7 +14,8 @@ export enum PacketType {
 	AUTH_LOGIN_REQUEST = 0x10,
 	AUTH_LOGIN_RESPONSE = 0x11,
 	AUTH_TOKEN_REFRESH = 0x12,
-	AUTH_LOGOUT = 0x13,
+	AUTH_TOKEN_REVOKE = 0x13,
+	AUTH_LOGOUT = 0x14,
 
 	// ==========================================
 	// 0x20 - 0x2F: User & State
