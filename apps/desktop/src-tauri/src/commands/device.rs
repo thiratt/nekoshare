@@ -1,4 +1,4 @@
-use crate::core::device::{CommandError, DeviceInfoWithKey, KeyDer, info::DeviceInfo};
+use crate::core::device::{info::DeviceInfo, CommandError, DeviceInfoWithKey, KeyDer};
 
 #[tauri::command]
 pub fn ns_get_device_info() -> DeviceInfo {
