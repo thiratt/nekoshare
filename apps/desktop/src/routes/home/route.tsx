@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import {
   createFileRoute,
@@ -11,7 +11,10 @@ import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 
 import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
-import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
+import {
+  useNekoShare,
+  useSetGlobalLoading,
+} from "@workspace/app-ui/context/nekoshare";
 import { useNekoSocket } from "@workspace/app-ui/hooks/useNekoSocket";
 import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
 import { useSocketInterval } from "@workspace/app-ui/hooks/useSocketInterval";
@@ -39,7 +42,8 @@ export const Route = createFileRoute("/home")({
 });
 
 function RouteComponent() {
-  const { status, isReady } = useNSDesktop();
+  const { status, isReady, initComplete } = useNSDesktop();
+  const setGlobalLoading = useSetGlobalLoading();
 
   const location = useLocation();
   const { globalLoading, notificationStatus, toggleNotification, setMode } =
@@ -77,7 +81,11 @@ function RouteComponent() {
     send(PacketType.SYSTEM_HEARTBEAT);
   }, 7000);
 
-  if (globalLoading || status === "loading") {
+  useEffect(() => {
+    setGlobalLoading(false);
+  }, [setGlobalLoading]);
+
+  if (!initComplete || globalLoading || status === "loading") {
     return null;
   }
 

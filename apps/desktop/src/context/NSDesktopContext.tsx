@@ -4,30 +4,33 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
-  useState,
 } from "react";
 
-import { dirname } from "@tauri-apps/api/path";
-import { stat } from "@tauri-apps/plugin-fs";
-
-import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
+import { useSetGlobalLoading } from "@workspace/app-ui/context/nekoshare";
 
 import { useFileWatcher } from "@/hooks/useFileWatcher";
 import { configFileExists, useStore } from "@/hooks/useStore";
-
-export interface AppConfig {
-  fileLocation: string | null;
-}
-
-type ConfigStatus = "loading" | "ready" | "needs-setup";
+import {
+  type AppConfig,
+  type DesktopStorageAdapter,
+  useDesktopConfig,
+  useDesktopError,
+  useDesktopParentPath,
+  useDesktopStatus,
+  useDesktopStore,
+  useIsAppReady,
+  useNeedsSetup,
+} from "@/lib/store/desktop";
 
 interface NSDesktopContextValue {
   config: AppConfig;
-  status: ConfigStatus;
+  status: "loading" | "ready" | "needs-setup";
   isReady: boolean;
   needsSetup: boolean;
   error: Error | null;
+  initComplete: boolean;
   setFileLocation: (path: string) => Promise<void>;
   clearConfig: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -35,308 +38,171 @@ interface NSDesktopContextValue {
 
 const NSDesktopContext = createContext<NSDesktopContextValue | null>(null);
 
-const DEFAULT_CONFIG: AppConfig = {
-  fileLocation: null,
-};
-
+const INIT_TIMEOUT_MS = 3000;
 const CONFIG_KEY = "appConfig";
-const INIT_TIMEOUT_MS = 2000;
 
-async function isValidDirectory(
-  path: string | null | undefined,
-): Promise<boolean> {
-  if (!path) return false;
-  try {
-    const pathStat = await stat(path);
-    return pathStat.isDirectory;
-  } catch {
-    return false;
-  }
-}
-
-function deriveStatus(config: AppConfig, isPathValid: boolean): ConfigStatus {
-  if (!config.fileLocation) return "needs-setup";
-  if (!isPathValid) return "needs-setup";
-  return "ready";
-}
+const getStoreActions = () => useDesktopStore.getState();
 
 export function NSDesktopProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
-  const [status, setStatus] = useState<ConfigStatus>("loading");
-  const [error, setError] = useState<Error | null>(null);
-  const [parentPath, setParentPath] = useState<string | null>(null);
+  const setGlobalLoading = useSetGlobalLoading();
 
-  const { setGlobalLoading } = useNekoShare();
+  const config = useDesktopConfig();
+  const status = useDesktopStatus();
+  const error = useDesktopError();
+  const parentPath = useDesktopParentPath();
+  const isReady = useIsAppReady();
+  const needsSetup = useNeedsSetup();
+
   const {
     get,
     set,
     isLoading: isStoreLoading,
-    store,
+    store: tauriStore,
     configFilePath,
     ensureConfigExists,
     reload: reloadStore,
   } = useStore();
 
-  const isMountedRef = useRef(true);
-  const initCompletedRef = useRef(false);
+  const initCompleteRef = useRef(false);
+  const initComplete = status !== "loading";
 
-  const finishLoading = useCallback(() => {
-    if (isMountedRef.current) {
-      setGlobalLoading(false);
-    }
-  }, [setGlobalLoading]);
+  const storageAdapter = useMemo<DesktopStorageAdapter | null>(() => {
+    if (isStoreLoading) return null;
 
-  const resetToDefaults = useCallback(async () => {
-    try {
-      await set(CONFIG_KEY, DEFAULT_CONFIG);
-    } catch (err) {
-      console.error(
-        "[NSDesktopProvider] Failed to reset config to defaults:",
-        err,
-      );
-    }
-
-    if (isMountedRef.current) {
-      setConfig(DEFAULT_CONFIG);
-      setStatus("needs-setup");
-    }
-  }, [set]);
-
-  const validateAndUpdateStatus = useCallback(
-    async (cfg: AppConfig): Promise<boolean> => {
-      if (!cfg.fileLocation) {
-        if (isMountedRef.current) setStatus("needs-setup");
-        return false;
-      }
-
-      const valid = await isValidDirectory(cfg.fileLocation);
-
-      if (isMountedRef.current) {
-        setStatus(deriveStatus(cfg, valid));
-      }
-
-      return valid;
-    },
-    [],
-  );
-
-  const loadConfig = useCallback(async (): Promise<AppConfig> => {
-    try {
-      await ensureConfigExists();
-      await reloadStore();
-
-      const stored = await get<AppConfig>(CONFIG_KEY);
-
-      if (!stored || stored.fileLocation === undefined) {
-        await set(CONFIG_KEY, DEFAULT_CONFIG);
-        return DEFAULT_CONFIG;
-      }
-
-      return stored;
-    } catch {
-      try {
-        await set(CONFIG_KEY, DEFAULT_CONFIG);
-      } catch (err) {
-        console.error(
-          "[NSDesktopProvider] Failed to reset config to defaults:",
-          err,
-        );
-      }
-      return DEFAULT_CONFIG;
-    }
-  }, [get, set, ensureConfigExists, reloadStore]);
-
-  const setFileLocation = useCallback(
-    async (path: string): Promise<void> => {
-      const valid = await isValidDirectory(path);
-
-      if (!valid) {
-        throw new Error("Invalid path: directory does not exist");
-      }
-
-      const newConfig: AppConfig = { fileLocation: path };
-      await set(CONFIG_KEY, newConfig);
-
-      if (isMountedRef.current) {
-        setConfig(newConfig);
-        setStatus("ready");
-        setError(null);
-      }
-    },
-    [set],
-  );
-
-  const clearConfig = useCallback(async (): Promise<void> => {
-    await resetToDefaults();
-  }, [resetToDefaults]);
-
-  const refresh = useCallback(async (): Promise<void> => {
-    if (!isMountedRef.current) return;
-
-    try {
-      setError(null);
-      const cfg = await loadConfig();
-
-      if (isMountedRef.current) {
-        setConfig(cfg);
-        await validateAndUpdateStatus(cfg);
-      }
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error("Failed to refresh");
-      if (isMountedRef.current) {
-        setError(error);
-        setStatus("needs-setup");
-      }
-    }
-  }, [loadConfig, validateAndUpdateStatus]);
-
-  const handleConfigFileChange = useCallback(async () => {
-    if (!isMountedRef.current) return;
-
-    try {
-      const fileExists = await configFileExists();
-      if (!fileExists) {
-        await resetToDefaults();
-        return;
-      }
-      await refresh();
-    } catch {
-      await resetToDefaults();
-    }
-  }, [refresh, resetToDefaults]);
+    return {
+      get,
+      set,
+      ensureConfigExists,
+      reload: reloadStore,
+      configFileExists,
+    };
+  }, [get, set, ensureConfigExists, reloadStore, isStoreLoading]);
 
   useEffect(() => {
-    if (isStoreLoading || initCompletedRef.current) return;
-    initCompletedRef.current = true;
+    if (!storageAdapter || initCompleteRef.current) return;
+
+    let cancelled = false;
 
     const timeoutId = setTimeout(() => {
-      if (isMountedRef.current && status === "loading") {
-        setConfig(DEFAULT_CONFIG);
-        setStatus("needs-setup");
-        finishLoading();
+      if (!cancelled && status === "loading") {
+        console.warn("[NSDesktopProvider] Init timeout, forcing needs-setup");
+        useDesktopStore.setState({
+          config: { fileLocation: null },
+          status: "needs-setup",
+          error: null,
+        });
+        setGlobalLoading(false);
       }
     }, INIT_TIMEOUT_MS);
 
-    const init = async () => {
+    const runInit = async () => {
       try {
-        const cfg = await loadConfig();
-        if (isMountedRef.current) {
-          setConfig(cfg);
-          await validateAndUpdateStatus(cfg);
-        }
-      } catch (err) {
-        if (isMountedRef.current) {
-          setConfig(DEFAULT_CONFIG);
-          setStatus("needs-setup");
-          setError(err instanceof Error ? err : new Error("Init failed"));
-        }
+        await getStoreActions().init(storageAdapter);
       } finally {
-        clearTimeout(timeoutId);
-        finishLoading();
+        if (!cancelled) {
+          clearTimeout(timeoutId);
+          initCompleteRef.current = true;
+          setGlobalLoading(false);
+        }
       }
     };
 
-    init();
-    return () => clearTimeout(timeoutId);
-  }, [
-    isStoreLoading,
-    loadConfig,
-    validateAndUpdateStatus,
-    finishLoading,
-    status,
-  ]);
+    runInit();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [storageAdapter, status, setGlobalLoading]);
 
   useEffect(() => {
-    if (!store) return;
+    if (!tauriStore) return;
+
     let unsubscribePromise: Promise<() => void> | null = null;
 
     const setup = async () => {
-      unsubscribePromise = store.onChange<AppConfig>((key, value) => {
-        if (key === CONFIG_KEY && isMountedRef.current) {
-          const newConfig = value ?? DEFAULT_CONFIG;
-          setConfig(newConfig);
-          validateAndUpdateStatus(newConfig);
+      unsubscribePromise = tauriStore.onChange<AppConfig>((key, value) => {
+        if (key === CONFIG_KEY) {
+          getStoreActions().syncFromTauriStore(value ?? null);
         }
       });
     };
 
     setup();
+
     return () => {
       unsubscribePromise?.then((unsub) => unsub());
     };
-  }, [store, validateAndUpdateStatus]);
+  }, [tauriStore]);
 
-  useEffect(() => {
-    const findParent = async () => {
-      if (config.fileLocation) {
-        try {
-          const parent = await dirname(config.fileLocation);
-          setParentPath(parent);
-        } catch {
-          setParentPath(null);
-        }
-      } else {
-        setParentPath(null);
+  const handleConfigFileChange = useCallback(() => {
+    if (storageAdapter) {
+      getStoreActions().handleConfigFileChange(storageAdapter);
+    }
+  }, [storageAdapter]);
+
+  useFileWatcher(configFilePath, handleConfigFileChange);
+
+  const handleParentDirChange = useCallback(
+    (event: { type: string; paths: string[] }) => {
+      if (event.type === "remove") {
+        getStoreActions().handleParentDirectoryRemoval(event.paths);
       }
-    };
-    findParent();
-  }, [config.fileLocation]);
-
-  useFileWatcher(
-    configFilePath,
-    useCallback(() => {
-      handleConfigFileChange();
-    }, [handleConfigFileChange]),
+    },
+    [],
   );
 
-  useFileWatcher(
-    parentPath,
-    useCallback(
-      async (event) => {
-        if (
-          event.type === "remove" &&
-          config.fileLocation &&
-          isMountedRef.current
-        ) {
-          const isTargetDeleted = event.paths.some(
-            (p) =>
-              p.includes(config.fileLocation!) ||
-              config.fileLocation!.includes(p),
-          );
+  useFileWatcher(parentPath, handleParentDirChange, {
+    enabled: !!parentPath && status === "ready",
+  });
 
-          if (isTargetDeleted) {
-            const exists = await isValidDirectory(config.fileLocation);
-            if (!exists && isMountedRef.current) {
-              setStatus("needs-setup");
-            }
-          }
-        }
-      },
-      [config.fileLocation],
-    ),
-    { enabled: !!parentPath && status === "ready" },
+  const setFileLocation = useCallback(
+    async (path: string): Promise<void> => {
+      if (!storageAdapter) {
+        throw new Error("Storage not initialized");
+      }
+      await getStoreActions().setFileLocation(path, storageAdapter);
+    },
+    [storageAdapter],
   );
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
+  const clearConfig = useCallback(async (): Promise<void> => {
+    if (!storageAdapter) return;
+    await getStoreActions().clearConfig(storageAdapter);
+  }, [storageAdapter]);
+
+  const refresh = useCallback(async (): Promise<void> => {
+    if (!storageAdapter) return;
+    await getStoreActions().refresh(storageAdapter);
+  }, [storageAdapter]);
+
+  const contextValue = useMemo<NSDesktopContextValue>(
+    () => ({
+      config,
+      status,
+      isReady,
+      needsSetup,
+      error,
+      initComplete,
+      setFileLocation,
+      clearConfig,
+      refresh,
+    }),
+    [
+      config,
+      status,
+      isReady,
+      needsSetup,
+      error,
+      initComplete,
+      setFileLocation,
+      clearConfig,
+      refresh,
+    ],
+  );
 
   return (
-    <NSDesktopContext.Provider
-      value={{
-        config,
-        status,
-        isReady: status === "ready",
-        needsSetup: status === "needs-setup",
-        error,
-        setFileLocation,
-        clearConfig,
-        refresh,
-      }}
-    >
+    <NSDesktopContext.Provider value={contextValue}>
       {children}
     </NSDesktopContext.Provider>
   );

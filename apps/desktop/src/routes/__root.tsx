@@ -17,7 +17,6 @@ export const Route = createRootRoute({
 
 function RouteComponent() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [deviceInfo, setDeviceInfo] = useState<LocalDeviceInfo | undefined>(
     undefined,
   );
@@ -32,11 +31,7 @@ function RouteComponent() {
 
   return (
     <ThemeProvider>
-      <NekoShareProvider
-        router={router}
-        currentDevice={deviceInfo}
-        globalLoading={{ loading, setLoading }}
-      >
+      <NekoShareProvider router={router} currentDevice={deviceInfo}>
         <NSDesktopProvider>
           <Outlet />
         </NSDesktopProvider>
