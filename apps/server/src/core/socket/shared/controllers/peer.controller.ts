@@ -40,6 +40,7 @@ interface PeerIncomingRequestPayload {
 	sourceDeviceId: string;
 	sourceDeviceName: string;
 	sourceIp: string;
+	fingerprint: string;
 }
 
 interface PeerConnectionInfoPayload {
@@ -206,6 +207,7 @@ export function registerPeerHandlers<T extends IConnection>(router: PacketRouter
 				sourceDeviceId: sourceDevice.id,
 				sourceDeviceName: sourceDevice.name,
 				sourceIp: sourceDevice.ipv4,
+				fingerprint: sourceDevice.fingerprint || "",
 			};
 			sendJsonPacket(targetConnection, PacketType.PEER_INCOMING_REQUEST, incomingRequest);
 
@@ -417,6 +419,7 @@ export function registerPeerHandlers<T extends IConnection>(router: PacketRouter
 	router.register(PacketType.PEER_SOCKET_READY, handlePeerSocketReady);
 	router.register(PacketType.PEER_CONNECTION_CONFIRM, handlePeerConnectionConfirm);
 	router.register(PacketType.PEER_DISCONNECT, handlePeerDisconnect);
+	Logger.debug(transportType, "PeerController handlers registered");
 }
 
 export function handleDeviceSocketDisconnect(deviceId: string): void {
