@@ -1,1 +1,1 @@
-export type { SessionData } from "@workspace/app-ui/lib/auth";
+export type { InferSession } from "@workspace/app-ui/lib/auth";

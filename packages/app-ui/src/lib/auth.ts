@@ -12,7 +12,7 @@ export const authClient = createAuthClient({
 	plugins: [usernameClient(), customSessionClient<InferSession>(), oneTimeTokenClient()],
 });
 
-interface InferSession extends Auth {
+export interface InferSession extends Auth {
 	user: InferUserFromClient<BetterAuthClientOptions> & {
 		deviceId: string;
 	};
