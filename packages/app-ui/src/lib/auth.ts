@@ -1,4 +1,5 @@
-import { usernameClient } from "better-auth/client/plugins";
+import { Auth, BetterAuthClientOptions, InferSessionFromClient, InferUserFromClient } from "better-auth";
+import { customSessionClient, usernameClient } from "better-auth/client/plugins";
 import { oneTimeTokenClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
@@ -8,13 +9,18 @@ import { AppError, createInternalError, ErrorCategory, ErrorSource, failure, typ
 export const authClient = createAuthClient({
 	baseURL: config.apiBaseUrl,
 	basePath: "/auth",
-	plugins: [usernameClient(), oneTimeTokenClient()],
+	plugins: [usernameClient(), customSessionClient<InferSession>(), oneTimeTokenClient()],
 });
 
-export type SessionData = typeof authClient.$Infer.Session;
+interface InferSession extends Auth {
+	user: InferUserFromClient<BetterAuthClientOptions> & {
+		deviceId: string;
+	};
+	session: InferSessionFromClient<BetterAuthClientOptions>;
+}
 
 export interface SessionResult {
-	session: SessionData | null;
+	session: InferSession | null;
 	isAuthenticated: boolean;
 }
 
@@ -27,7 +33,7 @@ export interface AuthenticationStatus {
 }
 
 interface SessionCache {
-	promise: Promise<SessionData | null> | null;
+	promise: Promise<InferSession | null> | null;
 	lastFetchTime: number;
 }
 
@@ -60,7 +66,7 @@ export async function getCachedSession(): Promise<Result<SessionResult>> {
 			}
 
 			return success({
-				session: data,
+				session: data as InferSession,
 				isAuthenticated: !!data?.user,
 			});
 		}
@@ -80,7 +86,7 @@ export async function getCachedSession(): Promise<Result<SessionResult>> {
 					console.warn("Session fetch warning:", error.message);
 					return null;
 				}
-				return data;
+				return data as InferSession;
 			})
 			.catch((error: unknown) => {
 				console.error("Session fetch error:", error);
@@ -134,7 +140,7 @@ export async function isAuthenticated(): Promise<boolean> {
 	return result.status === "success" && result.data.isAuthenticated;
 }
 
-export async function getSession(): Promise<SessionData | null> {
+export async function getSession(): Promise<InferSession | null> {
 	const result = await getCachedSession();
 	if (result.status === "error") {
 		return null;
