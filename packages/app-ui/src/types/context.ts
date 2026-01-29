@@ -52,7 +52,6 @@ export interface NekoShareContextType {
 export interface NekoShareProviderProps<TRouter extends Router = Router> {
 	router: TRouter;
 	children: React.ReactNode;
-	globalLoading: GlobalLoadingState;
 	currentDevice: LocalDeviceInfo | undefined;
 }
 

@@ -9,8 +9,8 @@ import { SessionTerminatedDialog } from "@workspace/app-ui/components/session-te
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
 import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
 import { PacketType, socketClient } from "@workspace/app-ui/lib/nk-socket/index";
-import { useGlobalLoading, useMode, useNekoShareStore } from "@workspace/app-ui/lib/store/nekoshareStore";
-import type { GlobalLoadingState, Router, UseNekoShareReturn } from "@workspace/app-ui/types/context";
+import { useGlobalLoading, useMode, useNekoShareStore, useSetMode } from "@workspace/app-ui/lib/store/nekoshareStore";
+import type { Router, UseNekoShareReturn } from "@workspace/app-ui/types/context";
 import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
 
 import { authClient, invalidateSessionCache } from "../lib/auth";
@@ -68,26 +68,18 @@ const INITIAL_SESSION_STATE: SessionTerminatedState = {
 interface NekoShareProviderProps<TRouter extends Router = Router> {
 	router: TRouter;
 	children: ReactNode;
-	globalLoading: GlobalLoadingState;
 	currentDevice: LocalDeviceInfo | undefined;
 }
 
 const NekoShareProvider = <TRouter extends Router>({
 	router,
 	children,
-	globalLoading,
 	currentDevice,
 }: NekoShareProviderProps<TRouter>): React.ReactElement => {
 	const [sessionTerminated, setSessionTerminated] = useState<SessionTerminatedState>(INITIAL_SESSION_STATE);
 
 	const mode = useMode();
-
-	const storeSetGlobalLoading = useNekoShareStore((s) => s.setGlobalLoading);
-	useMemo(() => {
-		if (globalLoading.loading) {
-			storeSetGlobalLoading(true);
-		}
-	}, [globalLoading.loading, storeSetGlobalLoading]);
+	const setMode = useSetMode();
 
 	usePacketRouter({
 		[PacketType.DEVICE_REMOVED]: (result) => {
@@ -103,6 +95,7 @@ const NekoShareProvider = <TRouter extends Router>({
 
 			if (isCurrentDeviceRemoved) {
 				console.log("[NekoShareProvider] Current device was removed, showing termination dialog");
+				setMode("home");
 				setSessionTerminated({
 					open: true,
 					terminator: terminatedBy,
