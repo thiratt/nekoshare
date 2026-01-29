@@ -1,5 +1,6 @@
 import type { BetterAuthOptions } from "better-auth";
-import { bearer, oneTimeToken, username } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
+import { bearer, customSession, oneTimeToken, username } from "better-auth/plugins";
 
 import { db } from "@/adapters/db";
 import { userPreference } from "@/adapters/db/schemas/n";
@@ -49,16 +50,34 @@ const socialProvidersOptions: BetterAuthOptions["socialProviders"] = {
 };
 
 const pluginsOptions = [
+	bearer(),
+	customSession(async ({ user, session }, ctx) => {
+		const userDeviceId = await db.query.device.findFirst({
+			where: (devices) => eq(devices.userId, session.userId),
+		});
+		return {
+			user: {
+				...user,
+				deviceId: userDeviceId ? userDeviceId.id : null,
+			},
+			session: {
+				...session,
+			},
+		};
+	}),
+	oneTimeToken(),
 	username({
 		usernameValidator(username) {
 			return !RESERVED_USERNAMES.includes(username as (typeof RESERVED_USERNAMES)[number]);
 		},
 	}),
-	oneTimeToken(),
-	bearer(),
 ];
 
-const trustedOriginsOptions: BetterAuthOptions["trustedOrigins"] = ["http://localhost:7780", "http://localhost:7787", "http://tauri.localhost"];
+const trustedOriginsOptions: BetterAuthOptions["trustedOrigins"] = [
+	"http://localhost:7780",
+	"http://localhost:7787",
+	"http://tauri.localhost",
+];
 
 const loggerOptions: BetterAuthOptions["logger"] = {
 	level: env.NODE_ENV === "production" ? "info" : "debug",
