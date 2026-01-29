@@ -88,6 +88,7 @@ export interface PeerIncomingRequestPayload {
 	readonly sourceDeviceId: string;
 	readonly sourceDeviceName: string;
 	readonly sourceIp: string;
+	readonly fingerprint: string;
 }
 
 export interface PeerConnectionInfoPayload {
