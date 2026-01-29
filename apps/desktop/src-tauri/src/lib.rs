@@ -2,7 +2,10 @@ use tauri::Manager;
 use tokio::sync::Mutex;
 
 mod commands;
+mod config;
 mod core;
+
+use commands::socket::SocketState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -12,7 +15,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
-            app.manage(Mutex::new(core::socket::NekoSocket::new()));
+            app.manage(Mutex::new(SocketState::new()));
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -23,11 +26,20 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Device commands
             commands::device::ns_get_device_info,
-            commands::socket::connect_socket,
-            commands::socket::disconnect_socket,
-            commands::socket::send_socket_data,
-            commands::socket::is_socket_connected,
+            commands::device::ns_get_device_info_with_key,
+            commands::device::ns_get_key,
+            // Socket client commands
+            commands::socket::socket_client_connect,
+            commands::socket::socket_client_connect_to,
+            commands::socket::socket_client_is_connected_to_server,
+            commands::socket::socket_client_disconnect_from,
+            commands::socket::socket_client_disconnect_from_server,
+            commands::socket::socket_client_is_connected,
+            // Socket server commands
+            commands::socket::socket_server_start,
+            commands::socket::socket_server_stop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
