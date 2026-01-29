@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -12,6 +12,27 @@
     <link rel="apple-touch-icon" href="/logo192.png" />
     <link rel="manifest" href="/manifest.json" />
     <title>Create TanStack App - desktop</title>
+    <script>
+      (function () {
+        if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+      })();
+    </script>
+
+    <style>
+      html {
+        background-color: oklch(0.9821 0 0);
+        color: oklch(0.1776 0 0);
+      }
+
+      html.dark {
+        background-color: oklch(0.1776 0 0);
+        color: oklch(0.9821 0 0);
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
