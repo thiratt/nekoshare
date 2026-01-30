@@ -1,10 +1,27 @@
 use std::sync::Arc;
 use tauri::State;
 use tokio::sync::Mutex;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::core::socket::{
     manager::SocketClientManager, LinkKey, RouteKind, SocketClientConfig, SocketServerManager,
 };
+
+#[derive(Debug, Error, Serialize, Deserialize)]
+pub enum SocketCommandError {
+    #[error("Invalid UUID format for {field}: {value}")]
+    InvalidUuid { field: &'static str, value: String },
+
+    #[error("Invalid route type: {0}. Must be 'direct' or 'relay'")]
+    InvalidRouteType(String),
+
+    #[error("Connection failed: {0}")]
+    ConnectionFailed(String),
+
+    #[error("Server error: {0}")]
+    ServerError(String),
+}
 
 pub struct SocketState {
     client_manager: Arc<SocketClientManager>,
@@ -45,6 +62,23 @@ pub struct ServerStartResponse {
     pub message: String,
 }
 
+#[inline]
+fn parse_uuid(value: &str, field: &'static str) -> Result<uuid::Uuid, SocketCommandError> {
+    uuid::Uuid::parse_str(value).map_err(|_| SocketCommandError::InvalidUuid {
+        field,
+        value: value.to_string(),
+    })
+}
+
+#[inline]
+fn parse_route_kind(route: &str) -> Result<RouteKind, SocketCommandError> {
+    match route {
+        "direct" => Ok(RouteKind::Direct),
+        "relay" => Ok(RouteKind::Relay),
+        _ => Err(SocketCommandError::InvalidRouteType(route.to_string())),
+    }
+}
+
 // =============================================================================
 // Client Commands
 // =============================================================================
@@ -54,34 +88,29 @@ pub async fn socket_client_connect(
     state: State<'_, Mutex<SocketState>>,
     device_id: String,
     token: String,
-) -> Result<ClientConnectionResponse, String> {
+) -> Result<ClientConnectionResponse, SocketCommandError> {
     let client_manager = {
         let socket_state = state.lock().await;
-        socket_state.client_manager.clone()
+        Arc::clone(&socket_state.client_manager)
     };
 
     let client = client_manager
         .connect(device_id, token)
         .await
-        .map_err(|e| format!("Connection failed: {:#}", e))?;
+        .map_err(|e| SocketCommandError::ConnectionFailed(format!("{:#}", e)))?;
 
     let is_connected = client.is_connected().await;
     let is_authenticated = client.is_authenticated().await;
-    let message = if is_connected && is_authenticated {
-        Some("Connected and authenticated".to_string())
-    } else if is_connected {
-        Some("Connected but not authenticated".to_string())
-    } else {
-        Some("Disconnected".to_string())
+
+    let (status, message) = match (is_connected, is_authenticated) {
+        (true, true) => (ConnectionStatus::Connected, "Connected and authenticated"),
+        (true, false) => (ConnectionStatus::Disconnected, "Connected but not authenticated"),
+        _ => (ConnectionStatus::Disconnected, "Disconnected"),
     };
 
     Ok(ClientConnectionResponse {
-        status: if is_connected && is_authenticated {
-            ConnectionStatus::Connected
-        } else {
-            ConnectionStatus::Disconnected
-        },
-        message,
+        status,
+        message: Some(message.to_string()),
     })
 }
 
@@ -92,10 +121,10 @@ pub async fn socket_client_connect_to(
     target_id: String,
     target_address: String,
     fingerprint: String,
-) -> Result<ClientConnectionResponse, String> {
+) -> Result<ClientConnectionResponse, SocketCommandError> {
     let client_manager = {
         let socket_state = state.lock().await;
-        socket_state.client_manager.clone()
+        Arc::clone(&socket_state.client_manager)
     };
 
     let config = SocketClientConfig::new(device_id, target_address.clone())
@@ -105,7 +134,7 @@ pub async fn socket_client_connect_to(
     client_manager
         .connect_to(config)
         .await
-        .map_err(|e| format!("Connection to {} failed: {:#}", target_address, e))?;
+        .map_err(|e| SocketCommandError::ConnectionFailed(format!("{} - {:#}", target_address, e)))?;
 
     Ok(ClientConnectionResponse {
         status: ConnectionStatus::Connected,
@@ -119,25 +148,17 @@ pub async fn socket_client_disconnect_from(
     device_id: String,
     target_id: String,
     route: String,
-) -> Result<ClientConnectionResponse, String> {
+) -> Result<ClientConnectionResponse, SocketCommandError> {
     let client_manager = {
         let socket_state = state.lock().await;
-        socket_state.client_manager.clone()
+        Arc::clone(&socket_state.client_manager)
     };
 
-    let local =
-        uuid::Uuid::parse_str(&device_id).map_err(|_| "device_id must be UUID".to_string())?;
-    let peer =
-        uuid::Uuid::parse_str(&target_id).map_err(|_| "target_id must be UUID".to_string())?;
-
-    let route_kind = match route.as_str() {
-        "direct" => RouteKind::Direct,
-        "relay" => RouteKind::Relay,
-        _ => return Err("route must be 'direct' or 'relay'".to_string()),
-    };
+    let local = parse_uuid(&device_id, "device_id")?;
+    let peer = parse_uuid(&target_id, "target_id")?;
+    let route_kind = parse_route_kind(&route)?;
 
     let link = LinkKey::new(local, peer, route_kind);
-
     client_manager.disconnect(link).await;
 
     Ok(ClientConnectionResponse {
@@ -149,13 +170,14 @@ pub async fn socket_client_disconnect_from(
 #[tauri::command]
 pub async fn socket_client_disconnect_from_server(
     state: State<'_, Mutex<SocketState>>,
-) -> Result<ClientConnectionResponse, String> {
+) -> Result<ClientConnectionResponse, SocketCommandError> {
     let client_manager = {
         let socket_state = state.lock().await;
-        socket_state.client_manager.clone()
+        Arc::clone(&socket_state.client_manager)
     };
 
     client_manager.disconnect_from_server().await;
+
     Ok(ClientConnectionResponse {
         status: ConnectionStatus::Disconnected,
         message: Some("Disconnected from server".to_string()),
@@ -168,22 +190,15 @@ pub async fn socket_client_is_connected(
     device_id: String,
     target_id: String,
     route: String,
-) -> Result<ClientConnectionResponse, String> {
+) -> Result<ClientConnectionResponse, SocketCommandError> {
     let client_manager = {
         let socket_state = state.lock().await;
-        socket_state.client_manager.clone()
+        Arc::clone(&socket_state.client_manager)
     };
 
-    let local =
-        uuid::Uuid::parse_str(&device_id).map_err(|_| "device_id must be UUID".to_string())?;
-    let peer =
-        uuid::Uuid::parse_str(&target_id).map_err(|_| "target_id must be UUID".to_string())?;
-
-    let route_kind = match route.as_str() {
-        "direct" => RouteKind::Direct,
-        "relay" => RouteKind::Relay,
-        _ => return Err("route must be 'direct' or 'relay'".to_string()),
-    };
+    let local = parse_uuid(&device_id, "device_id")?;
+    let peer = parse_uuid(&target_id, "target_id")?;
+    let route_kind = parse_route_kind(&route)?;
 
     let link = LinkKey::new(local, peer, route_kind);
 
@@ -201,10 +216,10 @@ pub async fn socket_client_is_connected(
 #[tauri::command]
 pub async fn socket_client_is_connected_to_server(
     state: State<'_, Mutex<SocketState>>,
-) -> Result<ClientConnectionResponse, String> {
+) -> Result<ClientConnectionResponse, SocketCommandError> {
     let client_manager = {
         let socket_state = state.lock().await;
-        socket_state.client_manager.clone()
+        Arc::clone(&socket_state.client_manager)
     };
 
     let status = if client_manager.is_connected_to_server().await {
@@ -212,6 +227,7 @@ pub async fn socket_client_is_connected_to_server(
     } else {
         ConnectionStatus::Disconnected
     };
+
     Ok(ClientConnectionResponse {
         status,
         message: None,
@@ -221,34 +237,33 @@ pub async fn socket_client_is_connected_to_server(
 // =============================================================================
 // Server Commands
 // =============================================================================
+
 #[tauri::command]
 pub async fn socket_server_start(
     state: State<'_, Mutex<SocketState>>,
     id: String,
     fingerprint: String,
-) -> Result<ServerStartResponse, String> {
+) -> Result<ServerStartResponse, SocketCommandError> {
     let socket_state = state.lock().await;
     let server_manager = &socket_state.server_manager;
 
     let port = server_manager
         .create_server(id, fingerprint)
         .await
-        .map_err(|e| format!("Failed to start server: {:#}", e))?;
+        .map_err(|e| SocketCommandError::ServerError(format!("{:#}", e)))?;
 
-    let response = ServerStartResponse {
-        port: port,
-        address: "".to_string(),
+    Ok(ServerStartResponse {
+        port,
+        address: String::new(),
         message: format!("Server started on port {}", port),
-    };
-
-    Ok(response)
+    })
 }
 
 #[tauri::command]
 pub async fn socket_server_stop(
     state: State<'_, Mutex<SocketState>>,
     id: String,
-) -> Result<String, String> {
+) -> Result<String, SocketCommandError> {
     let socket_state = state.lock().await;
     let server_manager = &socket_state.server_manager;
 
