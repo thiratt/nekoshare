@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import {
   createFileRoute,
@@ -7,10 +7,17 @@ import {
   redirect,
   useLocation,
 } from "@tanstack/react-router";
+import { stat } from "@tauri-apps/plugin-fs";
 import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 
 import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
+import {
+  createFileEntry,
+  DropOverlayProvider,
+  DropOverlayUIWithDefaults,
+  type FileEntry,
+} from "@workspace/app-ui/components/ui/drop-overlay/index";
 import {
   useNekoShare,
   useSetGlobalLoading,
@@ -24,6 +31,7 @@ import { useTheme } from "@workspace/app-ui/providers/theme-provider";
 import { DesktopTitlebar } from "@/components/navbar";
 import { SetupApplicationUI } from "@/components/setup";
 import { useNSDesktop } from "@/context/NSDesktopContext";
+import { useTauriFileDrop } from "@/hooks/use-tauri-file-drop";
 import { getCachedSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/home")({
@@ -40,6 +48,57 @@ export const Route = createFileRoute("/home")({
   },
   component: RouteComponent,
 });
+
+interface HomeContentProps {
+  isReady: boolean;
+  titlebarHelperActions: {
+    icon: React.ReactNode;
+    onClick: () => void;
+    badge?: boolean;
+    actived?: boolean;
+  }[];
+  location: { pathname: string };
+  notificationStatus: "on" | "off";
+}
+
+function HomeContent({
+  isReady,
+  titlebarHelperActions,
+  location,
+  notificationStatus,
+}: HomeContentProps) {
+  useTauriFileDrop({ enabled: isReady });
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden">
+      {isReady ? (
+        <>
+          <DesktopTitlebar helperActions={titlebarHelperActions} />
+          <div className="flex flex-1 divide-x overflow-hidden">
+            <HomeSidebar
+              linkComponent={Link}
+              pathname={location.pathname}
+              mode="desktop"
+              collapseWhenNotificationOpen={notificationStatus === "on"}
+            />
+            <div className="flex-1 bg-muted p-4 flex flex-col min-w-0 overflow-hidden">
+              <Outlet />
+            </div>
+            <NotificationSidebar />
+          </div>
+          <DropOverlayUIWithDefaults />
+        </>
+      ) : (
+        <>
+          <DesktopTitlebar />
+          <div className="flex flex-1 divide-x items-center justify-center">
+            <SetupApplicationUI />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function RouteComponent() {
   const { status, isReady, initComplete } = useNSDesktop();
@@ -85,36 +144,46 @@ function RouteComponent() {
     setGlobalLoading(false);
   }, [setGlobalLoading]);
 
+  const handleProcessFiles = useCallback(
+    async (paths: string[]): Promise<FileEntry[]> => {
+      const promises = paths.map(async (path) => {
+        try {
+          const fileStat = await stat(path);
+          return createFileEntry(path, fileStat.size);
+        } catch (error) {
+          console.error(`Failed to get stats for ${path}:`, error);
+          return createFileEntry(path, 0);
+        }
+      });
+
+      return Promise.all(promises);
+    },
+    [],
+  );
+
+  const handleQuickUpload = useCallback(
+    (files: string[], targetId: string, targetType: "device" | "friend") => {
+      console.log(`Quick upload to ${targetType}: ${targetId}`, files);
+      // TODO: Implement immediate upload logic
+    },
+    [],
+  );
+
   if (!initComplete || globalLoading || status === "loading") {
     return null;
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      {isReady ? (
-        <>
-          <DesktopTitlebar helperActions={titlebarHelperActions} />
-          <div className="flex flex-1 divide-x overflow-hidden">
-            <HomeSidebar
-              linkComponent={Link}
-              pathname={location.pathname}
-              mode="desktop"
-              collapseWhenNotificationOpen={notificationStatus === "on"}
-            />
-            <div className="flex-1 bg-muted p-4 flex flex-col min-w-0 overflow-hidden">
-              <Outlet />
-            </div>
-            <NotificationSidebar />
-          </div>
-        </>
-      ) : (
-        <>
-          <DesktopTitlebar />
-          <div className="flex flex-1 divide-x items-center justify-center">
-            <SetupApplicationUI />
-          </div>
-        </>
-      )}
-    </div>
+    <DropOverlayProvider
+      onProcessFiles={handleProcessFiles}
+      onQuickUpload={handleQuickUpload}
+    >
+      <HomeContent
+        isReady={isReady}
+        titlebarHelperActions={titlebarHelperActions}
+        location={location}
+        notificationStatus={notificationStatus}
+      />
+    </DropOverlayProvider>
   );
 }
