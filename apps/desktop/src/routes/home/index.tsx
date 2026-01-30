@@ -1,14 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { remove } from "@tauri-apps/plugin-fs";
+import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
-import { HomeUI } from "@workspace/app-ui/components/ui/home/index";
+import {
+  generateStableId,
+  HomeUI,
+} from "@workspace/app-ui/components/ui/home/index";
+import type { HomeProps } from "@workspace/app-ui/types/home";
 
 import { useWorkspace } from "@/hooks/useWorkspace";
 
 export const Route = createFileRoute("/home/")({
   component: RouteComponent,
 });
+
+const tauriInvoke = invoke as HomeProps["invoke"];
 
 function RouteComponent() {
   const { files, directoryPath, status, refresh } = useWorkspace();
@@ -24,6 +30,7 @@ function RouteComponent() {
         onBulkDelete={() => {}}
         data={[]}
         loading={false}
+        invoke={tauriInvoke}
       />
     );
   }
@@ -34,16 +41,16 @@ function RouteComponent() {
         console.log("Clicked item with id:", id);
       }}
       onItemReveal={async (id) => {
-        const file = files.find((_, index) => index + 1 === id);
+        const file = files.find((f) => generateStableId(f.path) === id);
         if (file && directoryPath) {
           await revealItemInDir(file.path);
         }
       }}
       onItemRemove={async (id) => {
-        const file = files.find((_, index) => index + 1 === id);
+        const file = files.find((f) => generateStableId(f.path) === id);
         if (file) {
           try {
-            await remove(file.path, { recursive: file.isDirectory });
+            await invoke("delete_file", { path: file.path });
             await refresh();
           } catch (err) {
             console.error("Failed to delete file:", err);
@@ -55,6 +62,7 @@ function RouteComponent() {
       }}
       data={files}
       loading={isLoading}
+      invoke={tauriInvoke}
     />
   );
 }

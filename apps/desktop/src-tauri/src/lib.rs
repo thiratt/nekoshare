@@ -30,6 +30,13 @@ pub fn run() {
             commands::device::ns_get_device_info,
             commands::device::ns_get_device_info_with_key,
             commands::device::ns_get_key,
+            // file commands
+            commands::file::read_files_in_dir,
+            commands::file::read_files_ready_to_use,
+            commands::file::delete_file,
+            // Search commands
+            commands::search::search_items,
+            commands::search::search_items_paginated,
             // Socket client commands
             commands::socket::socket_client_connect,
             commands::socket::socket_client_connect_to,

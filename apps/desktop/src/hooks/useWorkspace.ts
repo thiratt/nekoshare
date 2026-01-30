@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { join } from "@tauri-apps/api/path";
-import { readDir, stat } from "@tauri-apps/plugin-fs";
+import { invoke } from "@tauri-apps/api/core";
 
 import { useFileWatcher } from "./useFileWatcher";
 
@@ -29,25 +28,14 @@ interface UseWorkspaceReturn {
 }
 
 async function readFilesFromDirectory(path: string): Promise<FileMetadata[]> {
-  const entries = await readDir(path);
+  const rawFiles = await invoke<FileMetadata[]>("read_files_in_dir", { path });
 
-  const filePromises = entries.map(async (entry) => {
-    const filePath = await join(path, entry.name);
-    const fileStat = await stat(filePath);
-
-    return {
-      name: entry.name,
-      size: fileStat.size,
-      isFile: fileStat.isFile,
-      isDirectory: fileStat.isDirectory,
-      path: filePath,
-      createdAt: fileStat.birthtime ? new Date(fileStat.birthtime) : null,
-      modifiedAt: fileStat.mtime ? new Date(fileStat.mtime) : null,
-      accessedAt: fileStat.atime ? new Date(fileStat.atime) : null,
-    } as FileMetadata;
-  });
-
-  return Promise.all(filePromises);
+  return rawFiles.map((f) => ({
+    ...f,
+    createdAt: f.createdAt ? new Date(Number(f.createdAt)) : null,
+    modifiedAt: f.modifiedAt ? new Date(Number(f.modifiedAt)) : null,
+    accessedAt: f.accessedAt ? new Date(Number(f.accessedAt)) : null,
+  }));
 }
 
 export function useWorkspace(): UseWorkspaceReturn {
