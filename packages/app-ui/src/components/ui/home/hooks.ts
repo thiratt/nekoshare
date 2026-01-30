@@ -3,11 +3,11 @@
     and move this hook to appropriate location
 */
 
-import { useCallback,useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { FileData, ShareItem, Status } from "@workspace/app-ui/types/home";
 
-import { formatFileSize, getFileType,MOCK_DEVICES } from "./constants";
+import { formatFileSize, getFileType, MOCK_DEVICES } from "./constants";
 
 interface UseShareDataProps {
 	data: FileData[];
@@ -19,6 +19,17 @@ interface UseShareDataReturn {
 	loading: boolean;
 	refreshData: () => void;
 	setItems: React.Dispatch<React.SetStateAction<ShareItem[]>>;
+}
+
+export function generateStableId(path: string): number {
+	let hash = 0;
+	for (let i = 0; i < path.length; i++) {
+		const char = path.charCodeAt(i);
+		hash = (hash << 5) - hash + char;
+		hash = hash & hash;
+	}
+
+	return Math.abs(hash);
 }
 
 export function useShareData({ data, externalLoading }: UseShareDataProps): UseShareDataReturn {
@@ -36,7 +47,7 @@ export function useShareData({ data, externalLoading }: UseShareDataProps): UseS
 			const mockDevice = isFromMe ? MOCK_DEVICES[index % MOCK_DEVICES.length] : null;
 
 			return {
-				id: index + 1,
+				id: generateStableId(file.path),
 				name: file.name,
 				from: isFromMe ? "me" : "buddy",
 				device: mockDevice ?? null,

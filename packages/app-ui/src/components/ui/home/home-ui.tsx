@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
 	flexRender,
@@ -8,7 +8,7 @@ import {
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
-import Fuse from "fuse.js";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
 	LuChevronDown,
 	LuCopy,
@@ -38,47 +38,165 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
-import { ScrollArea, ScrollBar } from "@workspace/ui/components/scroll-area";
 import { SearchInput } from "@workspace/ui/components/search-input";
 import { Separator } from "@workspace/ui/components/separator";
-import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/table";
 import { useToast } from "@workspace/ui/hooks/use-toast";
+import { cn } from "@workspace/ui/lib/utils";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
-import type { HomeProps } from "@workspace/app-ui/types/home";
+import type { HomeProps, ShareItem } from "@workspace/app-ui/types/home";
 
 import { useColumns } from "./columns";
 import { DeleteBulkDialog, DeleteItemDialog } from "./dialogs";
 import { useShareData } from "./hooks";
+import { useFileSearch } from "./use-search";
 
-export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading: externalLoading }: HomeProps) {
+const ROW_HEIGHT = 48;
+const OVERSCAN_COUNT = 8;
+
+const COLUMN_CONFIG = {
+	select: { minWidth: 40, flex: 0 },
+	name: { minWidth: 150, flex: 3 },
+	from: { minWidth: 70, flex: 0.5 },
+	device: { minWidth: 120, flex: 1 },
+	size: { minWidth: 80, flex: 0.5 },
+	status: { minWidth: 90, flex: 0.5 },
+	uploadedAt: { minWidth: 140, flex: 1 },
+	actions: { minWidth: 80, flex: 0.5 },
+} as const;
+
+type ColumnId = keyof typeof COLUMN_CONFIG;
+
+interface VirtualRowProps {
+	row: ReturnType<ReturnType<typeof useReactTable<ShareItem>>["getRowModel"]>["rows"][number];
+	virtualStart: number;
+	isSelected: boolean;
+	onItemClick: (id: number) => void;
+	onItemReveal: (id: number) => void;
+	handleCopyFilename: (id: number) => void;
+	handleItemDelete: (id: number) => void;
+}
+
+const VirtualRow = memo(
+	function VirtualRow({
+		row,
+		virtualStart,
+		isSelected,
+		onItemClick,
+		onItemReveal,
+		handleCopyFilename,
+		handleItemDelete,
+	}: VirtualRowProps) {
+		return (
+			<ContextMenu>
+				<ContextMenuTrigger asChild>
+					<div
+						role="row"
+						onClick={() => onItemClick(row.original.id)}
+						data-state={isSelected ? "selected" : undefined}
+						className="hover:bg-muted/50 data-[state=selected]:bg-muted absolute left-0 flex items-center border-b border-border transition-colors"
+						style={{
+							height: `${ROW_HEIGHT}px`,
+							transform: `translateY(${virtualStart}px)`,
+							willChange: "transform",
+							width: "100%",
+						}}
+					>
+						{row.getVisibleCells().map((cell) => {
+							const columnId = cell.column.id as ColumnId;
+							const config = COLUMN_CONFIG[columnId] ?? { minWidth: 50, flex: 1 };
+
+							return (
+								<div
+									key={cell.id}
+									role="cell"
+									className="flex items-center px-2 shrink-0 overflow-hidden"
+									style={{
+										flex: `${config.flex} 1 0%`,
+										minWidth: `${config.minWidth}px`,
+										height: `${ROW_HEIGHT}px`,
+									}}
+								>
+									{flexRender(cell.column.columnDef.cell, cell.getContext())}
+								</div>
+							);
+						})}
+					</div>
+				</ContextMenuTrigger>
+				<ContextMenuContent className="w-52">
+					<ContextMenuItem>
+						<LuFile className="mr-2 h-4 w-4" />
+						คัดลอกไฟล์
+					</ContextMenuItem>
+					<ContextMenuItem onSelect={() => handleCopyFilename(row.original.id)}>
+						<LuType className="mr-2 h-4 w-4" />
+						คัดลอกชื่อไฟล์
+					</ContextMenuItem>
+					<ContextMenuSeparator />
+					<ContextMenuItem onSelect={() => onItemReveal(row.original.id)}>
+						<LuFolderInput className="mr-2 h-4 w-4" />
+						เปิดตำแหน่งไฟล์
+					</ContextMenuItem>
+					<ContextMenuSeparator />
+					<ContextMenuItem variant="destructive" onSelect={() => handleItemDelete(row.original.id)}>
+						<LuTrash2 className="mr-2 h-4 w-4" />
+						ลบ
+					</ContextMenuItem>
+				</ContextMenuContent>
+			</ContextMenu>
+		);
+	},
+	(prev, next) => {
+		return (
+			prev.isSelected === next.isSelected &&
+			prev.row.original === next.row.original &&
+			prev.virtualStart === next.virtualStart
+		);
+	},
+);
+
+export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading: externalLoading, invoke }: HomeProps) {
 	const { items, loading, refreshData, setItems } = useShareData({ data, externalLoading });
 
 	const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
 	const [deleteBulkIds, setDeleteBulkIds] = useState<number[]>([]);
-	const [query, setQuery] = useState("");
-	const deferredQuery = useDeferredValue(query);
-
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
 	const { toast } = useToast();
+	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-	const fuse = useMemo(
-		() =>
-			new Fuse(items, {
-				keys: ["name", "device", "friendName"],
-				threshold: 0.4,
-			}),
-		[items]
+	const rustSearchFn = useMemo(() => {
+		if (!invoke) return undefined;
+		return async (searchItems: ShareItem[], query: string, threshold: number) => {
+			const result = await invoke<{ items: ShareItem[] }>("search_items", {
+				items: searchItems,
+				query,
+				threshold,
+			});
+			return result.items;
+		};
+	}, [invoke]);
+
+	const { query, setQuery, filteredItems, isSearching, clearSearch, searchTimeMs } = useFileSearch({
+		items,
+		rustSearch: rustSearchFn,
+		debounceMs: 150,
+	});
+
+	const handleItemClick = useCallback(
+		(id: number) => {
+			onItemClick?.(id);
+		},
+		[onItemClick],
 	);
 
-	const filteredItems = useMemo(() => {
-		const trimmedQuery = deferredQuery.trim();
-		if (!trimmedQuery) return items;
-
-		return fuse.search(trimmedQuery).map((result) => result.item);
-	}, [items, deferredQuery, fuse]);
+	const handleItemReveal = useCallback(
+		(id: number) => {
+			onItemReveal?.(id);
+		},
+		[onItemReveal],
+	);
 
 	const handleItemDelete = useCallback((id: number) => {
 		setDeleteItemId(id);
@@ -104,6 +222,23 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 		getRowId: (row) => String(row.id),
 	});
 
+	const { rows } = table.getRowModel();
+
+	const virtualizer = useVirtualizer({
+		count: rows.length,
+		getScrollElement: () => scrollContainerRef.current,
+		estimateSize: useCallback(() => ROW_HEIGHT, []),
+		overscan: OVERSCAN_COUNT,
+	});
+
+	const virtualItems = virtualizer.getVirtualItems();
+	const totalHeight = virtualizer.getTotalSize();
+
+	useEffect(() => {
+		virtualizer.scrollToOffset(0);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [query]);
+
 	const selectedRowCount = table.getSelectedRowModel().rows.length;
 
 	const handleCopyFilename = useCallback(
@@ -114,7 +249,7 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 				toast("คัดลอกชื่อไฟล์แล้ว");
 			}
 		},
-		[items, toast]
+		[items, toast],
 	);
 
 	const handleCopyFiles = useCallback(() => {
@@ -129,19 +264,29 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 
 	const handleConfirmDelete = useCallback(async () => {
 		if (deleteItemId !== null) {
-			await onItemRemove(deleteItemId);
+			const idToDelete = deleteItemId;
 			setDeleteItemId(null);
-			toast("ลบรายการเรียบร้อยแล้ว");
+
+			setTimeout(async () => {
+				await onItemRemove(idToDelete);
+				toast("ลบรายการเรียบร้อยแล้ว");
+			}, 200);
 		}
 	}, [deleteItemId, onItemRemove, toast]);
 
 	const handleConfirmBulkDelete = useCallback(async () => {
-		const idsToDelete = new Set(deleteBulkIds);
-		await Promise.all(deleteBulkIds.map((id) => onItemRemove(id)));
-		setItems((prev) => prev.filter((item) => !idsToDelete.has(item.id)));
+		const idsToDelete = [...deleteBulkIds];
 		setDeleteBulkIds([]);
 		setRowSelection({});
-	}, [deleteBulkIds, setItems, onItemRemove]);
+
+		setTimeout(async () => {
+			const idsSet = new Set(idsToDelete);
+			await Promise.all(idsToDelete.map((id) => onItemRemove(id)));
+			setItems((prev) => prev.filter((item) => !idsSet.has(item.id)));
+
+			toast(`ลบ ${idsToDelete.length} รายการเรียบร้อยแล้ว`);
+		}, 200);
+	}, [deleteBulkIds, setItems, toast, onItemRemove]);
 
 	return (
 		<div className="h-full flex flex-col">
@@ -169,10 +314,11 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 							</Button>
 						</div>
 						<div className="flex items-center ms-auto gap-2">
+							{isSearching && <LuLoader className="w-4 h-4 animate-spin text-muted-foreground" />}
 							<SearchInput
 								searchQuery={query}
 								onSearchQuery={setQuery}
-								onClearSearch={() => setQuery("")}
+								onClearSearch={clearSearch}
 								className="w-64"
 							/>
 							<ButtonGroup>
@@ -197,91 +343,88 @@ export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading:
 					</div>
 					<Separator />
 				</CardHeader>
-				<CardContent className="flex-1 min-h-0 flex flex-col overflow-hidden">
-					<ScrollArea className="flex-1">
-						<table className="w-full text-sm caption-bottom text-left border-collapse">
-							<TableHeader className="sticky top-0 z-10 bg-card">
-								{table.getHeaderGroups().map((headerGroup) => (
-									<TableRow key={headerGroup.id} className="hover:bg-transparent border-none">
-										{headerGroup.headers.map((header) => (
-											<TableHead
-												key={header.id}
-												className="[&:not(:first-child):not(:last-child)]:hover:bg-muted [&:not(:first-child):not(:last-child)]:cursor-pointer transition-colors"
-												style={{ width: `${header.getSize()}px` }}
-											>
-												{header.isPlaceholder
-													? null
-													: flexRender(header.column.columnDef.header, header.getContext())}
-											</TableHead>
-										))}
-									</TableRow>
-								))}
-							</TableHeader>
-							<TableBody>
-								{loading ? (
-									<TableRow>
-										<TableCell colSpan={columns.length}>
-											<div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
-												<LuLoader className="w-4 h-4 animate-spin" /> กำลังโหลด
-											</div>
-										</TableCell>
-									</TableRow>
-								) : table.getRowModel().rows.length === 0 ? (
-									<TableRow>
-										<TableCell colSpan={columns.length} className="text-center py-8">
-											ไม่มีรายการ
-										</TableCell>
-									</TableRow>
-								) : (
-									table.getRowModel().rows.map((row) => (
-										<ContextMenu key={row.id}>
-											<ContextMenuTrigger asChild>
-												<TableRow
-													onClick={() => onItemClick(row.original.id)}
-													className="data-[state=open]:bg-muted/50"
-												>
-													{row.getVisibleCells().map((cell) => (
-														<TableCell key={cell.id}>
-															{flexRender(cell.column.columnDef.cell, cell.getContext())}
-														</TableCell>
-													))}
-												</TableRow>
-											</ContextMenuTrigger>
 
-											<ContextMenuContent className="w-52">
-												<ContextMenuItem>
-													<LuFile />
-													คัดลอกไฟล์
-												</ContextMenuItem>
-												<ContextMenuItem onSelect={() => handleCopyFilename(row.original.id)}>
-													<LuType />
-													คัดลอกชื่อไฟล์
-												</ContextMenuItem>
-												<ContextMenuSeparator />
-												<ContextMenuItem onSelect={() => onItemReveal(row.original.id)}>
-													<LuFolderInput />
-													เปิดตำแหน่งไฟล์
-												</ContextMenuItem>
-												<ContextMenuSeparator />
-												<ContextMenuItem
-													variant="destructive"
-													onSelect={() => handleItemDelete(row.original.id)}
-												>
-													<LuTrash2 />
-													ลบ
-												</ContextMenuItem>
-											</ContextMenuContent>
-										</ContextMenu>
-									))
-								)}
-							</TableBody>
-						</table>
-						<ScrollBar className="z-20" barClassname="bg-primary" />
-						<ScrollBar orientation="horizontal" barClassname="bg-primary" />
-					</ScrollArea>
-					<div className="flex text-sm text-muted-foreground pt-4 gap-2 border-t">
+				<CardContent className="flex-1 min-h-0 flex flex-col overflow-hidden">
+					<div className="shrink-0 border-b border-border bg-card">
+						<div className="flex items-center" style={{ width: "100%", height: `${ROW_HEIGHT}px` }}>
+							{table.getHeaderGroups().map((headerGroup) =>
+								headerGroup.headers.map((header) => {
+									const columnId = header.id as ColumnId;
+									const config = COLUMN_CONFIG[columnId] ?? { minWidth: 50, flex: 1 };
+
+									return (
+										<div
+											key={header.id}
+											role="columnheader"
+											className="flex items-center px-2 shrink-0 text-sm font-medium text-muted-foreground [&:not(:first-child):not(:last-child)]:hover:bg-muted [&:not(:first-child):not(:last-child)]:cursor-pointer transition-colors"
+											style={{
+												flex: `${config.flex} 1 0%`,
+												minWidth: `${config.minWidth}px`,
+												height: `${ROW_HEIGHT}px`,
+											}}
+										>
+											{header.isPlaceholder
+												? null
+												: flexRender(header.column.columnDef.header, header.getContext())}
+										</div>
+									);
+								}),
+							)}
+						</div>
+					</div>
+
+					<div
+						ref={scrollContainerRef}
+						className={cn(
+							"flex-1 overflow-auto",
+							"[&::-webkit-scrollbar]:w-2.5",
+							"[&::-webkit-scrollbar-track]:bg-transparent",
+							"[&::-webkit-scrollbar-thumb]:bg-primary/60 [&::-webkit-scrollbar-thumb]:rounded-full",
+							"[&::-webkit-scrollbar-thumb]:border [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-padding",
+							"hover:[&::-webkit-scrollbar-thumb]:bg-primary/80",
+							"transition-colors",
+						)}
+						style={{ contain: "strict" }}
+					>
+						{loading ? (
+							<div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
+								<LuLoader className="w-4 h-4 animate-spin" /> กำลังโหลด
+							</div>
+						) : rows.length === 0 ? (
+							<div className="flex items-center justify-center py-8 text-muted-foreground">
+								ไม่มีรายการ
+							</div>
+						) : (
+							<div
+								role="table"
+								className="relative"
+								style={{ height: `${totalHeight}px`, width: "100%" }}
+							>
+								{virtualItems.map((virtualItem) => {
+									const row = rows[virtualItem.index];
+									if (!row) return null;
+
+									return (
+										<VirtualRow
+											key={row.id}
+											row={row}
+											virtualStart={virtualItem.start}
+											isSelected={row.getIsSelected()}
+											onItemClick={handleItemClick}
+											onItemReveal={handleItemReveal}
+											handleCopyFilename={handleCopyFilename}
+											handleItemDelete={handleItemDelete}
+										/>
+									);
+								})}
+							</div>
+						)}
+					</div>
+
+					<div className="flex text-sm text-muted-foreground pt-4 gap-2 border-t shrink-0">
 						<p>{filteredItems.length} รายการ</p>
 						{selectedRowCount > 0 && <p>({selectedRowCount} รายการที่เลือก)</p>}
+						{searchTimeMs > 0 && <p className="ml-auto text-xs">ค้นหาใน {searchTimeMs.toFixed(1)}ms</p>}
 					</div>
 				</CardContent>
 			</CardTransition>

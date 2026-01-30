@@ -75,25 +75,19 @@ export function useColumns({ onItemReveal, onItemDelete }: UseColumnsProps): Col
 				},
 				cell: ({ row }) => {
 					const name = row.original.name;
-					const shouldNameCut = name.length > 40;
 
 					return (
-						<div className="flex items-center gap-2">
-							<FileIcon type={row.original.type || "file"} />
-
-							{shouldNameCut ? (
-								<Tooltip delayDuration={300}>
-									<TooltipTrigger asChild>
-										<span className="cursor-help">{name.slice(0, 40)}...</span>
-									</TooltipTrigger>
-									<TooltipContent>
-										<div className="max-w-md break-all whitespace-normal text-sm p-1">{name}</div>
-									</TooltipContent>
-								</Tooltip>
-							) : (
-								<span>{name}</span>
-							)}
-						</div>
+						<Tooltip delayDuration={300}>
+							<TooltipTrigger asChild>
+								<div className="flex items-center gap-2 min-w-0">
+									<FileIcon type={row.original.type || "file"} className="shrink-0" />
+									<span className="truncate">{name}</span>
+								</div>
+							</TooltipTrigger>
+							<TooltipContent>
+								<div className="max-w-md break-all whitespace-normal text-sm p-1">{name}</div>
+							</TooltipContent>
+						</Tooltip>
 					);
 				},
 			},
@@ -212,6 +206,6 @@ export function useColumns({ onItemReveal, onItemDelete }: UseColumnsProps): Col
 				),
 			},
 		],
-		[onItemReveal, onItemDelete]
+		[onItemReveal, onItemDelete],
 	);
 }

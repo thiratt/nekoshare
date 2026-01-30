@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -13,17 +15,21 @@ import { buttonVariants } from "@workspace/ui/components/button";
 interface DeleteItemDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onConfirm: () => Promise<void>;
+	onConfirm: () => void;
 }
 
 interface DeleteBulkDialogProps {
 	open: boolean;
 	itemCount: number;
 	onOpenChange: (open: boolean) => void;
-	onConfirm: () => Promise<void>;
+	onConfirm: () => void;
 }
 
-export function DeleteItemDialog({ open, onOpenChange, onConfirm }: DeleteItemDialogProps) {
+export const DeleteItemDialog = memo(function DeleteItemDialog({
+	open,
+	onOpenChange,
+	onConfirm,
+}: DeleteItemDialogProps) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
@@ -35,21 +41,21 @@ export function DeleteItemDialog({ open, onOpenChange, onConfirm }: DeleteItemDi
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-					<AlertDialogAction
-						className={buttonVariants({ variant: "destructive" })}
-						onClick={async () => {
-							await onConfirm();
-						}}
-					>
+					<AlertDialogAction className={buttonVariants({ variant: "destructive" })} onClick={onConfirm}>
 						ลบ
 					</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
 	);
-}
+});
 
-export function DeleteBulkDialog({ open, itemCount, onOpenChange, onConfirm }: DeleteBulkDialogProps) {
+export const DeleteBulkDialog = memo(function DeleteBulkDialog({
+	open,
+	itemCount,
+	onOpenChange,
+	onConfirm,
+}: DeleteBulkDialogProps) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
@@ -61,16 +67,11 @@ export function DeleteBulkDialog({ open, itemCount, onOpenChange, onConfirm }: D
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-					<AlertDialogAction
-						className={buttonVariants({ variant: "destructive" })}
-						onClick={async () => {
-							await onConfirm();
-						}}
-					>
+					<AlertDialogAction className={buttonVariants({ variant: "destructive" })} onClick={onConfirm}>
 						ลบ {itemCount} รายการ
 					</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
 	);
-}
+});

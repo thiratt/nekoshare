@@ -2,6 +2,7 @@ export type Status = "success" | "failed" | "processing";
 
 export interface FileData {
 	name: string;
+	path: string;
 	size: number;
 	isFile: boolean;
 	isDirectory: boolean;
@@ -25,6 +26,8 @@ export interface ShareItem {
 	sharedWith?: number;
 }
 
+export type InvokeFunction = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
+
 export interface HomeProps {
 	onItemClick: (id: number) => void;
 	onItemReveal: (id: number) => void;
@@ -32,6 +35,7 @@ export interface HomeProps {
 	onBulkDelete: (ids: number[]) => void;
 	data: FileData[];
 	loading?: boolean;
+	invoke?: InvokeFunction;
 }
 
 export interface DeleteItemDialog {
