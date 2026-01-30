@@ -33,6 +33,7 @@ import { SetupApplicationUI } from "@/components/setup";
 import { useNSDesktop } from "@/context/NSDesktopContext";
 import { useTauriFileDrop } from "@/hooks/use-tauri-file-drop";
 import { getCachedSession } from "@/lib/auth";
+import { getDeviceInfo } from "@/lib/device";
 
 export const Route = createFileRoute("/home")({
   async beforeLoad() {
@@ -136,8 +137,27 @@ function RouteComponent() {
     },
   });
 
-  useSocketInterval(() => {
-    send(PacketType.SYSTEM_HEARTBEAT);
+  useSocketInterval(async () => {
+    try {
+      const deviceInfo = await getDeviceInfo();
+      const payload = {
+        battery: {
+          supported: deviceInfo.battery.supported,
+          charging: deviceInfo.battery.charging,
+          percent: Math.round(deviceInfo.battery.percent),
+        },
+        ip: {
+          ipv4: deviceInfo.ip.ipv4,
+          ipv6: deviceInfo.ip.ipv6 ?? null,
+        },
+      };
+      send(PacketType.SYSTEM_HEARTBEAT, (w) =>
+        w.writeString(JSON.stringify(payload)),
+      );
+    } catch (error) {
+      console.error("Failed to send heartbeat with device info:", error);
+      send(PacketType.SYSTEM_HEARTBEAT);
+    }
   }, 7000);
 
   useEffect(() => {
