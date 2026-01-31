@@ -3,6 +3,13 @@ import { eq, or, and, count, sql, like } from "drizzle-orm";
 import { db } from "@/adapters/db";
 import { friend, user, transferHistory } from "@/adapters/db/schemas";
 import { createRouter } from "@/core/utils/router";
+import {
+	broadcastFriendRequestReceived,
+	broadcastFriendRequestAccepted,
+	broadcastFriendRequestRejected,
+	broadcastFriendRequestCancelled,
+	broadcastFriendRemoved,
+} from "@/core/socket/ws/controllers";
 import { success, error } from "@/types";
 import type { FriendItem, FriendStatus, FriendListResponse, UserSearchResult } from "@/types/api";
 
@@ -14,7 +21,7 @@ async function mapFriendToItem(
 	f: typeof friend.$inferSelect,
 	currentUserId: string,
 	friendUser: typeof user.$inferSelect | undefined,
-	sharedCountMap: Map<string, number>
+	sharedCountMap: Map<string, number>,
 ): Promise<FriendItem> {
 	const isRequester = f.requesterId === currentUserId;
 	const friendUserId = isRequester ? f.receiverId : f.requesterId;
@@ -57,7 +64,7 @@ app.get("/", async (c) => {
 				incoming: [],
 				outgoing: [],
 				total: { friends: 0, incoming: 0, outgoing: 0 },
-			})
+			}),
 		);
 	}
 
@@ -66,7 +73,7 @@ app.get("/", async (c) => {
 	const friendUsers = await db.query.user.findMany({
 		where: sql`${user.id} IN (${sql.join(
 			friendUserIds.map((id) => sql`${id}`),
-			sql`, `
+			sql`, `,
 		)})`,
 	});
 
@@ -114,7 +121,7 @@ app.get("/", async (c) => {
 			incoming,
 			outgoing,
 			total: { friends: friends.length, incoming: incoming.length, outgoing: outgoing.length },
-		})
+		}),
 	);
 });
 
@@ -147,7 +154,7 @@ app.post("/request", async (c) => {
 	const existingfriend = await db.query.friend.findFirst({
 		where: or(
 			and(eq(friend.requesterId, currentUser.id), eq(friend.receiverId, targetUser.id)),
-			and(eq(friend.requesterId, targetUser.id), eq(friend.receiverId, currentUser.id))
+			and(eq(friend.requesterId, targetUser.id), eq(friend.receiverId, currentUser.id)),
 		),
 	});
 
@@ -164,7 +171,7 @@ app.post("/request", async (c) => {
 						status: "friend" as FriendStatus,
 						message: "Friend request accepted (mutual request)",
 					}),
-					200
+					200,
 				);
 			}
 			return c.json(error("ALREADY_EXISTS", "Friend request already sent"), 409);
@@ -175,11 +182,24 @@ app.post("/request", async (c) => {
 	}
 
 	const newfriendId = uuidv4();
+	const createdAt = new Date();
 	await db.insert(friend).values({
 		id: newfriendId,
 		requesterId: currentUser.id,
 		receiverId: targetUser.id,
 		status: "pending",
+		createdAt,
+	});
+
+	broadcastFriendRequestReceived(targetUser.id, {
+		friendId: newfriendId,
+		user: {
+			id: currentUser.id,
+			name: currentUser.name ?? "Unknown",
+			email: currentUser.email ?? "",
+			avatarUrl: currentUser.image ?? undefined,
+		},
+		createdAt: createdAt.toISOString(),
 	});
 
 	return c.json(
@@ -193,7 +213,7 @@ app.post("/request", async (c) => {
 				avatarUrl: targetUser.image ?? undefined,
 			},
 		}),
-		201
+		201,
 	);
 });
 
@@ -211,11 +231,21 @@ app.patch("/:id/accept", async (c) => {
 
 	await db.update(friend).set({ status: "accepted" }).where(eq(friend.id, friendId));
 
+	broadcastFriendRequestAccepted(existingfriend.requesterId, {
+		friendId: friendId,
+		user: {
+			id: currentUser.id,
+			name: currentUser.name ?? "Unknown",
+			email: currentUser.email ?? "",
+			avatarUrl: currentUser.image ?? undefined,
+		},
+	});
+
 	return c.json(
 		success({
 			friendId,
 			status: "friend" as FriendStatus,
-		})
+		}),
 	);
 });
 
@@ -233,11 +263,15 @@ app.delete("/:id/reject", async (c) => {
 
 	await db.delete(friend).where(eq(friend.id, friendId));
 
+	broadcastFriendRequestRejected(existingfriend.requesterId, {
+		friendId: friendId,
+	});
+
 	return c.json(
 		success({
 			friendId,
 			status: "none" as FriendStatus,
-		})
+		}),
 	);
 });
 
@@ -255,11 +289,15 @@ app.delete("/:id/cancel", async (c) => {
 
 	await db.delete(friend).where(eq(friend.id, friendId));
 
+	broadcastFriendRequestCancelled(existingfriend.receiverId, {
+		friendId: friendId,
+	});
+
 	return c.json(
 		success({
 			friendId,
 			status: "none" as FriendStatus,
-		})
+		}),
 	);
 });
 
@@ -270,7 +308,7 @@ app.delete("/:id", async (c) => {
 	const existingfriend = await db.query.friend.findFirst({
 		where: and(
 			eq(friend.id, friendId),
-			or(eq(friend.requesterId, currentUser.id), eq(friend.receiverId, currentUser.id))
+			or(eq(friend.requesterId, currentUser.id), eq(friend.receiverId, currentUser.id)),
 		),
 	});
 
@@ -280,11 +318,17 @@ app.delete("/:id", async (c) => {
 
 	await db.delete(friend).where(eq(friend.id, friendId));
 
+	const otherUserId =
+		existingfriend.requesterId === currentUser.id ? existingfriend.receiverId : existingfriend.requesterId;
+	broadcastFriendRemoved(otherUserId, {
+		friendId: friendId,
+	});
+
 	return c.json(
 		success({
 			friendId,
 			status: "none" as FriendStatus,
-		})
+		}),
 	);
 });
 
@@ -297,7 +341,7 @@ app.get("/search", async (c) => {
 			success({
 				users: [] as UserSearchResult[],
 				total: 0,
-			})
+			}),
 		);
 	}
 
@@ -306,7 +350,7 @@ app.get("/search", async (c) => {
 	const matchingUsers = await db.query.user.findMany({
 		where: and(
 			sql`${user.id} != ${currentUser.id}`,
-			or(like(user.email, searchPattern), like(user.name, searchPattern))
+			or(like(user.email, searchPattern), like(user.name, searchPattern)),
 		),
 		limit: 10,
 	});
@@ -316,7 +360,7 @@ app.get("/search", async (c) => {
 			success({
 				users: [] as UserSearchResult[],
 				total: 0,
-			})
+			}),
 		);
 	}
 
@@ -327,13 +371,13 @@ app.get("/search", async (c) => {
 			or(
 				sql`${friend.requesterId} IN (${sql.join(
 					userIds.map((id) => sql`${id}`),
-					sql`, `
+					sql`, `,
 				)})`,
 				sql`${friend.receiverId} IN (${sql.join(
 					userIds.map((id) => sql`${id}`),
-					sql`, `
-				)})`
-			)
+					sql`, `,
+				)})`,
+			),
 		),
 	});
 
@@ -373,7 +417,7 @@ app.get("/search", async (c) => {
 		success({
 			users,
 			total: users.length,
-		})
+		}),
 	);
 });
 

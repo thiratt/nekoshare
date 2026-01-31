@@ -77,6 +77,15 @@ export enum PacketType {
 	DEVICE_ADDED = 0x94,
 
 	// ==========================================
+	// 0xA0 - 0xAF: Friend Management
+	// ==========================================
+	FRIEND_REQUEST_RECEIVED = 0xa0,
+	FRIEND_REQUEST_ACCEPTED = 0xa1,
+	FRIEND_REQUEST_REJECTED = 0xa2,
+	FRIEND_REQUEST_CANCELLED = 0xa3,
+	FRIEND_REMOVED = 0xa4,
+
+	// ==========================================
 	// 0xE0 - 0xEF: Debug & Metrics
 	// ==========================================
 	DEBUG_LOG = 0xe0,
