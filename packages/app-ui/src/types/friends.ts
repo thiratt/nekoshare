@@ -2,7 +2,7 @@ export type FriendStatus = "none" | "outgoing" | "incoming" | "friend" | "blocke
 
 export interface FriendItem {
 	id: string;
-	friendshipId: string;
+	friendId: string;
 	name: string;
 	email: string;
 	avatarUrl?: string;
@@ -10,6 +10,7 @@ export interface FriendItem {
 	sharedCount: number;
 	lastActive: string;
 	createdAt: string;
+	isOnline?: boolean;
 }
 
 export interface FriendListResponse {
@@ -34,7 +35,7 @@ export interface UserSearchResponse {
 
 export interface FriendActionResponse {
 	success: boolean;
-	friendshipId: string;
+	friendId: string;
 	status: FriendStatus;
 }
 

@@ -1,8 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppError, ErrorCategory, ErrorSource } from "@workspace/app-ui/lib/errors";
+import {
+	type FriendRemovedPayload,
+	type FriendRequestAcceptedPayload,
+	type FriendRequestCancelledPayload,
+	type FriendRequestReceivedPayload,
+	type FriendRequestRejectedPayload,
+	PacketType,
+} from "@workspace/app-ui/lib/nk-socket/protocol";
 import { xfetchApi } from "@workspace/app-ui/lib/xfetch";
 import type { FriendItem, FriendListResponse, UserSearchResult } from "@workspace/app-ui/types/friends";
+
+import { usePacketRouter } from "./usePacketRouter";
 
 const FRIENDS_API_ENDPOINTS = {
 	LIST: "/friends",
@@ -30,10 +40,10 @@ export interface UseFriendsState {
 export interface UseFriendsActions {
 	readonly refresh: () => Promise<void>;
 	readonly sendRequest: (userId: string) => Promise<void>;
-	readonly acceptRequest: (friendshipId: string) => Promise<void>;
-	readonly rejectRequest: (friendshipId: string) => Promise<void>;
-	readonly cancelRequest: (friendshipId: string) => Promise<void>;
-	readonly removeFriend: (friendshipId: string) => Promise<void>;
+	readonly acceptRequest: (friendId: string) => Promise<void>;
+	readonly rejectRequest: (friendId: string) => Promise<void>;
+	readonly cancelRequest: (friendId: string) => Promise<void>;
+	readonly removeFriend: (friendId: string) => Promise<void>;
 }
 
 export type UseFriendsReturn = UseFriendsState & UseFriendsActions;
@@ -55,6 +65,132 @@ export function useFriends(): UseFriendsReturn {
 		loading: true,
 		error: null,
 	});
+
+	const socketHandlers = useMemo(
+		() => ({
+			[PacketType.FRIEND_REQUEST_RECEIVED]: (result: {
+				status: string;
+				data?: FriendRequestReceivedPayload;
+				error?: { message: string };
+			}) => {
+				if (result.status === "success" && result.data) {
+					const payload = result.data;
+					const newIncoming: FriendItem = {
+						id: payload.user.id,
+						friendId: payload.friendId,
+						name: payload.user.name,
+						email: payload.user.email,
+						avatarUrl: payload.user.avatarUrl,
+						status: "incoming",
+						sharedCount: 0,
+						lastActive: new Date().toISOString(),
+						createdAt: payload.createdAt,
+					};
+					setState((prev) => {
+						if (prev.incoming.some((item) => item.friendId === payload.friendId)) {
+							return prev;
+						}
+						return {
+							...prev,
+							incoming: [newIncoming, ...prev.incoming].sort(sortByName),
+						};
+					});
+				} else {
+					console.error("[useFriends] Failed to parse FRIEND_REQUEST_RECEIVED:", result.error?.message);
+				}
+			},
+
+			[PacketType.FRIEND_REQUEST_ACCEPTED]: (result: {
+				status: string;
+				data?: FriendRequestAcceptedPayload;
+				error?: { message: string };
+			}) => {
+				if (result.status === "success" && result.data) {
+					const payload = result.data;
+					setState((prev) => {
+						const outgoingItem = prev.outgoing.find((item) => item.friendId === payload.friendId);
+						if (!outgoingItem) {
+							const newFriend: FriendItem = {
+								id: payload.user.id,
+								friendId: payload.friendId,
+								name: payload.user.name,
+								email: payload.user.email,
+								avatarUrl: payload.user.avatarUrl,
+								status: "friend",
+								sharedCount: 0,
+								lastActive: new Date().toISOString(),
+								createdAt: new Date().toISOString(),
+							};
+							return {
+								...prev,
+								friends: [newFriend, ...prev.friends].sort(sortByName),
+							};
+						}
+						return {
+							...prev,
+							outgoing: prev.outgoing.filter((item) => item.friendId !== payload.friendId),
+							friends: [{ ...outgoingItem, status: "friend" as const }, ...prev.friends].sort(sortByName),
+						};
+					});
+				} else {
+					console.error("[useFriends] Failed to parse FRIEND_REQUEST_ACCEPTED:", result.error?.message);
+				}
+			},
+
+			[PacketType.FRIEND_REQUEST_REJECTED]: (result: {
+				status: string;
+				data?: FriendRequestRejectedPayload;
+				error?: { message: string };
+			}) => {
+				if (result.status === "success" && result.data) {
+					const payload = result.data;
+					setState((prev) => ({
+						...prev,
+						outgoing: prev.outgoing.filter((item) => item.friendId !== payload.friendId),
+					}));
+				} else {
+					console.error("[useFriends] Failed to parse FRIEND_REQUEST_REJECTED:", result.error?.message);
+				}
+			},
+
+			[PacketType.FRIEND_REQUEST_CANCELLED]: (result: {
+				status: string;
+				data?: FriendRequestCancelledPayload;
+				error?: { message: string };
+			}) => {
+				if (result.status === "success" && result.data) {
+					const payload = result.data;
+					setState((prev) => ({
+						...prev,
+						incoming: prev.incoming.filter((item) => item.friendId !== payload.friendId),
+					}));
+				} else {
+					console.error("[useFriends] Failed to parse FRIEND_REQUEST_CANCELLED:", result.error?.message);
+				}
+			},
+
+			[PacketType.FRIEND_REMOVED]: (result: {
+				status: string;
+				data?: FriendRemovedPayload;
+				error?: { message: string };
+			}) => {
+				if (result.status === "success" && result.data) {
+					const payload = result.data;
+					setState((prev) => ({
+						...prev,
+						friends: prev.friends.filter((item) => item.friendId !== payload.friendId),
+						incoming: prev.incoming.filter((item) => item.friendId !== payload.friendId),
+						outgoing: prev.outgoing.filter((item) => item.friendId !== payload.friendId),
+					}));
+				} else {
+					console.error("[useFriends] Failed to parse FRIEND_REMOVED:", result.error?.message);
+				}
+			},
+		}),
+		[],
+	);
+
+	usePacketRouter(socketHandlers);
 
 	const fetchFriends = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setState((prev) => ({ ...prev, loading: true, error: null }));
@@ -111,7 +247,7 @@ export function useFriends(): UseFriendsReturn {
 			}
 
 			const result = await xfetchApi<{
-				friendshipId: string;
+				friendId: string;
 				status: string;
 				user: { id: string; name: string; email: string; avatarUrl?: string };
 			}>(FRIENDS_API_ENDPOINTS.REQUEST, {
@@ -133,7 +269,7 @@ export function useFriends(): UseFriendsReturn {
 
 			const newItem: FriendItem = {
 				id: responseData.user.id,
-				friendshipId: responseData.friendshipId,
+				friendId: responseData.friendId,
 				name: responseData.user.name,
 				email: responseData.user.email,
 				avatarUrl: responseData.user.avatarUrl,
@@ -152,12 +288,12 @@ export function useFriends(): UseFriendsReturn {
 	);
 
 	const acceptRequest = useCallback(
-		async (friendshipId: string): Promise<void> => {
-			const targetItem = state.incoming.find((item) => item.friendshipId === friendshipId);
+		async (friendId: string): Promise<void> => {
+			const targetItem = state.incoming.find((item) => item.friendId === friendId);
 
 			if (!targetItem) {
 				throw new AppError(
-					`Friend request with ID "${friendshipId}" not found`,
+					`Friend request with ID "${friendId}" not found`,
 					ErrorSource.INTERNAL,
 					ErrorCategory.NOT_FOUND,
 					{ operation: "Accept friend request" },
@@ -166,11 +302,11 @@ export function useFriends(): UseFriendsReturn {
 
 			setState((prev) => ({
 				...prev,
-				incoming: prev.incoming.filter((item) => item.friendshipId !== friendshipId),
+				incoming: prev.incoming.filter((item) => item.friendId !== friendId),
 				friends: [{ ...targetItem, status: "friend" as const }, ...prev.friends].sort(sortByName),
 			}));
 
-			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.ACCEPT(friendshipId), {
+			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.ACCEPT(friendId), {
 				method: "PATCH",
 				operation: "Accept friend request",
 			});
@@ -178,7 +314,7 @@ export function useFriends(): UseFriendsReturn {
 			if (result.status === "error") {
 				setState((prev) => ({
 					...prev,
-					friends: prev.friends.filter((item) => item.friendshipId !== friendshipId),
+					friends: prev.friends.filter((item) => item.friendId !== friendId),
 					incoming: [targetItem, ...prev.incoming].sort(sortByName),
 				}));
 				throw result.error;
@@ -188,15 +324,15 @@ export function useFriends(): UseFriendsReturn {
 	);
 
 	const rejectRequest = useCallback(
-		async (friendshipId: string): Promise<void> => {
-			const targetItem = state.incoming.find((item) => item.friendshipId === friendshipId);
+		async (friendId: string): Promise<void> => {
+			const targetItem = state.incoming.find((item) => item.friendId === friendId);
 
 			setState((prev) => ({
 				...prev,
-				incoming: prev.incoming.filter((item) => item.friendshipId !== friendshipId),
+				incoming: prev.incoming.filter((item) => item.friendId !== friendId),
 			}));
 
-			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.REJECT(friendshipId), {
+			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.REJECT(friendId), {
 				method: "DELETE",
 				operation: "Reject friend request",
 			});
@@ -215,15 +351,15 @@ export function useFriends(): UseFriendsReturn {
 	);
 
 	const cancelRequest = useCallback(
-		async (friendshipId: string): Promise<void> => {
-			const targetItem = state.outgoing.find((item) => item.friendshipId === friendshipId);
+		async (friendId: string): Promise<void> => {
+			const targetItem = state.outgoing.find((item) => item.friendId === friendId);
 
 			setState((prev) => ({
 				...prev,
-				outgoing: prev.outgoing.filter((item) => item.friendshipId !== friendshipId),
+				outgoing: prev.outgoing.filter((item) => item.friendId !== friendId),
 			}));
 
-			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.CANCEL(friendshipId), {
+			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.CANCEL(friendId), {
 				method: "DELETE",
 				operation: "Cancel friend request",
 			});
@@ -242,15 +378,15 @@ export function useFriends(): UseFriendsReturn {
 	);
 
 	const removeFriend = useCallback(
-		async (friendshipId: string): Promise<void> => {
-			const targetItem = state.friends.find((item) => item.friendshipId === friendshipId);
+		async (friendId: string): Promise<void> => {
+			const targetItem = state.friends.find((item) => item.friendId === friendId);
 
 			setState((prev) => ({
 				...prev,
-				friends: prev.friends.filter((item) => item.friendshipId !== friendshipId),
+				friends: prev.friends.filter((item) => item.friendId !== friendId),
 			}));
 
-			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.REMOVE(friendshipId), {
+			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.REMOVE(friendId), {
 				method: "DELETE",
 				operation: "Remove friend",
 			});

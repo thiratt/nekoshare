@@ -65,6 +65,13 @@ export enum PacketType {
 	DEVICE_REMOVED = 0x93,
 	DEVICE_ADDED = 0x94,
 
+	// Friend Management (0xA0 - 0xAF)
+	FRIEND_REQUEST_RECEIVED = 0xa0,
+	FRIEND_REQUEST_ACCEPTED = 0xa1,
+	FRIEND_REQUEST_REJECTED = 0xa2,
+	FRIEND_REQUEST_CANCELLED = 0xa3,
+	FRIEND_REMOVED = 0xa4,
+
 	// Debug (0xE0 - 0xEF)
 	DEBUG_LOG = 0xe0,
 	DEBUG_PERFORMANCE = 0xe1,
@@ -119,6 +126,39 @@ export interface ErrorPayload {
 	readonly code?: string;
 }
 
+export interface FriendRequestReceivedPayload {
+	readonly friendId: string;
+	readonly user: {
+		readonly id: string;
+		readonly name: string;
+		readonly email: string;
+		readonly avatarUrl?: string;
+	};
+	readonly createdAt: string;
+}
+
+export interface FriendRequestAcceptedPayload {
+	readonly friendId: string;
+	readonly user: {
+		readonly id: string;
+		readonly name: string;
+		readonly email: string;
+		readonly avatarUrl?: string;
+	};
+}
+
+export interface FriendRequestRejectedPayload {
+	readonly friendId: string;
+}
+
+export interface FriendRequestCancelledPayload {
+	readonly friendId: string;
+}
+
+export interface FriendRemovedPayload {
+	readonly friendId: string;
+}
+
 type PacketParser<T> = (reader: BinaryReader) => T;
 
 function parseJsonPayload<T>(reader: BinaryReader, payloadName: string): Result<T> {
@@ -150,6 +190,16 @@ export const PacketParsers = {
 	[PacketType.ACK]: (reader: BinaryReader): Result<AckPayload> => parseJsonPayload<AckPayload>(reader, "ACK"),
 	[PacketType.ERROR_GENERIC]: (reader: BinaryReader): Result<ErrorPayload> =>
 		parseJsonPayload<ErrorPayload>(reader, "ERROR_GENERIC"),
+	[PacketType.FRIEND_REQUEST_RECEIVED]: (reader: BinaryReader): Result<FriendRequestReceivedPayload> =>
+		parseJsonPayload<FriendRequestReceivedPayload>(reader, "FRIEND_REQUEST_RECEIVED"),
+	[PacketType.FRIEND_REQUEST_ACCEPTED]: (reader: BinaryReader): Result<FriendRequestAcceptedPayload> =>
+		parseJsonPayload<FriendRequestAcceptedPayload>(reader, "FRIEND_REQUEST_ACCEPTED"),
+	[PacketType.FRIEND_REQUEST_REJECTED]: (reader: BinaryReader): Result<FriendRequestRejectedPayload> =>
+		parseJsonPayload<FriendRequestRejectedPayload>(reader, "FRIEND_REQUEST_REJECTED"),
+	[PacketType.FRIEND_REQUEST_CANCELLED]: (reader: BinaryReader): Result<FriendRequestCancelledPayload> =>
+		parseJsonPayload<FriendRequestCancelledPayload>(reader, "FRIEND_REQUEST_CANCELLED"),
+	[PacketType.FRIEND_REMOVED]: (reader: BinaryReader): Result<FriendRemovedPayload> =>
+		parseJsonPayload<FriendRemovedPayload>(reader, "FRIEND_REMOVED"),
 } as const satisfies Partial<Record<PacketType, PacketParser<unknown>>>;
 
 type InferredParsers = typeof PacketParsers;
