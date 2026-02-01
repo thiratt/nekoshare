@@ -89,3 +89,8 @@ export interface SocketDeviceRemovedPayload {
 	deviceIdentifier?: string | null;
 	terminatedBy: string;
 }
+
+export interface SocketDevicePresencePayload {
+	deviceId: string;
+	deviceIdentifier?: string;
+}
