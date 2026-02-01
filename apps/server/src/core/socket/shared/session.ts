@@ -10,6 +10,15 @@ export class SessionManager<T extends IConnection> implements ISessionManager<T>
 		this.transportType = transportType;
 	}
 
+	isUserOnline(userId: string): boolean {
+		const sessions = this.userSessions.get(userId);
+		return sessions !== undefined && sessions.size > 0;
+	}
+	
+	getOnlineUserIds(): string[] {
+		return Array.from(this.userSessions.keys());
+	}
+
 	addSession(connection: T) {
 		this.sessions.set(connection.id, connection);
 

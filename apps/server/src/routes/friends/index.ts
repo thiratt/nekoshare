@@ -10,6 +10,7 @@ import {
 	broadcastFriendRequestCancelled,
 	broadcastFriendRemoved,
 } from "@/core/socket/ws/controllers";
+import { wsSessionManager } from "@/core/socket/ws/connection";
 import { success, error } from "@/types";
 import type { FriendItem, FriendStatus, FriendListResponse, UserSearchResult } from "@/types/api";
 
@@ -37,6 +38,8 @@ async function mapFriendToItem(
 		status = "none";
 	}
 
+	const isOnline = wsSessionManager.isUserOnline(friendUserId);
+
 	return {
 		id: friendUserId,
 		friendId: f.id,
@@ -44,8 +47,9 @@ async function mapFriendToItem(
 		email: friendUser?.email ?? "",
 		avatarUrl: friendUser?.image ?? undefined,
 		status,
+		isOnline,
 		sharedCount: sharedCountMap.get(friendUserId) ?? 0,
-		lastActive: friendUser?.updatedAt?.toISOString() ?? new Date().toISOString(),
+		lastActive: friendUser?.lastActiveAt?.toISOString() ?? new Date().toISOString(),
 		createdAt: f.createdAt.toISOString(),
 	};
 }

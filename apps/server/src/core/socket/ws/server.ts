@@ -1,5 +1,4 @@
 import { createNodeWebSocket } from "@hono/node-ws";
-import { randomUUID } from "node:crypto";
 import { Logger } from "@/core/logger";
 import type { User } from "@/core/auth";
 import type { createRouter } from "@/core/utils/router";
@@ -7,6 +6,16 @@ import { PacketType } from "../shared";
 import { WSConnection, wsSessionManager, bootstrapWSControllers } from "./connection";
 import { handleDeviceSocketDisconnect } from "../shared/controllers";
 import { generateConnectionId } from "../shared/utils";
+import {
+	broadcastUserOnline,
+	broadcastUserOffline,
+	broadcastDeviceOnline,
+	broadcastDeviceOffline,
+	getUserFriendIds,
+} from "./controllers";
+import { db } from "@/adapters/db";
+import { device } from "@/adapters/db/schemas";
+import { eq } from "drizzle-orm";
 
 export async function createWebSocketInstance(app: ReturnType<typeof createRouter>, path: string = "/ws") {
 	bootstrapWSControllers();
@@ -63,9 +72,44 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 							user: currentUser,
 						});
 
+						const wasOffline = !wsSessionManager.isUserOnline(currentUser.id);
+
 						wsSessionManager.addSession(connection);
 
 						connection.sendPacket(PacketType.SYSTEM_HANDSHAKE, 0);
+
+						if (wasOffline) {
+							getUserFriendIds(currentUser.id).then((friendIds) => {
+								if (friendIds.length > 0) {
+									broadcastUserOnline(currentUser.id, friendIds);
+								}
+							});
+						}
+
+						const session = c.get("session");
+						if (session?.id) {
+							db.query.device
+								.findFirst({
+									where: eq(device.sessionId, session.id),
+									columns: { id: true, deviceIdentifier: true },
+								})
+								.then((deviceInfo) => {
+									if (deviceInfo) {
+										broadcastDeviceOnline(
+											currentUser.id,
+											deviceInfo.id,
+											deviceInfo.deviceIdentifier ?? undefined,
+											connectionId,
+										);
+									}
+								})
+								.catch((err) => {
+									Logger.warn(
+										"WebSocket",
+										`Failed to get device info for online broadcast: ${err.message}`,
+									);
+								});
+						}
 					} catch (error) {
 						if (connection) {
 							const msg = error instanceof Error ? error.message : "Unknown error";
@@ -85,11 +129,53 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 
 				onClose(evt, ws) {
 					if (connection) {
+						const userId = connection.user?.id;
 						const sessionId = connection.session?.id;
+
+						let deviceInfoPromise:
+							| Promise<{ id: string; deviceIdentifier: string | null } | undefined>
+							| undefined;
+						if (sessionId && userId) {
+							deviceInfoPromise = db.query.device
+								.findFirst({
+									where: eq(device.sessionId, sessionId),
+									columns: { id: true, deviceIdentifier: true },
+								})
+								.catch(() => undefined);
+						}
+
 						if (sessionId) {
 							handleDeviceSocketDisconnect(sessionId);
 						}
+
 						connection.close();
+
+						if (userId && !wsSessionManager.isUserOnline(userId)) {
+							getUserFriendIds(userId).then((friendIds) => {
+								if (friendIds.length > 0) {
+									broadcastUserOffline(userId, friendIds);
+								}
+							});
+						}
+
+						if (userId && deviceInfoPromise) {
+							deviceInfoPromise
+								.then((deviceInfo) => {
+									if (deviceInfo) {
+										broadcastDeviceOffline(
+											userId,
+											deviceInfo.id,
+											deviceInfo.deviceIdentifier ?? undefined,
+										);
+									}
+								})
+								.catch((err) => {
+									Logger.warn(
+										"WebSocket",
+										`Failed to broadcast device offline: ${err?.message || err}`,
+									);
+								});
+						}
 					}
 					Logger.info("WebSocket", `WebSocket connection closed (code: ${evt.code}).`);
 				},

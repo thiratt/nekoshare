@@ -79,6 +79,7 @@ export type FriendItem = {
 	sharedCount: number;
 	lastActive: string;
 	createdAt: string;
+	isOnline: boolean;
 };
 
 export type FriendListResponse = {

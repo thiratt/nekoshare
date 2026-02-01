@@ -75,6 +75,8 @@ export enum PacketType {
 	DEVICE_UPDATED = 0x92,
 	DEVICE_REMOVED = 0x93,
 	DEVICE_ADDED = 0x94,
+	DEVICE_ONLINE = 0x95,
+	DEVICE_OFFLINE = 0x96,
 
 	// ==========================================
 	// 0xA0 - 0xAF: Friend Management
@@ -84,6 +86,8 @@ export enum PacketType {
 	FRIEND_REQUEST_REJECTED = 0xa2,
 	FRIEND_REQUEST_CANCELLED = 0xa3,
 	FRIEND_REMOVED = 0xa4,
+	FRIEND_ONLINE = 0xa5,
+	FRIEND_OFFLINE = 0xa6,
 
 	// ==========================================
 	// 0xE0 - 0xEF: Debug & Metrics
