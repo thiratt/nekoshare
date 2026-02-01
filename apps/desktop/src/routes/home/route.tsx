@@ -15,13 +15,17 @@ import { NotificationSidebar } from "@workspace/app-ui/components/notification-s
 import {
   createFileEntry,
   DropOverlayProvider,
-  DropOverlayUIWithDefaults,
+  DropOverlayUI,
   type FileEntry,
+  transformDevices,
+  transformFriends,
 } from "@workspace/app-ui/components/ui/drop-overlay/index";
 import {
   useNekoShare,
   useSetGlobalLoading,
 } from "@workspace/app-ui/context/nekoshare";
+import { useDevices } from "@workspace/app-ui/hooks/use-devices";
+import { useFriends } from "@workspace/app-ui/hooks/use-friends";
 import { useNekoSocket } from "@workspace/app-ui/hooks/useNekoSocket";
 import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
 import { useSocketInterval } from "@workspace/app-ui/hooks/useSocketInterval";
@@ -70,6 +74,15 @@ function HomeContent({
 }: HomeContentProps) {
   useTauriFileDrop({ enabled: isReady });
 
+  const { devices: rawDevices } = useDevices();
+  const { friends: rawFriends } = useFriends();
+
+  const devices = useMemo(
+    () => transformDevices(rawDevices, { excludeCurrentDevice: true }),
+    [rawDevices],
+  );
+  const friends = useMemo(() => transformFriends(rawFriends), [rawFriends]);
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {isReady ? (
@@ -87,7 +100,7 @@ function HomeContent({
             </div>
             <NotificationSidebar />
           </div>
-          <DropOverlayUIWithDefaults />
+          <DropOverlayUI devices={devices} friends={friends} />
         </>
       ) : (
         <>
