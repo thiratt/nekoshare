@@ -340,15 +340,6 @@ app.get("/search", async (c) => {
 	const currentUser = c.get("user");
 	const query = c.req.query("q")?.trim() ?? "";
 
-	if (query.length < 2) {
-		return c.json(
-			success({
-				users: [] as UserSearchResult[],
-				total: 0,
-			}),
-		);
-	}
-
 	const searchPattern = `%${query}%`;
 
 	const matchingUsers = await db.query.user.findMany({
