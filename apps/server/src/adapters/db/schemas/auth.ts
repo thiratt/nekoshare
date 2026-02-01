@@ -12,6 +12,7 @@ const user = mysqlTable("user", {
 		.defaultNow()
 		.$onUpdate(() => /* @__PURE__ */ new Date())
 		.notNull(),
+	lastActiveAt: timestamp("last_active_at", { fsp: 3 }).defaultNow().notNull(),
 	username: varchar("username", { length: 255 }).unique(),
 	displayUsername: text("display_username"),
 	role: mysqlEnum(["admin", "user"]).default("user").notNull(),
@@ -34,7 +35,7 @@ const session = mysqlTable(
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
 	},
-	(table) => [index("session_userId_idx").on(table.userId)]
+	(table) => [index("session_userId_idx").on(table.userId)],
 );
 
 const account = mysqlTable(
@@ -58,7 +59,7 @@ const account = mysqlTable(
 			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
 	},
-	(table) => [index("account_userId_idx").on(table.userId)]
+	(table) => [index("account_userId_idx").on(table.userId)],
 );
 
 const verification = mysqlTable(
@@ -74,7 +75,7 @@ const verification = mysqlTable(
 			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
 	},
-	(table) => [index("verification_identifier_idx").on(table.identifier)]
+	(table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
 const sessionRelations = relations(session, ({ one }) => ({
