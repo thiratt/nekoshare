@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef } from "react";
 
-import { flexRender, Row, Table } from "@tanstack/react-table";
+import { flexRender, type Row, type Table } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { LuFile, LuFolderInput, LuLoader, LuTrash2, LuType } from "react-icons/lu";
 

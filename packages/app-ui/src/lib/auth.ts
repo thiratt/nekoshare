@@ -1,7 +1,7 @@
-import { Auth, BetterAuthClientOptions, InferSessionFromClient, InferUserFromClient } from "better-auth";
 import { customSessionClient, usernameClient } from "better-auth/client/plugins";
 import { oneTimeTokenClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
+import type { Auth, BetterAuthClientOptions, InferSessionFromClient, InferUserFromClient } from "better-auth";
 
 import { config } from "./config";
 import { AppError, createInternalError, ErrorCategory, ErrorSource, failure, type Result, success } from "./errors";

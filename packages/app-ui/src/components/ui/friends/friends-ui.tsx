@@ -25,7 +25,6 @@ export function FriendsUI() {
 		outgoing,
 		loading,
 		error,
-		refresh,
 		sendRequest,
 		acceptRequest,
 		rejectRequest,
