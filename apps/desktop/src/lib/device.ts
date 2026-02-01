@@ -12,6 +12,11 @@ interface DeviceInfoWithKey {
 }
 
 export async function getDeviceInfo(): Promise<LocalDeviceInfo> {
+  const result = await invoke<LocalDeviceInfo>("ns_get_device_info");
+  return result;
+}
+
+export async function getDeviceInfoWithKey(): Promise<LocalDeviceInfo> {
   const result = await invoke<DeviceInfoWithKey>("ns_get_device_info_with_key");
   return {
     ...result.device_info,
