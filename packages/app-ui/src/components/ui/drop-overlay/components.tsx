@@ -447,19 +447,16 @@ export const TargetSelection = memo(function TargetSelection({
 	selectedTargets,
 	onToggleTarget,
 }: TargetSelectionProps) {
-	const onlineDevices = useMemo(() => devices.filter((d) => d.isOnline), [devices]);
-	const onlineFriends = useMemo(() => friends.filter((f) => f.status === "online"), [friends]);
-
 	return (
 		<div className="space-y-3">
 			<h3 className="text-xs font-medium uppercase tracking-wider text-muted dark:text-muted-foreground">
 				Send to
 			</h3>
 			<div className="grid grid-cols-2 gap-2">
-				{onlineDevices.map((device) => (
+				{devices.map((device) => (
 					<GlassButton
 						key={device.id}
-						sublabel={device.type === "mobile" ? "Mobile" : "Desktop"}
+						sublabel={`${device.type === "mobile" ? "Mobile" : "Desktop"} • ${device.isOnline ? "Online" : "Offline"}`}
 						icon={device.type === "mobile" ? <LuSmartphone /> : <LuMonitor />}
 						selected={selectedTargets.includes(`device-${device.id}`)}
 						onClick={() => onToggleTarget(`device-${device.id}`)}
@@ -468,10 +465,10 @@ export const TargetSelection = memo(function TargetSelection({
 						{device.name}
 					</GlassButton>
 				))}
-				{onlineFriends.map((friend) => (
+				{friends.map((friend) => (
 					<GlassButton
 						key={friend.id}
-						sublabel="Friend"
+						sublabel={`Friend • ${friend.status === "online" ? "Online" : "Offline"}`}
 						avatar={friend.avatar}
 						avatarFallback={friend.name.charAt(0)}
 						selected={selectedTargets.includes(`friend-${friend.id}`)}

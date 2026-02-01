@@ -28,7 +28,7 @@ export {
 	useDropOverlayComputed,
 	useDropZonesRef,
 } from "./context";
-export { DropOverlayUI, DropOverlayUIWithDefaults } from "./drop-overlay-ui";
+export { DropOverlayUI } from "./drop-overlay-ui";
 export type {
 	Device,
 	DropEventHandlers,
@@ -55,4 +55,8 @@ export {
 	getFileName,
 	pluralize,
 	pointInRect,
+	transformDevices,
+	transformFriendItemToDropFriend,
+	transformFriends,
+	transformUiDeviceToDropDevice,
 } from "./utils";

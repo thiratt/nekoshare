@@ -1,6 +1,7 @@
 import { memo } from "react";
 
 import { AnimatePresence, motion } from "motion/react";
+import { LuUsers } from "react-icons/lu";
 
 import { fadeScaleVariants, fadeVariants } from "../../provide-animate";
 import { ConfigPanel, DropColumn, DropZone, FileList, Header } from "./components";
@@ -19,23 +20,6 @@ interface DropOverlayUIProps {
 	devices: Device[];
 	friends: Friend[];
 }
-
-interface DropOverlayUISimpleProps {
-	devices?: Device[];
-	friends?: Friend[];
-}
-
-const DEFAULT_DEVICES: Device[] = [
-	{ id: "d1", name: "iPhone 15 Pro", type: "mobile", isOnline: true },
-	{ id: "d2", name: "MacBook Air", type: "desktop", isOnline: true },
-];
-
-const DEFAULT_FRIENDS: Friend[] = [
-	{ id: "f1", name: "Alice", status: "online" },
-	{ id: "f2", name: "Bob", status: "offline" },
-	{ id: "f3", name: "Charlie", status: "online" },
-	{ id: "f4", name: "David", status: "offline" },
-];
 
 const HeaderWrapper = memo(function HeaderWrapper() {
 	const { state, actions, computed } = useDropOverlay();
@@ -110,52 +94,98 @@ const ContentArea = memo(function ContentArea({ isExpanded, isOptionsHovered, de
 						transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
 						className="flex h-full gap-4"
 					>
-						<DropColumn title="Your Devices">
-							{devices.map((device) => (
-								<DropZone
-									key={device.id}
-									variant="device"
-									dropId={`device-${device.id}`}
-									dropType="device"
-									isActive={activeDropId === `device-${device.id}`}
-									data={device}
-								/>
-							))}
-						</DropColumn>
+						{devices.length === 0 && friends.length === 0 ? (
+							<div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-center">
+								<div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10">
+									<LuUsers className="h-7 w-7 text-white/60" />
+								</div>
+								<div className="space-y-1">
+									<p className="text-lg font-medium text-white/80">No recipients available</p>
+									<p className="text-sm text-white/50">
+										Add devices or friends to share files directly
+									</p>
+								</div>
+							</div>
+						) : (
+							<>
+								{friends.length === 0 ? (
+									<DropColumn title="Your Devices" className="flex-2">
+										{devices.map((device) => (
+											<DropZone
+												key={device.id}
+												variant="device"
+												dropId={`device-${device.id}`}
+												dropType="device"
+												isActive={activeDropId === `device-${device.id}`}
+												data={device}
+											/>
+										))}
+									</DropColumn>
+								) : devices.length === 0 ? (
+									<DropColumn title="Friends" className="flex-2">
+										{friends.map((friend) => (
+											<DropZone
+												key={friend.id}
+												variant="friend"
+												dropId={`friend-${friend.id}`}
+												dropType="friend"
+												isActive={activeDropId === `friend-${friend.id}`}
+												data={friend}
+											/>
+										))}
+									</DropColumn>
+								) : (
+									<>
+										<DropColumn title="Your Devices">
+											{devices.map((device) => (
+												<DropZone
+													key={device.id}
+													variant="device"
+													dropId={`device-${device.id}`}
+													dropType="device"
+													isActive={activeDropId === `device-${device.id}`}
+													data={device}
+												/>
+											))}
+										</DropColumn>
 
-						<DropColumn title="Friends">
-							{friends.map((friend) => (
-								<DropZone
-									key={friend.id}
-									variant="friend"
-									dropId={`friend-${friend.id}`}
-									dropType="friend"
-									isActive={activeDropId === `friend-${friend.id}`}
-									data={friend}
-								/>
-							))}
-						</DropColumn>
+										<DropColumn title="Friends">
+											{friends.map((friend) => (
+												<DropZone
+													key={friend.id}
+													variant="friend"
+													dropId={`friend-${friend.id}`}
+													dropType="friend"
+													isActive={activeDropId === `friend-${friend.id}`}
+													data={friend}
+												/>
+											))}
+										</DropColumn>
+									</>
+								)}
 
-						<motion.div
-							layout="position"
-							className="flex flex-1 flex-col gap-3 min-w-0"
-							animate={{ flex: optionsColumnFlex }}
-							transition={TRANSITION_SPRING_SOFT}
-						>
-							<h3 className="px-1 text-xs font-medium uppercase tracking-wider text-muted dark:text-muted-foreground">
-								Advanced Options
-							</h3>
-							<DropZone
-								variant="options"
-								dropId="options"
-								dropType="options"
-								isActive={isOptionsHovered}
-								isDragging={isDragging}
-								hasFiles={hasFiles}
-								onExpand={() => setIsExpanded(true)}
-								className="h-full"
-							/>
-						</motion.div>
+								<motion.div
+									layout="position"
+									className="flex flex-1 flex-col gap-3 min-w-0"
+									animate={{ flex: optionsColumnFlex }}
+									transition={TRANSITION_SPRING_SOFT}
+								>
+									<h3 className="px-1 text-xs font-medium uppercase tracking-wider text-muted dark:text-muted-foreground">
+										Advanced Options
+									</h3>
+									<DropZone
+										variant="options"
+										dropId="options"
+										dropType="options"
+										isActive={isOptionsHovered}
+										isDragging={isDragging}
+										hasFiles={hasFiles}
+										onExpand={() => setIsExpanded(true)}
+										className="h-full"
+									/>
+								</motion.div>
+							</>
+						)}
 					</motion.div>
 				)}
 			</AnimatePresence>
@@ -191,11 +221,4 @@ export const DropOverlayUI = memo(function DropOverlayUI({ devices, friends }: D
 			)}
 		</AnimatePresence>
 	);
-});
-
-export const DropOverlayUIWithDefaults = memo(function DropOverlayUIWithDefaults({
-	devices = DEFAULT_DEVICES,
-	friends = DEFAULT_FRIENDS,
-}: DropOverlayUISimpleProps) {
-	return <DropOverlayUI devices={devices} friends={friends} />;
 });

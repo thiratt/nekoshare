@@ -1,6 +1,9 @@
 import { LuFile, LuFileArchive, LuFileAudio, LuFileImage, LuFileText, LuFileVideo } from "react-icons/lu";
 
-import type { DropPosition, DropZoneRect, FileEntry, FileOptions } from "./types";
+import type { UiDevice } from "@workspace/app-ui/types/device";
+import type { FriendItem } from "@workspace/app-ui/types/friends";
+
+import type { Device, DropPosition, DropZoneRect, FileEntry, FileOptions, Friend } from "./types";
 
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"]);
 const VIDEO_EXTENSIONS = new Set(["mp4", "mov", "avi", "mkv", "webm", "flv"]);
@@ -105,4 +108,33 @@ export function createFileEntry(path: string, size: number = 0, overrides?: Part
 
 export function pluralize(count: number, singular: string, plural?: string): string {
 	return count === 1 ? singular : (plural ?? `${singular}s`);
+}
+
+export function transformUiDeviceToDropDevice(device: UiDevice): Device {
+	return {
+		id: device.id,
+		name: device.name,
+		type: device.platform === "android" ? "mobile" : "desktop",
+		isOnline: device.status === "online",
+	};
+}
+
+export function transformFriendItemToDropFriend(friend: FriendItem): Friend {
+	return {
+		id: friend.friendId,
+		name: friend.name,
+		avatar: friend.avatarUrl,
+		status: friend.isOnline === true ? "online" : "offline",
+	};
+}
+
+export function transformDevices(devices: UiDevice[], options: { excludeCurrentDevice?: boolean } = {}): Device[] {
+	const { excludeCurrentDevice = true } = options;
+	const filtered = excludeCurrentDevice ? devices.filter((d) => !d.isCurrent) : devices;
+
+	return filtered.map(transformUiDeviceToDropDevice);
+}
+
+export function transformFriends(friends: FriendItem[]): Friend[] {
+	return friends.map(transformFriendItemToDropFriend);
 }
