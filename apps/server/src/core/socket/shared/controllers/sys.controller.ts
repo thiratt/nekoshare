@@ -5,7 +5,7 @@ import { Logger } from "@/core/logger";
 import { safeJsonParse } from "@/core/utils/json-helper";
 
 import { db } from "@/adapters/db";
-import { device } from "@/adapters/db/schemas";
+import { device, user } from "@/adapters/db/schemas";
 import { eq } from "drizzle-orm";
 
 interface HeartbeatPayload {
@@ -51,6 +51,8 @@ export function registerSystemHandlers<T extends IConnection>(router: PacketRout
 
 					await db.update(device).set(updateData).where(eq(device.sessionId, client.session.id));
 				}
+
+				await db.update(user).set({ lastActiveAt: new Date() }).where(eq(user.id, client.user.id));
 			}
 
 			client.sendPacket(PacketType.SYSTEM_HEARTBEAT, 0);
