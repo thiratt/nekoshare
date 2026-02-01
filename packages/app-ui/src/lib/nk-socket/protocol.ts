@@ -1,5 +1,6 @@
 import type {
 	SocketDeviceAddedPayload,
+	SocketDevicePresencePayload,
 	SocketDeviceRemovedPayload,
 	SocketDeviceUpdatedPayload,
 } from "@workspace/app-ui/types/device";
@@ -64,6 +65,8 @@ export enum PacketType {
 	DEVICE_UPDATED = 0x92,
 	DEVICE_REMOVED = 0x93,
 	DEVICE_ADDED = 0x94,
+	DEVICE_ONLINE = 0x95,
+	DEVICE_OFFLINE = 0x96,
 
 	// Friend Management (0xA0 - 0xAF)
 	FRIEND_REQUEST_RECEIVED = 0xa0,
@@ -71,6 +74,8 @@ export enum PacketType {
 	FRIEND_REQUEST_REJECTED = 0xa2,
 	FRIEND_REQUEST_CANCELLED = 0xa3,
 	FRIEND_REMOVED = 0xa4,
+	FRIEND_ONLINE = 0xa5,
+	FRIEND_OFFLINE = 0xa6,
 
 	// Debug (0xE0 - 0xEF)
 	DEBUG_LOG = 0xe0,
@@ -159,6 +164,10 @@ export interface FriendRemovedPayload {
 	readonly friendId: string;
 }
 
+export interface FriendPresencePayload {
+	readonly userId: string;
+}
+
 type PacketParser<T> = (reader: BinaryReader) => T;
 
 function parseJsonPayload<T>(reader: BinaryReader, payloadName: string): Result<T> {
@@ -177,6 +186,10 @@ export const PacketParsers = {
 		parseJsonPayload<SocketDeviceRemovedPayload>(reader, "DEVICE_REMOVED"),
 	[PacketType.DEVICE_ADDED]: (reader: BinaryReader): Result<SocketDeviceAddedPayload> =>
 		parseJsonPayload<SocketDeviceAddedPayload>(reader, "DEVICE_ADDED"),
+	[PacketType.DEVICE_ONLINE]: (reader: BinaryReader): Result<SocketDevicePresencePayload> =>
+		parseJsonPayload<SocketDevicePresencePayload>(reader, "DEVICE_ONLINE"),
+	[PacketType.DEVICE_OFFLINE]: (reader: BinaryReader): Result<SocketDevicePresencePayload> =>
+		parseJsonPayload<SocketDevicePresencePayload>(reader, "DEVICE_OFFLINE"),
 	[PacketType.PEER_CONNECT_RESPONSE]: (reader: BinaryReader): Result<PeerConnectResponsePayload> =>
 		parseJsonPayload<PeerConnectResponsePayload>(reader, "PEER_CONNECT_RESPONSE"),
 	[PacketType.PEER_INCOMING_REQUEST]: (reader: BinaryReader): Result<PeerIncomingRequestPayload> =>
@@ -200,6 +213,10 @@ export const PacketParsers = {
 		parseJsonPayload<FriendRequestCancelledPayload>(reader, "FRIEND_REQUEST_CANCELLED"),
 	[PacketType.FRIEND_REMOVED]: (reader: BinaryReader): Result<FriendRemovedPayload> =>
 		parseJsonPayload<FriendRemovedPayload>(reader, "FRIEND_REMOVED"),
+	[PacketType.FRIEND_ONLINE]: (reader: BinaryReader): Result<FriendPresencePayload> =>
+		parseJsonPayload<FriendPresencePayload>(reader, "FRIEND_ONLINE"),
+	[PacketType.FRIEND_OFFLINE]: (reader: BinaryReader): Result<FriendPresencePayload> =>
+		parseJsonPayload<FriendPresencePayload>(reader, "FRIEND_OFFLINE"),
 } as const satisfies Partial<Record<PacketType, PacketParser<unknown>>>;
 
 type InferredParsers = typeof PacketParsers;
