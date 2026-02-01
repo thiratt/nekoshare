@@ -26,7 +26,6 @@ const FRIENDS_API_ENDPOINTS = {
 } as const;
 
 const SEARCH_DEBOUNCE_MS = 300;
-const MINIMUM_SEARCH_LENGTH = 2;
 
 const sortByName = (a: FriendItem, b: FriendItem): number => a.name.localeCompare(b.name);
 
@@ -463,12 +462,6 @@ export function useUserSearch(): UseUserSearchReturn {
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		if (query.length < MINIMUM_SEARCH_LENGTH) {
-			setResults([]);
-			setError(null);
-			return;
-		}
-
 		const controller = new AbortController();
 
 		const timeoutId = setTimeout(async () => {
