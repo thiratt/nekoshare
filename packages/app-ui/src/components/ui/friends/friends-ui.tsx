@@ -1,31 +1,21 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
-import { LuCircle, LuInbox, LuRefreshCcw, LuUserPlus } from "react-icons/lu";
+import { LuPlus, LuRefreshCcw, LuUsers } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@workspace/ui/components/card";
-import { CardDescription, CardTitle } from "@workspace/ui/components/card";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Dialog, DialogTrigger } from "@workspace/ui/components/dialog";
 import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { SearchInput } from "@workspace/ui/components/search-input";
-import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useToast } from "@workspace/ui/hooks/use-toast";
 import { cn } from "@workspace/ui/lib/utils";
 
-import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
 import { useFriends } from "@workspace/app-ui/hooks/use-friends";
 import type { FriendItem } from "@workspace/app-ui/types/friends";
 
-import { EmptyState, FriendCard, FriendSection } from "./components";
+import { CardTransition } from "../../ext/card-transition";
+import { EmptyState, FriendRow, NoResults, SectionHeader, SkeletonRow } from "./components";
 import { AddFriendDialog, RevokeConfirmDialog } from "./dialogs";
-
-const isUserOnline = (lastActive: string): boolean => {
-	const lastActiveDate = new Date(lastActive);
-	const now = new Date();
-	const diffMs = now.getTime() - lastActiveDate.getTime();
-	const fiveMinutesMs = 5 * 60 * 1000;
-	return diffMs < fiveMinutesMs;
-};
 
 export function FriendsUI() {
 	const { toast } = useToast();
@@ -47,86 +37,63 @@ export function FriendsUI() {
 	const deferredQuery = useDeferredValue(query);
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 	const [actionLoading, setActionLoading] = useState<string | null>(null);
-	const [deleteConfirmation, setDeleteConfirmation] = useState<{ open: boolean; friend: FriendItem | null }>({
-		open: false,
-		friend: null,
-	});
+	const [deleteConfirmation, setDeleteConfirmation] = useState<{
+		open: boolean;
+		friend: FriendItem | null;
+	}>({ open: false, friend: null });
 
 	const prevIncomingCountRef = useRef(incoming.length);
-	const prevOutgoingCountRef = useRef(outgoing.length);
 	const isInitializedRef = useRef(false);
 
-	const friendsWithOnlineStatus = useMemo(() => {
-		return friends.map((friend) => ({
-			...friend,
-			isOnline: friend.isOnline ?? isUserOnline(friend.lastActive),
-		}));
-	}, [friends]);
+	const { onlineFriends, offlineFriends, filteredRequests } = useMemo(() => {
+		const normalizedQuery = deferredQuery.trim().toLowerCase();
+		const matchesQuery = (item: FriendItem) =>
+			!normalizedQuery || `${item.name} ${item.email}`.toLowerCase().includes(normalizedQuery);
 
-	const { onlineFriends, offlineFriends } = useMemo(() => {
 		const online: FriendItem[] = [];
 		const offline: FriendItem[] = [];
+		const requests: FriendItem[] = [];
 
-		friendsWithOnlineStatus.forEach((friend) => {
+		for (const friend of friends) {
+			if (!matchesQuery(friend)) continue;
 			if (friend.isOnline) {
 				online.push(friend);
 			} else {
 				offline.push(friend);
 			}
-		});
+		}
 
-		return { onlineFriends: online, offlineFriends: offline };
-	}, [friendsWithOnlineStatus]);
+		for (const item of incoming) {
+			if (matchesQuery(item)) requests.push(item);
+		}
+		for (const item of outgoing) {
+			if (matchesQuery(item)) requests.push(item);
+		}
 
-	const requests = useMemo(() => {
-		return [...incoming, ...outgoing];
-	}, [incoming, outgoing]);
+		return { onlineFriends: online, offlineFriends: offline, filteredRequests: requests };
+	}, [friends, incoming, outgoing, deferredQuery]);
 
-	const filterItems = useCallback(
-		(items: FriendItem[]) => {
-			const normalizedQuery = deferredQuery.trim().toLowerCase();
-			if (!normalizedQuery) return items;
-			return items.filter((item) => `${item.name} ${item.email}`.toLowerCase().includes(normalizedQuery));
-		},
-		[deferredQuery],
-	);
-
-	const filteredOnline = useMemo(() => filterItems(onlineFriends), [filterItems, onlineFriends]);
-	const filteredOffline = useMemo(() => filterItems(offlineFriends), [filterItems, offlineFriends]);
-	const filteredRequests = useMemo(() => filterItems(requests), [filterItems, requests]);
-
-	const hasItems = filteredOnline.length > 0 || filteredOffline.length > 0 || filteredRequests.length > 0;
-	const showNoResults = !hasItems && deferredQuery;
-	const isEmpty = !hasItems && !deferredQuery && !loading;
+	const totalCount = friends.length + incoming.length + outgoing.length;
+	const hasItems = onlineFriends.length > 0 || offlineFriends.length > 0 || filteredRequests.length > 0;
+	const showNoResults = !hasItems && deferredQuery.length > 0;
+	const isEmpty = totalCount === 0 && !loading;
 
 	useEffect(() => {
 		if (!isInitializedRef.current) {
 			prevIncomingCountRef.current = incoming.length;
-			prevOutgoingCountRef.current = outgoing.length;
 			isInitializedRef.current = true;
 			return;
 		}
 
 		if (incoming.length > prevIncomingCountRef.current) {
-			const newCount = incoming.length - prevIncomingCountRef.current;
-			const newestRequest = incoming[0];
-			if (newestRequest) {
-				toast.info(`คำขอเป็นเพื่อนใหม่จาก ${newestRequest.name}`, {
-					description: newCount > 1 ? `และอีก ${newCount - 1} คำขอ` : undefined,
-				});
-			}
-		}
-
-		if (outgoing.length < prevOutgoingCountRef.current && friends.length > 0) {
-			const acceptedFriend = friends.find((f) => !outgoing.some((o) => o.friendId === f.friendId));
-			if (acceptedFriend) {
-				toast.success(`${acceptedFriend.name} ยอมรับคำขอเป็นเพื่อนของคุณแล้ว`);
+			const newest = incoming[0];
+			if (newest) {
+				toast.info(`คำขอเป็นเพื่อนจาก ${newest.name}`);
 			}
 		}
 
 		prevIncomingCountRef.current = incoming.length;
-		prevOutgoingCountRef.current = outgoing.length;
-	}, [incoming, outgoing, friends, toast]);
+	}, [incoming, toast]);
 
 	const handleSendRequest = useCallback(
 		async (userId: string) => {
@@ -174,13 +141,13 @@ export function FriendsUI() {
 
 	const handleRemove = useCallback(
 		(friendId: string) => {
-			const allItems = [...requests, ...friendsWithOnlineStatus];
+			const allItems = [...friends, ...incoming, ...outgoing];
 			const friend = allItems.find((f) => f.friendId === friendId);
 			if (friend) {
 				setDeleteConfirmation({ open: true, friend });
 			}
 		},
-		[requests, friendsWithOnlineStatus],
+		[friends, incoming, outgoing],
 	);
 
 	const handleConfirmDelete = useCallback(async () => {
@@ -190,20 +157,16 @@ export function FriendsUI() {
 		}
 	}, [deleteConfirmation.friend, removeFriend]);
 
-	const handleRefresh = useCallback(async () => {
-		await refresh();
-	}, [refresh]);
-
 	return (
 		<CardTransition className="h-full gap-4 overflow-hidden" tag="friends-card">
 			<CardHeader>
 				<div className="space-y-1">
 					<CardTitle>เพื่อน</CardTitle>
-					<CardDescription>คนที่สามารถแชร์ข้อมูลกับคุณได้</CardDescription>
+					<CardDescription>คนที่สามารถแชร์ไฟล์กับคุณได้</CardDescription>
 				</div>
 				<div className="flex">
 					<div className="flex items-center gap-2">
-						<Button variant="outline" onClick={handleRefresh} disabled={loading}>
+						<Button variant="outline" disabled={loading}>
 							<LuRefreshCcw className={cn(loading && "animate-spin")} />
 						</Button>
 						<SearchInput
@@ -214,125 +177,87 @@ export function FriendsUI() {
 							className="w-64"
 						/>
 					</div>
-					<div className="flex items-center ms-auto">
-						<Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-							<DialogTrigger asChild>
-								<Button className="gap-2">
-									<LuUserPlus className="w-4 h-4" />
-									เพิ่มเพื่อน
-								</Button>
-							</DialogTrigger>
-							<AddFriendDialog onSubmit={handleSendRequest} />
-						</Dialog>
-					</div>
+					<Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+						<DialogTrigger asChild>
+							<Button size="sm" className="h-9 gap-1.5 ml-auto">
+								<LuPlus className="w-4 h-4" />
+								<span className="hidden sm:inline">เพิ่มเพื่อน</span>
+							</Button>
+						</DialogTrigger>
+						<AddFriendDialog onSubmit={handleSendRequest} />
+					</Dialog>
 				</div>
 			</CardHeader>
 
-			<CardContent className="pt-0">
-				{error && <div className="mb-4 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">{error}</div>}
-
-				{loading && !hasItems && !showNoResults ? (
-					<ScrollArea className="h-[calc(100vh-14rem)]">
-						<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">
-							{[...Array(6)].map((_, i) => (
-								<Card key={i} className="dark:border-accent">
-									<CardHeader className="flex flex-row justify-between space-y-0 pb-2">
-										<div className="flex items-center gap-3">
-											<Skeleton className="size-12 rounded-full" />
-											<div className="space-y-2">
-												<Skeleton className="h-4 w-32" />
-												<Skeleton className="h-3 w-40" />
-												<Skeleton className="h-5 w-16" />
-											</div>
-										</div>
-									</CardHeader>
-									<CardContent className="space-y-2">
-										<div className="flex justify-between items-center">
-											<Skeleton className="h-4 w-24" />
-											<Skeleton className="h-4 w-32" />
-										</div>
-										<div className="flex justify-between items-center">
-											<Skeleton className="h-4 w-20" />
-											<Skeleton className="h-4 w-32" />
-										</div>
-									</CardContent>
-									<CardFooter>
-										<Skeleton className="h-9 w-full" />
-									</CardFooter>
-								</Card>
+			<CardContent className="px-0">
+				{error && (
+					<div className="px-6 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/30">
+						<p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+					</div>
+				)}
+				<ScrollArea className="flex-1">
+					{loading && totalCount === 0 ? (
+						<div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+							{Array.from({ length: 5 }).map((_, i) => (
+								<SkeletonRow key={i} />
 							))}
 						</div>
-					</ScrollArea>
-				) : isEmpty ? (
-					<EmptyState />
-				) : showNoResults ? (
-					<div
-						className={cn(
-							"h-[calc(100vh-14rem)] flex flex-col items-center justify-center",
-							"border-2 border-dashed rounded-lg text-muted-foreground space-y-2",
-						)}
-					>
-						<p>ไม่พบเพื่อนที่ตรงกับ &quot;{deferredQuery}&quot;</p>
-					</div>
-				) : (
-					<ScrollArea className="h-[calc(100vh-14rem)]">
-						{filteredRequests.length > 0 && (
-							<FriendSection
-								title="คำขอเป็นเพื่อน"
-								count={filteredRequests.length}
-								icon={<LuInbox />}
-								variant="request"
-							>
-								{filteredRequests.map((item) => (
-									<FriendCard
-										key={item.friendId}
-										friend={item}
-										onAccept={handleAccept}
-										onReject={handleReject}
-										onCancel={handleCancel}
-										loading={actionLoading === item.friendId}
-									/>
-								))}
-							</FriendSection>
-						)}
+					) : isEmpty ? (
+						<EmptyState
+							icon={<LuUsers className="w-12 h-12" />}
+							title="ยังไม่มีเพื่อน"
+							description="เพิ่มเพื่อนเพื่อเริ่มแชร์ไฟล์ได้อย่างง่ายดาย"
+						/>
+					) : showNoResults ? (
+						<NoResults query={deferredQuery} />
+					) : (
+						<div className="pb-6">
+							{filteredRequests.length > 0 && (
+								<section>
+									<SectionHeader title="คำขอเป็นเพื่อน" count={filteredRequests.length} />
+									{filteredRequests.map((item) => (
+										<FriendRow
+											key={item.friendId}
+											friend={item}
+											onAccept={handleAccept}
+											onReject={handleReject}
+											onCancel={handleCancel}
+											loading={actionLoading === item.friendId}
+										/>
+									))}
+								</section>
+							)}
 
-						{filteredOnline.length > 0 && (
-							<FriendSection
-								title="ออนไลน์"
-								count={filteredOnline.length}
-								icon={<LuCircle className="fill-current text-green-500" />}
-								variant="online"
-							>
-								{filteredOnline.map((item) => (
-									<FriendCard
-										key={item.friendId}
-										friend={item}
-										onRemove={handleRemove}
-										loading={actionLoading === item.friendId}
-									/>
-								))}
-							</FriendSection>
-						)}
+							{onlineFriends.length > 0 && (
+								<section>
+									<SectionHeader title="ออนไลน์" count={onlineFriends.length} />
+									{onlineFriends.map((friend) => (
+										<FriendRow
+											key={friend.friendId}
+											friend={friend}
+											onRemove={handleRemove}
+											loading={actionLoading === friend.friendId}
+										/>
+									))}
+								</section>
+							)}
 
-						{filteredOffline.length > 0 && (
-							<FriendSection
-								title="ออฟไลน์"
-								count={filteredOffline.length}
-								icon={<LuCircle className="text-gray-400" />}
-								variant="offline"
-							>
-								{filteredOffline.map((item) => (
-									<FriendCard
-										key={item.friendId}
-										friend={item}
-										onRemove={handleRemove}
-										loading={actionLoading === item.friendId}
-									/>
-								))}
-							</FriendSection>
-						)}
-					</ScrollArea>
-				)}
+							{offlineFriends.length > 0 && (
+								<section>
+									<SectionHeader title="ออฟไลน์" count={offlineFriends.length} />
+									{offlineFriends.map((friend) => (
+										<FriendRow
+											key={friend.friendId}
+											friend={friend}
+											onRemove={handleRemove}
+											loading={actionLoading === friend.friendId}
+										/>
+									))}
+								</section>
+							)}
+						</div>
+					)}
+				</ScrollArea>
 			</CardContent>
 
 			<RevokeConfirmDialog

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppError, ErrorCategory, ErrorSource } from "@workspace/app-ui/lib/errors";
 import {
+	type FriendPresencePayload,
 	type FriendRemovedPayload,
 	type FriendRequestAcceptedPayload,
 	type FriendRequestCancelledPayload,
@@ -184,6 +185,42 @@ export function useFriends(): UseFriendsReturn {
 					}));
 				} else {
 					console.error("[useFriends] Failed to parse FRIEND_REMOVED:", result.error?.message);
+				}
+			},
+
+			[PacketType.FRIEND_ONLINE]: (result: {
+				status: string;
+				data?: FriendPresencePayload;
+				error?: { message: string };
+			}) => {
+				if (result.status === "success" && result.data) {
+					const { userId } = result.data;
+					setState((prev) => ({
+						...prev,
+						friends: prev.friends.map((friend) =>
+							friend.id === userId ? { ...friend, isOnline: true } : friend,
+						),
+					}));
+				} else {
+					console.error("[useFriends] Failed to parse FRIEND_ONLINE:", result.error?.message);
+				}
+			},
+
+			[PacketType.FRIEND_OFFLINE]: (result: {
+				status: string;
+				data?: FriendPresencePayload;
+				error?: { message: string };
+			}) => {
+				if (result.status === "success" && result.data) {
+					const { userId } = result.data;
+					setState((prev) => ({
+						...prev,
+						friends: prev.friends.map((friend) =>
+							friend.id === userId ? { ...friend, isOnline: false } : friend,
+						),
+					}));
+				} else {
+					console.error("[useFriends] Failed to parse FRIEND_OFFLINE:", result.error?.message);
 				}
 			},
 		}),
