@@ -2,6 +2,7 @@ import type { WSContext } from "hono/ws";
 import { BaseConnection, PacketRouter, SessionManager, type TransportType } from "../shared";
 import {
 	registerDeviceHandlers,
+	registerFileTransferHandlers,
 	registerPeerHandlers,
 	registerSystemHandlers,
 	registerUserHandlers,
@@ -42,8 +43,11 @@ export function bootstrapWSControllers() {
 	if (initialized) return;
 	initialized = true;
 
-	registerSystemHandlers(wsRouter, "WebSocket");
-	registerUserHandlers(wsRouter, "WebSocket");
-	registerDeviceHandlers(wsRouter, "WebSocket");
-	registerPeerHandlers(wsRouter, "WebSocket");
+	const transportType: TransportType = "WebSocket";
+
+	registerSystemHandlers(wsRouter, transportType);
+	registerUserHandlers(wsRouter, transportType);
+	registerDeviceHandlers(wsRouter, transportType);
+	registerPeerHandlers(wsRouter, transportType);
+	registerFileTransferHandlers(wsRouter, transportType);
 }
