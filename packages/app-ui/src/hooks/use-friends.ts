@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppError, ErrorCategory, ErrorSource } from "@workspace/app-ui/lib/errors";
-import {
-	type FriendPresencePayload,
-	type FriendRemovedPayload,
-	type FriendRequestAcceptedPayload,
-	type FriendRequestCancelledPayload,
-	type FriendRequestReceivedPayload,
-	type FriendRequestRejectedPayload,
-	PacketType,
-} from "@workspace/app-ui/lib/nk-socket/protocol";
+import { PacketType } from "@workspace/app-ui/lib/nk-socket/protocol";
 import { xfetchApi } from "@workspace/app-ui/lib/xfetch";
 import type { FriendItem, FriendListResponse, UserSearchResult } from "@workspace/app-ui/types/friends";
 
+import {
+	FriendPresencePayload,
+	FriendRemovedPayload,
+	FriendRequestAcceptedPayload,
+	FriendRequestCancelledPayload,
+	FriendRequestReceivedPayload,
+	FriendRequestRejectedPayload,
+} from "../lib/nk-socket/payload";
 import { usePacketRouter } from "./usePacketRouter";
 
 const FRIENDS_API_ENDPOINTS = {
