@@ -6,7 +6,10 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
+
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { useSetGlobalLoading } from "@workspace/app-ui/context/nekoshare";
 
@@ -31,9 +34,13 @@ interface NSDesktopContextValue {
   needsSetup: boolean;
   error: Error | null;
   initComplete: boolean;
+  isMaximized: boolean;
   setFileLocation: (path: string) => Promise<void>;
   clearConfig: () => Promise<void>;
   refresh: () => Promise<void>;
+  minimize: () => void;
+  toggleMaximize: () => void;
+  close: () => void;
 }
 
 const NSDesktopContext = createContext<NSDesktopContextValue | null>(null);
@@ -43,7 +50,15 @@ const CONFIG_KEY = "appConfig";
 
 const getStoreActions = () => useDesktopStore.getState();
 
-export function NSDesktopProvider({ children }: { children: ReactNode }) {
+export function NSDesktopProvider({
+  initialMaximized,
+  children,
+}: {
+  initialMaximized: boolean;
+  children: ReactNode;
+}) {
+  const appWindow = getCurrentWindow();
+  const [isMaximized, setIsMaximized] = useState(initialMaximized);
   const setGlobalLoading = useSetGlobalLoading();
 
   const config = useDesktopConfig();
@@ -176,6 +191,17 @@ export function NSDesktopProvider({ children }: { children: ReactNode }) {
     await getStoreActions().refresh(storageAdapter);
   }, [storageAdapter]);
 
+  useEffect(() => {
+    const unlistenPromise = appWindow.listen("tauri://resize", async () => {
+      const max = await appWindow.isMaximized();
+      setIsMaximized(max);
+    });
+
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [appWindow]);
+
   const contextValue = useMemo<NSDesktopContextValue>(
     () => ({
       config,
@@ -184,9 +210,13 @@ export function NSDesktopProvider({ children }: { children: ReactNode }) {
       needsSetup,
       error,
       initComplete,
+      isMaximized,
       setFileLocation,
       clearConfig,
       refresh,
+      minimize: () => appWindow.minimize(),
+      toggleMaximize: () => appWindow.toggleMaximize(),
+      close: () => appWindow.close(),
     }),
     [
       config,
@@ -195,9 +225,11 @@ export function NSDesktopProvider({ children }: { children: ReactNode }) {
       needsSetup,
       error,
       initComplete,
+      isMaximized,
       setFileLocation,
       clearConfig,
       refresh,
+      appWindow,
     ],
   );
 

@@ -1,38 +1,45 @@
-import { useEffect, useState } from "react";
-
 import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { NekoShareProvider } from "@workspace/app-ui/context/nekoshare";
 import { ThemeProvider } from "@workspace/app-ui/providers/theme-provider";
-import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
 
 import { ErrorComponent } from "@/components/error";
 import { NSDesktopProvider } from "@/context/NSDesktopContext";
-import { getDeviceInfo } from "@/lib/device";
+import { getDeviceInfoWithKey } from "@/lib/device";
 
 export const Route = createRootRoute({
   component: RouteComponent,
   errorComponent: ErrorComponent,
+  loader: async () => {
+    const appWindow = getCurrentWindow();
+
+    const [deviceInfo, isMaximized] = await Promise.all([
+      getDeviceInfoWithKey(),
+      appWindow.isMaximized(),
+    ]);
+    return { deviceInfo, isMaximized };
+  },
+  pendingComponent: () => (
+    <ThemeProvider>
+      <div className="flex h-screen bg-background items-center justify-center animate-in fade-in duration-500">
+        กำลังโหลดข้อมูลอุปกรณ์...
+      </div>
+    </ThemeProvider>
+  ),
+  pendingMs: 0,
+  pendingMinMs: 800,
+  staleTime: Infinity
 });
 
 function RouteComponent() {
   const router = useRouter();
-  const [deviceInfo, setDeviceInfo] = useState<LocalDeviceInfo | undefined>(
-    undefined,
-  );
-
-  useEffect(() => {
-    const fetchDeviceInfo = async () => {
-      const info = await getDeviceInfo();
-      setDeviceInfo(info);
-    };
-    fetchDeviceInfo();
-  }, []);
+  const { deviceInfo, isMaximized } = Route.useLoaderData();
 
   return (
     <ThemeProvider>
       <NekoShareProvider router={router} currentDevice={deviceInfo}>
-        <NSDesktopProvider>
+        <NSDesktopProvider initialMaximized={isMaximized}>
           <Outlet />
         </NSDesktopProvider>
       </NekoShareProvider>

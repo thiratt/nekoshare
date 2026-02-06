@@ -4,7 +4,7 @@ import { TiTabsOutline } from "react-icons/ti";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
 
-import { useTitlebarControl } from "@/hooks/useTitlebarControl";
+import { useNSDesktop } from "@/context/NSDesktopContext";
 
 interface DesktopTitlebarHelperActionsProps {
   icon: React.ReactNode;
@@ -19,7 +19,7 @@ interface DesktopTitlebarProps {
 }
 
 function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
-  const { isMaximized, minimize, toggleMaximize, close } = useTitlebarControl();
+  const { isMaximized, minimize, toggleMaximize, close } = useNSDesktop();
 
   return (
     <div className="flex items-center w-full h-11 bg-primary dark:bg-background border-b-2">
