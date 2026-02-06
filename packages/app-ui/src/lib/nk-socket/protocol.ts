@@ -1,13 +1,27 @@
+import { safeJsonParse } from "../json";
+import { BinaryReader } from "./binary-utils";
+import type { Result } from "../errors";
 import type {
+	AckPayload,
+	ErrorPayload,
+	FileAcceptPayload,
+	FileOfferPayload,
+	FriendPresencePayload,
+	FriendRemovedPayload,
+	FriendRequestAcceptedPayload,
+	FriendRequestCancelledPayload,
+	FriendRequestReceivedPayload,
+	FriendRequestRejectedPayload,
+	PeerConnectionInfoPayload,
+	PeerConnectResponsePayload,
+	PeerDisconnectedPayload,
+	PeerIncomingRequestPayload,
+	PeerSocketReadyResponsePayload,
 	SocketDeviceAddedPayload,
 	SocketDevicePresencePayload,
 	SocketDeviceRemovedPayload,
 	SocketDeviceUpdatedPayload,
-} from "@workspace/app-ui/types/device";
-
-import { safeJsonParse } from "../json";
-import { BinaryReader } from "./binary-utils";
-import type { Result } from "../errors";
+} from "./payload";
 
 export enum PacketType {
 	// System Packets (0x00 - 0x0F)
@@ -88,86 +102,6 @@ export enum PacketType {
 	ERROR_SERVER_FULL = 0xf3,
 }
 
-export interface PeerConnectResponsePayload {
-	readonly success: boolean;
-	readonly status: "pending" | "failed" | "duplicate";
-	readonly requestId?: string;
-	readonly message: string;
-}
-
-export interface PeerIncomingRequestPayload {
-	readonly requestId: string;
-	readonly sourceDeviceId: string;
-	readonly sourceDeviceName: string;
-	readonly sourceIp: string;
-	readonly fingerprint: string;
-}
-
-export interface PeerConnectionInfoPayload {
-	readonly requestId: string;
-	readonly ip: string;
-	readonly port: number;
-	readonly deviceName: string;
-	readonly fingerprint: string;
-}
-
-export interface PeerSocketReadyResponsePayload {
-	readonly success: boolean;
-	readonly message: string;
-}
-
-export interface PeerDisconnectedPayload {
-	readonly deviceId: string;
-	readonly reason: string;
-}
-
-export interface AckPayload {
-	readonly success: boolean;
-	readonly message: string;
-}
-
-export interface ErrorPayload {
-	readonly message: string;
-	readonly code?: string;
-}
-
-export interface FriendRequestReceivedPayload {
-	readonly friendId: string;
-	readonly user: {
-		readonly id: string;
-		readonly name: string;
-		readonly email: string;
-		readonly avatarUrl?: string;
-	};
-	readonly createdAt: string;
-}
-
-export interface FriendRequestAcceptedPayload {
-	readonly friendId: string;
-	readonly user: {
-		readonly id: string;
-		readonly name: string;
-		readonly email: string;
-		readonly avatarUrl?: string;
-	};
-}
-
-export interface FriendRequestRejectedPayload {
-	readonly friendId: string;
-}
-
-export interface FriendRequestCancelledPayload {
-	readonly friendId: string;
-}
-
-export interface FriendRemovedPayload {
-	readonly friendId: string;
-}
-
-export interface FriendPresencePayload {
-	readonly userId: string;
-}
-
 type PacketParser<T> = (reader: BinaryReader) => T;
 
 function parseJsonPayload<T>(reader: BinaryReader, payloadName: string): Result<T> {
@@ -201,6 +135,12 @@ export const PacketParsers = {
 	[PacketType.PEER_DISCONNECTED]: (reader: BinaryReader): Result<PeerDisconnectedPayload> =>
 		parseJsonPayload<PeerDisconnectedPayload>(reader, "PEER_DISCONNECTED"),
 	[PacketType.ACK]: (reader: BinaryReader): Result<AckPayload> => parseJsonPayload<AckPayload>(reader, "ACK"),
+	[PacketType.FILE_OFFER]: (reader: BinaryReader): Result<FileOfferPayload> =>
+		parseJsonPayload<FileOfferPayload>(reader, "FILE_OFFER"),
+	[PacketType.FILE_ACCEPT]: (reader: BinaryReader): Result<FileAcceptPayload> =>
+		parseJsonPayload<FileAcceptPayload>(reader, "FILE_ACCEPT"),
+	[PacketType.FILE_REJECT]: (reader: BinaryReader): Result<AckPayload> =>
+		parseJsonPayload<AckPayload>(reader, "FILE_REJECT"),
 	[PacketType.ERROR_GENERIC]: (reader: BinaryReader): Result<ErrorPayload> =>
 		parseJsonPayload<ErrorPayload>(reader, "ERROR_GENERIC"),
 	[PacketType.FRIEND_REQUEST_RECEIVED]: (reader: BinaryReader): Result<FriendRequestReceivedPayload> =>
