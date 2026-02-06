@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { AnimatePresence, motion, type Transition, type Variants } from "motion/react";
 
@@ -52,8 +52,10 @@ const OVERLAY_VARIANTS: Variants = {
 	},
 };
 
-const CONTENT_SCALE_ACTIVE = { scale: 1, y: 0 };
-const CONTENT_SCALE_INACTIVE = { scale: 0.97, y: -10 };
+const CONTENT_INITIAL_HIDDEN = { opacity: 0, scale: 0.98 };
+const CONTENT_ANIMATION_HIDDEN = { opacity: 0, scale: 0.98 };
+const CONTENT_SCALE_ACTIVE = { scale: 1, y: 0, opacity: 1 };
+const CONTENT_SCALE_INACTIVE = { scale: 0.97, y: -10, opacity: 1 };
 
 interface SessionTerminatedState {
 	readonly open: boolean;
@@ -77,6 +79,7 @@ const NekoShareProvider = <TRouter extends Router>({
 	currentDevice,
 }: NekoShareProviderProps<TRouter>): React.ReactElement => {
 	const [sessionTerminated, setSessionTerminated] = useState<SessionTerminatedState>(INITIAL_SESSION_STATE);
+	const [mounted, setMounted] = useState(false);
 
 	const mode = useMode();
 	const setMode = useSetMode();
@@ -141,17 +144,27 @@ const NekoShareProvider = <TRouter extends Router>({
 	const isHomeMode = mode === "home";
 	const contentAnimationState = isHomeMode ? CONTENT_SCALE_ACTIVE : CONTENT_SCALE_INACTIVE;
 
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setMounted(true);
+		}, 100);
+		return () => clearTimeout(timer);
+	}, []);
+
 	return (
 		<NekoShareContext.Provider value={contextValue}>
 			<div className="relative h-screen overflow-hidden">
 				<motion.div
 					className="h-full will-change-transform"
-					initial={false}
-					animate={contentAnimationState}
+					initial={CONTENT_INITIAL_HIDDEN}
+					animate={mounted ? contentAnimationState : CONTENT_ANIMATION_HIDDEN}
 					transition={SPRING_TRANSITION}
 				>
 					{children}
 				</motion.div>
+				{!isHomeMode && (
+					<div className="absolute inset-0 bg-background/80 backdrop-blur-xs animate-in fade-in delay-75" />
+				)}
 				<AnimatePresence mode="wait">
 					{!isHomeMode && (
 						<motion.div
@@ -163,7 +176,6 @@ const NekoShareProvider = <TRouter extends Router>({
 							exit="hidden"
 							transition={{ duration: 0.2 }}
 						>
-							<div className="absolute inset-0 bg-background/80 backdrop-blur-xs" />
 							<motion.div
 								className="relative h-full"
 								variants={OVERLAY_VARIANTS}
@@ -174,6 +186,19 @@ const NekoShareProvider = <TRouter extends Router>({
 							>
 								<SettingsUI />
 							</motion.div>
+						</motion.div>
+					)}
+				</AnimatePresence>
+				<AnimatePresence>
+					{!mounted && (
+						// TODO: Replace with proper skeleton loader
+						<motion.div
+							key="initial-loader"
+							className="absolute inset-0 z-50 flex items-center justify-center bg-background"
+							initial={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+						>
+							<span>กำลังโหลดข้อมูลอุปกรณ์...</span>
 						</motion.div>
 					)}
 				</AnimatePresence>
