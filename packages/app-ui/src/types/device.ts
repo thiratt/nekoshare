@@ -73,24 +73,3 @@ export interface UiDevice {
 	status: DeviceStatus;
 	lastSeen: string;
 }
-
-export interface SocketDeviceUpdatedPayload {
-	id: string;
-	name: string;
-}
-
-// Re-use ApiDevice but new name for clarity
-export interface SocketDeviceAddedPayload extends Omit<ApiDevice, "lastActiveAt"> {
-	lastActiveAt: Date;
-}
-
-export interface SocketDeviceRemovedPayload {
-	id: string;
-	deviceIdentifier?: string | null;
-	terminatedBy: string;
-}
-
-export interface SocketDevicePresencePayload {
-	deviceId: string;
-	deviceIdentifier?: string;
-}

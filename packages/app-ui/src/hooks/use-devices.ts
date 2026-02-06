@@ -10,9 +10,10 @@ import {
 } from "@workspace/app-ui/lib/device-api";
 import { AppError } from "@workspace/app-ui/lib/errors";
 import { PacketType } from "@workspace/app-ui/lib/nk-socket/index";
-import type { SocketDevicePresencePayload, UiDevice } from "@workspace/app-ui/types/device";
+import type { UiDevice } from "@workspace/app-ui/types/device";
 import type { UseDevicesReturn } from "@workspace/app-ui/types/hooks";
 
+import { SocketDevicePresencePayload } from "../lib/nk-socket/payload";
 import { usePacketRouter } from "./usePacketRouter";
 
 export const DeviceErrorCode = {
