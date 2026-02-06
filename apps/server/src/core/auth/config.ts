@@ -53,7 +53,7 @@ const pluginsOptions = [
 	bearer(),
 	customSession(async ({ user, session }, ctx) => {
 		const userDeviceId = await db.query.device.findFirst({
-			where: (devices) => eq(devices.userId, session.userId),
+			where: (devices) => eq(devices.sessionId, session.id),
 		});
 		return {
 			user: {
