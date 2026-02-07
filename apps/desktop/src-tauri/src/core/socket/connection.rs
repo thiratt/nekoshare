@@ -77,7 +77,7 @@ impl Connection {
     ) -> (Arc<Self>, mpsc::Receiver<(PacketType, i32, Vec<u8>)>) {
         let config = TransferConfig::global();
 
-        if let Err(e) = stream.configure(config) {
+        if let Err(e) = stream.configure(&config) {
             log::warn!("Failed to configure TCP socket: {}", e);
         }
 

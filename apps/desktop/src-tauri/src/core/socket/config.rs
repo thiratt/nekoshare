@@ -137,13 +137,7 @@ impl TransferConfig {
         }
     }
 
-    pub fn global() -> &'static Self {
-        static CONFIG: std::sync::OnceLock<TransferConfig> = std::sync::OnceLock::new();
-        CONFIG.get_or_init(Self::default)
-    }
-
-    pub fn set_global(config: Self) -> Result<(), Self> {
-        static CONFIG: std::sync::OnceLock<TransferConfig> = std::sync::OnceLock::new();
-        CONFIG.set(config)
+    pub fn global() -> Self {
+        Self::default()
     }
 }
