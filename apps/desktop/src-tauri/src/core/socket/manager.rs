@@ -103,6 +103,28 @@ impl SocketManager {
             .any(|entry| entry.value().has_active_connection())
     }
 
+    pub async fn stop_servers(&self) -> usize {
+        let servers: Vec<Arc<SocketServer>> = self
+            .servers
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect();
+
+        if servers.is_empty() {
+            return 0;
+        }
+
+        self.servers.clear();
+
+        let stopped_count = servers.len();
+
+        for server in servers {
+            server.stop().await;
+        }
+
+        stopped_count
+    }
+
     pub async fn disconnect(&self, pair_key: &PairKey) -> SocketResult<()> {
         if let Some(conn) = self.active_sessions.get(pair_key) {
             conn.close().await;

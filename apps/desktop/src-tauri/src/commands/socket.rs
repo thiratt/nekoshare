@@ -609,9 +609,15 @@ pub async fn socket_server_start(
 pub async fn socket_server_stop(
     state: State<'_, Arc<SocketManager>>,
 ) -> Result<String, SocketCommandError> {
-    let _manager = state.inner().clone();
+    let manager = state.inner().clone();
+    let stopped = manager.stop_servers().await;
 
-    todo!()
+    if stopped == 0 {
+        return Ok("No active socket server to stop".to_string());
+    }
+
+    let suffix = if stopped == 1 { "" } else { "s" };
+    Ok(format!("Stopped {} socket server{}", stopped, suffix))
 }
 
 #[tauri::command]
