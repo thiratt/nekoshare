@@ -29,7 +29,7 @@ impl LinkKey {
     }
 
     pub fn pair_key(&self) -> PairKey {
-        PairKey::from(self.local, self.peer)
+        PairKey::from(self.local, self.peer, self.route)
     }
 }
 
@@ -47,20 +47,25 @@ impl fmt::Display for LinkKey {
 pub struct PairKey {
     pub a: Uuid,
     pub b: Uuid,
+    pub route: RouteKind,
 }
 
 impl PairKey {
-    pub fn from(x: Uuid, y: Uuid) -> Self {
+    pub fn from(x: Uuid, y: Uuid, route: RouteKind) -> Self {
         if x <= y {
-            Self { a: x, b: y }
+            Self { a: x, b: y, route }
         } else {
-            Self { a: y, b: x }
+            Self { a: y, b: x, route }
         }
     }
 }
 
 impl fmt::Display for PairKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.a, self.b)
+        let route = match self.route {
+            RouteKind::Direct => "direct",
+            RouteKind::Relay => "relay",
+        };
+        write!(f, "{}:{}:{}", self.a, self.b, route)
     }
 }
