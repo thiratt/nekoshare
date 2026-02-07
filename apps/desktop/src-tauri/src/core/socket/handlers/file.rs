@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::{AsyncWriteExt, BufWriter};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::core::socket::{BinaryReader, Connection, PacketRouter, PacketType, SocketResult};
 use crate::core::socket::{SocketError, TransferConfig};
@@ -20,9 +20,18 @@ struct TransferState {
 type TransferMap = DashMap<(String, String), Arc<TransferState>>;
 
 static ACTIVE_TRANSFERS: std::sync::OnceLock<TransferMap> = std::sync::OnceLock::new();
+static RECEIVE_BASE_DIR: std::sync::OnceLock<RwLock<Option<PathBuf>>> = std::sync::OnceLock::new();
 
 fn get_transfers() -> &'static TransferMap {
     ACTIVE_TRANSFERS.get_or_init(DashMap::new)
+}
+
+fn get_receive_base_dir() -> &'static RwLock<Option<PathBuf>> {
+    RECEIVE_BASE_DIR.get_or_init(|| RwLock::new(None))
+}
+
+pub async fn set_receive_base_dir(path: Option<PathBuf>) {
+    *get_receive_base_dir().write().await = path;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -45,10 +54,33 @@ async fn handle_file_offer(
 
     let user_dirs = directories::UserDirs::new()
         .ok_or_else(|| SocketError::other("Failed to get user directories"))?;
-    let download_dir = user_dirs
+    let default_download_dir = user_dirs
         .download_dir()
         .ok_or_else(|| SocketError::other("Failed to get download directory"))?;
-    let file_path = download_dir.join(&metadata.name);
+
+    let mut base_dir = get_receive_base_dir()
+        .read()
+        .await
+        .clone()
+        .unwrap_or_else(|| default_download_dir.to_path_buf());
+
+    if let Err(e) = tokio::fs::create_dir_all(&base_dir).await {
+        log::warn!(
+            "Failed to use configured receive directory {:?}: {}. Falling back to Downloads.",
+            base_dir,
+            e
+        );
+        base_dir = default_download_dir.to_path_buf();
+        tokio::fs::create_dir_all(&base_dir).await.map_err(|err| {
+            SocketError::other(format!(
+                "Failed to create fallback receive directory {:?}: {}",
+                base_dir, err
+            ))
+        })?;
+    }
+
+    let file_path = base_dir.join(&metadata.name);
+    log::info!("Receive target path: {:?}", file_path);
 
     let file = File::create(&file_path).await?;
 

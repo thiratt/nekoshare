@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+use std::path::PathBuf;
 use std::sync::Arc;
-use tauri::State;
+use tauri::{AppHandle, State};
+use tauri_plugin_store::StoreExt;
 use thiserror::Error;
 use tokio::{fs::File, io::AsyncReadExt, sync::Mutex};
 use uuid::Uuid;
@@ -9,12 +12,15 @@ use crate::{
     core::{
         device::DeviceManager,
         socket::{
+            handlers::file::set_receive_base_dir,
             ids::{LinkKey, RouteKind},
             ConnectionServerConfig, PacketType, SocketClientConfig, SocketManager, TransferConfig,
         },
     },
     state::GlobalState,
 };
+
+const STORE_FILE_NAME: &str = "nekoshare.json";
 
 #[derive(Debug, Error, Serialize, Deserialize)]
 pub enum SocketCommandError {
@@ -74,6 +80,47 @@ fn parse_route_kind(route: &str) -> Result<RouteKind, SocketCommandError> {
         "direct" => Ok(RouteKind::Direct),
         "relay" => Ok(RouteKind::Relay),
         _ => Err(SocketCommandError::InvalidRouteType(route.to_string())),
+    }
+}
+
+async fn load_receive_dir_from_store(app: &AppHandle) -> Option<PathBuf> {
+    let resolved = tauri_plugin_store::resolve_store_path(app, STORE_FILE_NAME).ok();
+    if let Some(path) = resolved {
+        log::info!("Reading receive path from store: {:?}", path);
+    }
+
+    let store = match app.store(STORE_FILE_NAME) {
+        Ok(store) => store,
+        Err(e) => {
+            log::warn!("Failed to open store {}: {}", STORE_FILE_NAME, e);
+            return None;
+        }
+    };
+
+    if let Err(e) = store.reload() {
+        log::warn!("Failed to reload store {}: {}", STORE_FILE_NAME, e);
+    }
+
+    let raw_app_config = match store.get("appConfig") {
+        Some(value) => value,
+        None => {
+            log::info!("Store key appConfig not found in {}", STORE_FILE_NAME);
+            return None;
+        }
+    };
+
+    let file_location = raw_app_config
+        .get("fileLocation")
+        .and_then(JsonValue::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+
+    match file_location {
+        Some(path) => Some(PathBuf::from(path)),
+        None => {
+            log::info!("Store appConfig.fileLocation is empty");
+            None
+        }
     }
 }
 
@@ -320,12 +367,22 @@ pub async fn socket_client_send_files(
 #[tauri::command]
 pub async fn socket_server_start(
     state: State<'_, Mutex<SocketState>>,
+    app: AppHandle,
     sender_fingerprint: String,
 ) -> Result<ServerStartResponse, SocketCommandError> {
     let manager = {
         let state_guard = state.lock().await;
         state_guard.manager.clone()
     };
+
+    let receive_dir = load_receive_dir_from_store(&app).await;
+    set_receive_base_dir(receive_dir.clone()).await;
+
+    if let Some(path) = receive_dir {
+        log::info!("Using configured receive directory from store: {:?}", path);
+    } else {
+        log::info!("No configured receive directory found. Using Downloads fallback.");
+    }
 
     let device_manager = GlobalState::get::<DeviceManager>();
     let ip = device_manager
