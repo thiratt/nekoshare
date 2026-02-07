@@ -6,18 +6,11 @@ import type {
   LocalDeviceInfo,
 } from "@workspace/app-ui/types/device";
 
-interface DeviceInfoWithKey {
-  device_info: LocalDeviceInfo;
-  fingerprint: string;
-}
-
 export async function getDeviceInfo(): Promise<LocalDeviceInfo> {
-  const result = await invoke<LocalDeviceInfo>("ns_get_device_info");
-  return result;
-}
-
-export async function getDeviceInfoWithKey(): Promise<LocalDeviceInfo> {
-  const result = await invoke<DeviceInfoWithKey>("ns_get_device_info_with_key");
+  const result = await invoke<{
+    device_info: LocalDeviceInfo;
+    fingerprint: string;
+  }>("ns_get_device_info");
   return {
     ...result.device_info,
     fingerprint: result.fingerprint,

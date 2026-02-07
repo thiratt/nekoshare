@@ -6,7 +6,7 @@ import { ThemeProvider } from "@workspace/app-ui/providers/theme-provider";
 
 import { ErrorComponent } from "@/components/error";
 import { NSDesktopProvider } from "@/context/NSDesktopContext";
-import { getDeviceInfoWithKey } from "@/lib/device";
+import { getDeviceInfo } from "@/lib/device";
 
 export const Route = createRootRoute({
   component: RouteComponent,
@@ -15,7 +15,7 @@ export const Route = createRootRoute({
     const appWindow = getCurrentWindow();
 
     const [deviceInfo, isMaximized] = await Promise.all([
-      getDeviceInfoWithKey(),
+      getDeviceInfo(),
       appWindow.isMaximized(),
     ]);
     return { deviceInfo, isMaximized };
@@ -29,7 +29,7 @@ export const Route = createRootRoute({
   ),
   pendingMs: 0,
   pendingMinMs: 800,
-  staleTime: Infinity
+  staleTime: Infinity,
 });
 
 function RouteComponent() {
