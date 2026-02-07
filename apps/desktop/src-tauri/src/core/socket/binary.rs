@@ -90,6 +90,10 @@ impl BinaryWriter {
     pub fn clear(&mut self) {
         self.buffer.clear();
     }
+
+    pub fn reserve(&mut self, additional: usize) {
+        self.buffer.reserve(additional);
+    }
 }
 
 impl<'a> BinaryReader<'a> {

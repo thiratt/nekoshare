@@ -11,6 +11,10 @@ pub enum SocketError {
     Io(#[from] io::Error),
     #[error("Connection closed")]
     ConnectionClosed,
+    #[error("Connection failed: {0}")]
+    ConnectionFailed(String),
+    #[error("Connection Not Found: {0}")]
+    ConnectionNotFound(String),
     #[error("Connection timed out")]
     Timeout,
     #[error("Parse error: {0}")]
@@ -23,6 +27,8 @@ pub enum SocketError {
     AlreadyConnected,
     #[error("Invalid packet type: 0x{0:02X}")]
     InvalidPacketType(u8),
+    #[error("Invalid UUID parsing: {0}")]
+    InvalidUuidParsing(String),
     #[error("Packet too large: {0} bytes")]
     PacketTooLarge(usize),
     #[error("Server error: {0}")]
@@ -33,6 +39,8 @@ pub enum SocketError {
     ConfigError(String),
     #[error("Send failed: {0}")]
     SendFailed(String),
+    #[error("Other error: {0}")]
+    Other(String),
 }
 
 impl SocketError {
@@ -50,6 +58,10 @@ impl SocketError {
 
     pub fn auth_failed(reason: impl Into<String>) -> Self {
         Self::AuthenticationFailed(reason.into())
+    }
+
+    pub fn other(msg: impl Into<String>) -> Self {
+        Self::Other(msg.into())
     }
 }
 

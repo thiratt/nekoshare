@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
   createFileRoute,
@@ -7,8 +7,11 @@ import {
   redirect,
   useLocation,
 } from "@tanstack/react-router";
+import { invoke } from "@tauri-apps/api/core";
 import { stat } from "@tauri-apps/plugin-fs";
 import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
+
+import { useToast } from "@workspace/ui/hooks/use-toast";
 
 import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
@@ -17,11 +20,12 @@ import {
   DropOverlayProvider,
   DropOverlayUI,
   type FileEntry,
+  type GlobalOptions,
   transformDevices,
   transformFriends,
 } from "@workspace/app-ui/components/ui/drop-overlay/index";
 import {
-  useNekoShare,
+  useNekoShareDesktop,
   useSetGlobalLoading,
 } from "@workspace/app-ui/context/nekoshare";
 import { useDevices } from "@workspace/app-ui/hooks/use-devices";
@@ -37,18 +41,28 @@ import { SetupApplicationUI } from "@/components/setup";
 import { useNSDesktop } from "@/context/NSDesktopContext";
 import { useTauriFileDrop } from "@/hooks/use-tauri-file-drop";
 import { getCachedSession } from "@/lib/auth";
-import { getDeviceInfo } from "@/lib/device";
+import { parseDropZoneId } from "@/lib/transfer";
 
 export const Route = createFileRoute("/home")({
   async beforeLoad() {
     const result = await getCachedSession();
 
     if (result.status === "success") {
-      if (!result.data.isAuthenticated) {
+      if (!result.data.isAuthenticated || !result.data.session) {
         throw redirect({ to: "/login" });
       }
+
+      return {
+        session: result.data.session,
+        user: result.data.session.user,
+      };
     } else {
       console.error("Failed to fetch session:", result.error.toUserMessage());
+
+      // TODO: Implement error display as soon as possible
+      // because failed to get session means server is unreachable
+      // but it's not ideal to redirect user to login page in this case
+      throw redirect({ to: "/login" });
     }
   },
   component: RouteComponent,
@@ -119,11 +133,19 @@ function RouteComponent() {
   const setGlobalLoading = useSetGlobalLoading();
 
   const location = useLocation();
-  const { globalLoading, notificationStatus, toggleNotification, setMode } =
-    useNekoShare();
+  const {
+    currentDevice,
+    globalLoading,
+    notificationStatus,
+    toggleNotification,
+    setMode,
+  } = useNekoShareDesktop();
+  const { user } = Route.useRouteContext();
   const { theme, setTheme } = useTheme();
   const { send } = useNekoSocket();
-
+  const { devices } = useDevices();
+  const { toast } = useToast();
+  const pendingTransfers = useRef<Map<string, string[]>>(new Map());
   const titlebarHelperActions = useMemo(
     () => [
       {
@@ -145,6 +167,122 @@ function RouteComponent() {
   );
 
   usePacketRouter({
+    [PacketType.FILE_OFFER]: async (message) => {
+      if (message.status === "error") {
+        toast.error(`File offer error: ${message.error}`);
+
+        return;
+      }
+
+      console.log("[PacketRouter] Received FILE_OFFER:", message.data);
+
+      const { senderDeviceId, senderDeviceFingerprint, transferId } =
+        message.data;
+
+      const hasActiveDirect = await invoke<boolean>(
+        "socket_server_has_active_connection",
+      );
+
+      let address = currentDevice.ip.ipv4;
+      let port = 0;
+      let reuse = false;
+
+      if (!hasActiveDirect) {
+        // Automatically accept all incoming file offers for now
+        const a = await invoke<{
+          address: string;
+          port: number;
+          message?: string;
+        }>("socket_server_start", {
+          senderFingerprint: senderDeviceFingerprint,
+        });
+
+        address = a.address;
+        port = a.port;
+      } else {
+        reuse = true;
+      }
+
+      const acceptPayload = {
+        transferId: transferId,
+        senderDeviceId: senderDeviceId,
+        receiverDeviceId: user.deviceId,
+        receiverFingerprint: currentDevice.fingerprint,
+        address,
+        port,
+        reuse,
+      };
+
+      send(PacketType.FILE_ACCEPT, (w) => {
+        w.writeString(JSON.stringify(acceptPayload));
+      });
+
+      if (!reuse) {
+        console.log("[FILE_OFFER] Listening for incoming connection on:", {
+          address,
+          port,
+        });
+      } else {
+        console.log("[FILE_OFFER] Reusing existing direct connection");
+      }
+    },
+    [PacketType.FILE_ACCEPT]: async (message) => {
+      if (message.status === "error") {
+        toast.error(`File accept error: ${message.error}`);
+
+        return;
+      }
+
+      console.log("[PacketRouter] Received FILE_ACCEPT:", message.data);
+      const {
+        transferId,
+        address,
+        port,
+        receiverDeviceId,
+        receiverFingerprint,
+      } = message.data;
+
+      await invoke("socket_client_connect_to", {
+        deviceId: user.deviceId,
+        receiverId: receiverDeviceId,
+        receiverAddress: address,
+        receiverPort: port,
+        receiverFingerprint,
+        route: "direct",
+      });
+
+      const filesToSend = pendingTransfers.current.get(transferId);
+
+      if (filesToSend) {
+        console.log(
+          `[FILE_ACCEPT] Starting transfer for ${transferId}`,
+          filesToSend,
+        );
+
+        await invoke("socket_client_send_files", {
+          deviceId: user.deviceId,
+          targetId: receiverDeviceId,
+          filePaths: filesToSend,
+          route: "direct",
+        });
+
+        pendingTransfers.current.delete(transferId);
+        toast.success("Transfer started!");
+      } else {
+        console.error(
+          `[FILE_ACCEPT] No pending files found for transfer ${transferId}`,
+        );
+        toast.error("Transfer failed: Session expired or files lost");
+      }
+    },
+    [PacketType.FILE_REJECT]: (message) => {
+      if (message.status === "error") {
+        toast.error(`File reject error: ${message.error}`);
+        return;
+      }
+
+      console.log("[PacketRouter] Received FILE_REJECT:", message.data);
+    },
     [PacketType.ERROR_GENERIC]: (message) => {
       console.error("Received ERROR_GENERIC packet:", message);
     },
@@ -152,16 +290,20 @@ function RouteComponent() {
 
   useSocketInterval(async () => {
     try {
-      const deviceInfo = await getDeviceInfo();
+      if (!currentDevice) {
+        console.error("No current device info available for heartbeat");
+        return;
+      }
+
       const payload = {
         battery: {
-          supported: deviceInfo.battery.supported,
-          charging: deviceInfo.battery.charging,
-          percent: Math.round(deviceInfo.battery.percent),
+          supported: currentDevice.battery.supported,
+          charging: currentDevice.battery.charging,
+          percent: Math.round(currentDevice.battery.percent),
         },
         ip: {
-          ipv4: deviceInfo.ip.ipv4,
-          ipv6: deviceInfo.ip.ipv6 ?? null,
+          ipv4: currentDevice.ip.ipv4,
+          ipv6: currentDevice.ip.ipv6 ?? null,
         },
       };
       send(PacketType.SYSTEM_HEARTBEAT, (w) =>
@@ -195,11 +337,98 @@ function RouteComponent() {
   );
 
   const handleQuickUpload = useCallback(
-    (files: string[], targetId: string, targetType: "device" | "friend") => {
-      console.log(`Quick upload to ${targetType}: ${targetId}`, files);
-      // TODO: Implement immediate upload logic
+    async (
+      files: string[],
+      targetId: string,
+      targetType: "device" | "friend",
+    ) => {
+      console.log(
+        `[Transfer] Quick upload to ${targetType}: ${targetId}`,
+        files,
+      );
+
+      if (targetType === "device") {
+        const parsed = parseDropZoneId(targetId);
+        if (parsed.type === "device") {
+          const device = devices.find((d) => d.id === parsed.id);
+          console.log("[Transfer] Resolved device:", device);
+          if (!device) {
+            toast.error("Device not found");
+            return;
+          }
+
+          if (device.status !== "online") {
+            toast.error(`${device.name} is offline`);
+            return;
+          }
+
+          const transferId = crypto.randomUUID();
+          const filesPayload = await Promise.all(
+            files.map(async (filePath) => {
+              const fileStat = await stat(filePath);
+              const fileName = filePath.split(/[\\/]/).pop() || filePath;
+              const extension = fileName.includes(".")
+                ? fileName.split(".").pop() || ""
+                : "";
+              return {
+                fileName,
+                extension,
+                size: fileStat.size,
+              };
+            }),
+          );
+
+          pendingTransfers.current.set(transferId, files);
+
+          const offerPayload = {
+            transferId,
+            fromDeviceId: user.deviceId,
+            toDeviceId: device.id,
+            files: filesPayload,
+          };
+
+          send(PacketType.FILE_OFFER, (w) => {
+            w.writeString(JSON.stringify(offerPayload));
+          });
+
+          toast.info(`Sending ${files.length} file(s) to ${device.name}...`);
+        }
+      } else if (targetType === "friend") {
+        toast.info("Friend transfers coming soon!");
+      }
     },
-    [],
+    [devices, send, toast, user.deviceId],
+  );
+
+  const handleSendFiles = useCallback(
+    (files: FileEntry[], targets: string[], _options: GlobalOptions) => {
+      console.log(`[Transfer] Send files to targets:`, targets, files);
+
+      for (const target of targets) {
+        const parsed = parseDropZoneId(target);
+
+        if (parsed.type === "device") {
+          const device = devices.find((d) => d.id === parsed.id);
+
+          if (!device) {
+            toast.error(`Device not found for target: ${target}`);
+            continue;
+          }
+
+          if (device.status !== "online") {
+            toast.error(`${device.name} is offline`);
+            continue;
+          }
+
+          // const filePaths = files.map((f) => f.path);
+          // toast.info(`Sending ${files.length} file(s) to ${device.name}...`);
+          toast.info(`Feature coming soon!`);
+        } else if (parsed.type === "friend") {
+          toast.info("Friend transfers coming soon!");
+        }
+      }
+    },
+    [devices, toast],
   );
 
   if (!initComplete || globalLoading || status === "loading") {
@@ -210,6 +439,7 @@ function RouteComponent() {
     <DropOverlayProvider
       onProcessFiles={handleProcessFiles}
       onQuickUpload={handleQuickUpload}
+      onSendFiles={handleSendFiles}
     >
       <HomeContent
         isReady={isReady}

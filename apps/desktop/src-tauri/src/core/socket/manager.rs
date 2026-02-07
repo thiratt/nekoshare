@@ -1,170 +1,143 @@
-use std::{collections::HashMap, sync::Arc};
-
-use tokio::sync::{mpsc, RwLock};
+use dashmap::DashMap;
+use std::sync::Arc;
+use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use crate::{
-    config::constants::SOCKET_SERVER_ENDPOINT,
-    core::socket::{
-        ids::LinkKey, ConnectionEvent, SocketClient, SocketClientConfig, SocketError, SocketResult,
-        SocketServer,
-    },
+use crate::core::socket::{
+    ids::{LinkKey, PairKey},
+    Connection, ConnectionEvent, ConnectionServerConfig, PacketType, SocketClientConfig,
+    SocketError, SocketResult, SocketServer,
 };
 
-pub struct SocketServerManager {
-    servers: RwLock<HashMap<String, Arc<SocketServer>>>,
-    event_tx: Option<mpsc::Sender<ConnectionEvent>>,
+pub struct SocketManager {
+    active_sessions: Arc<DashMap<PairKey, Arc<Connection>>>,
+    servers: Arc<DashMap<u16, Arc<SocketServer>>>,
+    event_tx: mpsc::Sender<ConnectionEvent>,
 }
 
-pub struct SocketClientManager {
-    server_client: RwLock<Option<Arc<SocketClient>>>,
-    clients: RwLock<HashMap<LinkKey, Arc<SocketClient>>>,
-}
-
-impl SocketServerManager {
-    pub fn new() -> Self {
-        Self {
-            servers: RwLock::new(HashMap::new()),
-            event_tx: None,
-        }
+impl SocketManager {
+    pub fn new(event_tx: mpsc::Sender<ConnectionEvent>) -> Arc<Self> {
+        Arc::new(Self {
+            active_sessions: Arc::new(DashMap::new()),
+            servers: Arc::new(DashMap::new()),
+            event_tx,
+        })
     }
 
-    pub fn with_events(tx: mpsc::Sender<ConnectionEvent>) -> Self {
-        Self {
-            servers: RwLock::new(HashMap::new()),
-            event_tx: Some(tx),
+    pub async fn get_or_connect(
+        self: &Arc<Self>,
+        config: SocketClientConfig,
+    ) -> SocketResult<Arc<Connection>> {
+        let local_id = Uuid::parse_str(&config.device_id)
+            .map_err(|_| SocketError::InvalidUuidParsing("local".into()))?;
+        let target_id_str = config
+            .target_id
+            .clone()
+            .ok_or(SocketError::ConfigError("Target ID required".into()))?;
+        let target_id = Uuid::parse_str(&target_id_str)
+            .map_err(|_| SocketError::InvalidUuidParsing("target".into()))?;
+
+        let pair_key = LinkKey::direct(local_id, target_id).pair_key();
+        if let Some(conn) = self.active_sessions.get(&pair_key) {
+            if !conn.is_closing() {
+                log::info!("Reusing existing connection for {}", pair_key);
+                return Ok(conn.clone());
+            } else {
+                self.active_sessions.remove(&pair_key);
+            }
         }
+
+        log::info!(
+            "Dialing new connection to {} ({})",
+            target_id,
+            config.target_address
+        );
+        let client = crate::core::socket::client::SocketClient::new(config.clone());
+        client.connect().await?;
+
+        let connection = client
+            .get_connection_arc()
+            .await
+            .ok_or(SocketError::ConnectionFailed(
+                "Failed to retrieve connection after connect".into(),
+            ))?;
+
+        self.register_connection(pair_key, connection.clone()).await;
+
+        Ok(connection)
     }
 
-    pub async fn create_server(&self, id: String, fingerprint: String) -> SocketResult<u16> {
-        {
-            let mut servers = self.servers.write().await;
-            servers.retain(|_, s| {
-                if s.is_running() {
-                    return true;
-                }
-                match s.connection.lock() {
-                    Ok(lock) => lock.is_some(),
-                    Err(_) => false,
-                }
-            });
-        }
+    pub async fn start_server(
+        self: &Arc<Self>,
+        config: ConnectionServerConfig,
+        sender_fingerprint: String,
+    ) -> SocketResult<u16> {
+        let server = SocketServer::with_events(sender_fingerprint, self.event_tx.clone());
 
-        let server = if let Some(ref tx) = self.event_tx {
-            SocketServer::with_events(fingerprint, tx.clone())
-        } else {
-            SocketServer::new(fingerprint)
-        };
+        let manager_clone = self.clone();
+
+        // Note: ต้องเพิ่ม method set_connection_handler ใน server.rs (มีอยู่แล้วในโค้ดที่คุณให้มา แต่ต้องปรับให้เรียกใช้)
+        // ใน server.rs ของคุณมี on_connection อยู่แล้ว แต่ยังไม่ได้ถูกเรียกใช้ใน handle_handshake_and_run
+        // เดี๋ยวผมจะบอกวิธีแก้ server.rs ด้านล่าง
+
+        // Hack: เนื่องจาก server.rs ปัจจุบันยังไม่รองรับ callback ที่ส่ง manager กลับมาได้สมบูรณ์แบบ
+        // เราจะใช้กลไกของ event loop ใน server แทน หรือต้องแก้ server.rs เพิ่ม
+        // เพื่อความง่าย ผมแนะนำให้แก้ server.rs ให้รับ callback ครับ
 
         let port = server.start().await?;
+        self.servers.insert(port, server);
 
-        self.servers.write().await.insert(id, server);
         Ok(port)
     }
 
-    pub async fn stop_server(&self, id: &str) {
-        if let Some(server) = self.servers.write().await.remove(id) {
-            server.stop().await;
-        }
-    }
-}
+    async fn register_connection(self: &Arc<Self>, pair_key: PairKey, connection: Arc<Connection>) {
+        self.active_sessions.insert(pair_key, connection.clone());
 
-impl SocketClientManager {
-    pub fn new() -> Self {
-        Self {
-            server_client: RwLock::new(None),
-            clients: RwLock::new(HashMap::new()),
-        }
-    }
+        let sessions = self.active_sessions.clone();
+        let key = pair_key;
 
-    pub async fn connect(
-        &self,
-        device_id: String,
-        token: String,
-    ) -> SocketResult<Arc<SocketClient>> {
-        if let Some(existing) = self.server_client.read().await.clone() {
-            if existing.is_connected().await && existing.is_authenticated().await {
-                existing.revoke_token(&token).await?;
-                return Ok(existing);
-            }
+        connection
+            .set_on_close(move |_id| {
+                log::info!("Connection closed, removing session: {}", key);
+                sessions.remove(&key);
+            })
+            .await;
 
-            if existing.is_connected().await && !existing.is_authenticated().await {
-                let ok = existing.authenticate(&token).await?;
-                if ok {
-                    return Ok(existing);
-                } else {
-                    return Err(SocketError::auth_failed("invalid token").into());
-                }
-            }
-        }
-
-        #[cfg(debug_assertions)]
-        let config =
-            SocketClientConfig::new(device_id, SOCKET_SERVER_ENDPOINT.to_string()).with_tls(false);
-        #[cfg(not(debug_assertions))]
-        let config = SocketClientConfig::new(device_id, SOCKET_SERVER_ENDPOINT.to_string());
-
-        let client = SocketClient::new(config);
-        client.connect().await?;
-
-        let ok = client.authenticate(&token).await?;
-        if !ok {
-            client.disconnect().await;
-            return Err(SocketError::auth_failed("invalid token").into());
-        }
-
-        *self.server_client.write().await = Some(client.clone());
-        Ok(client)
+        log::info!("Session registered: {}", pair_key);
     }
 
-    pub async fn connect_to(&self, config: SocketClientConfig) -> SocketResult<Arc<SocketClient>> {
-        let local = Uuid::parse_str(&config.device_id)
-            .map_err(|_| SocketError::parse("device_id must be a valid UUID"))?;
-        let target_id = config
-            .target_id
-            .as_ref()
-            .ok_or_else(|| SocketError::parse("target_id is required"))?;
-
-        let peer = Uuid::parse_str(target_id)
-            .map_err(|_| SocketError::parse("target_id must be a valid UUID"))?;
-        let link = LinkKey::direct(local, peer);
-
-        {
-            let clients = self.clients.read().await;
-            if let Some(client) = clients.get(&link) {
-                if client.is_connected().await {
-                    return Ok(client.clone());
-                }
-            }
-        }
-
-        let client = SocketClient::new(config.clone());
-        client.connect().await?;
-
-        self.clients.write().await.insert(link, client.clone());
-        Ok(client)
+    // Helper สำหรับ Server: เมื่อมี Connection ใหม่เข้ามา Server จะเรียกฟังก์ชันนี้
+    pub async fn handle_incoming(
+        self: &Arc<Self>,
+        connection: Arc<Connection>,
+        // ในอนาคต Packet แรกควรเป็น Handshake ที่บอกว่าฉันคือใคร (Device ID)
+        // ตอนนี้สมมติว่าเรารู้ ID จากวิธีอื่นไปก่อน หรือรอ Handshake
+    ) {
+        // TODO: รอ implement Handshake packet เพื่อดึง Remote Device ID
+        // ตอนนี้เก็บไว้ใน Temp list หรือรอ authenticate ก่อนก็ได้
     }
 
-    pub async fn get_client(&self, link: LinkKey) -> Option<Arc<SocketClient>> {
-        self.clients.read().await.get(&link).cloned()
+    pub fn get_connection(&self, pair_key: &PairKey) -> Option<Arc<Connection>> {
+        self.active_sessions
+            .get(pair_key)
+            .map(|c| c.value().clone())
     }
 
-    pub async fn is_connected_to_server(&self) -> bool {
-        if let Some(client) = self.server_client.read().await.clone() {
-            return client.is_connected().await && client.is_authenticated().await;
-        }
-        false
+    pub fn has_active_server_connection(&self) -> bool {
+        self.servers
+            .iter()
+            .any(|entry| entry.value().has_active_connection())
     }
 
-    pub async fn disconnect(&self, link: LinkKey) {
-        if let Some(client) = self.clients.write().await.remove(&link) {
-            client.disconnect().await;
-        }
-    }
-
-    pub async fn disconnect_from_server(&self) {
-        if let Some(client) = self.server_client.write().await.take() {
-            client.disconnect().await;
+    pub fn disconnect(&self, pair_key: &PairKey) -> SocketResult<()> {
+        if let Some(conn) = self.active_sessions.get(pair_key) {
+            conn.close();
+            Ok(())
+        } else {
+            Err(
+                SocketError::ConnectionNotFound(format!("No active connection for {}", pair_key))
+                    .into(),
+            )
         }
     }
 }

@@ -1,15 +1,20 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter, WriteHalf};
-use tokio::sync::{mpsc, oneshot, Mutex as TokioMutex, RwLock};
+use tokio::sync::{mpsc, oneshot, Mutex as TokioMutex, OwnedSemaphorePermit, RwLock, Semaphore};
+use tokio::time::{self, Duration, Instant};
 
 use crate::core::socket::stream::SocketStream;
+use crate::core::socket::TransferConfig;
 
 use super::binary::BinaryWriter;
 use super::error::{Context, SocketError, SocketResult};
 use super::protocol::{PacketType, HEADER_SIZE};
+
+pub type OnCloseCallback = Box<dyn Fn(String) + Send + Sync + 'static>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectionState {
@@ -26,6 +31,24 @@ pub struct UserInfo {
     pub name: String,
 }
 
+struct OutgoingPacket {
+    data: Vec<u8>,
+    permit: Option<OwnedSemaphorePermit>,
+}
+
+impl OutgoingPacket {
+    fn new(data: Vec<u8>, permit: Option<OwnedSemaphorePermit>) -> Self {
+        Self { data, permit }
+    }
+
+    fn sentinel() -> Self {
+        Self {
+            data: Vec::new(),
+            permit: None,
+        }
+    }
+}
+
 pub struct Connection {
     id: String,
     state: RwLock<ConnectionState>,
@@ -33,8 +56,12 @@ pub struct Connection {
     user: RwLock<Option<UserInfo>>,
     request_id_counter: AtomicU32,
     closing: AtomicBool,
-    outgoing_tx: mpsc::Sender<Vec<u8>>,
+    closed: AtomicBool,
+    active_send_batches: AtomicUsize,
+    outgoing_tx: mpsc::Sender<OutgoingPacket>,
+    chunk_permits: Arc<Semaphore>,
     pending_requests: StdMutex<HashMap<i32, oneshot::Sender<Vec<u8>>>>,
+    on_close: TokioMutex<Option<OnCloseCallback>>,
 }
 
 impl Connection {
@@ -42,36 +69,55 @@ impl Connection {
         id: String,
         stream: SocketStream,
     ) -> (Arc<Self>, mpsc::Receiver<(PacketType, i32, Vec<u8>)>) {
+        let config = TransferConfig::global();
+
+        if let Err(e) = stream.configure(config) {
+            log::warn!("Failed to configure TCP socket: {}", e);
+        }
+
         let (read_half, write_half) = tokio::io::split(stream);
-        let (outgoing_tx, outgoing_rx) = mpsc::channel::<Vec<u8>>(256);
-        let (incoming_tx, incoming_rx) = mpsc::channel::<(PacketType, i32, Vec<u8>)>(256);
+        let (outgoing_tx, outgoing_rx) =
+            mpsc::channel::<OutgoingPacket>(config.outgoing_channel_size);
+        let (incoming_tx, incoming_rx) =
+            mpsc::channel::<(PacketType, i32, Vec<u8>)>(config.incoming_channel_size);
+        let chunk_permits = Arc::new(Semaphore::new(config.max_in_flight_chunks.max(1)));
 
         let connection = Arc::new(Self {
             id,
             state: RwLock::new(ConnectionState::Connected),
-            writer: TokioMutex::new(Some(BufWriter::new(write_half))),
+            writer: TokioMutex::new(Some(BufWriter::with_capacity(
+                config.write_buffer_size,
+                write_half,
+            ))),
             user: RwLock::new(None),
             request_id_counter: AtomicU32::new(1),
             closing: AtomicBool::new(false),
+            closed: AtomicBool::new(false),
+            active_send_batches: AtomicUsize::new(0),
             outgoing_tx,
+            chunk_permits,
             pending_requests: StdMutex::new(HashMap::new()),
+            on_close: TokioMutex::new(None),
         });
 
         let conn_clone = Arc::clone(&connection);
         tokio::spawn(async move {
             if let Err(e) = Self::read_loop(conn_clone, read_half, incoming_tx).await {
-                log::debug!("Read loop ended: {}", e);
+                log::info!("Read loop ended: {}", e);
             }
         });
 
         let conn_clone = Arc::clone(&connection);
         tokio::spawn(async move {
             if let Err(e) = Self::write_loop(conn_clone, outgoing_rx).await {
-                log::debug!("Write loop ended: {}", e);
+                log::info!("Write loop ended: {}", e);
             }
         });
 
         (connection, incoming_rx)
+    }
+    pub async fn set_on_close(&self, callback: impl Fn(String) + Send + Sync + 'static) {
+        *self.on_close.lock().await = Some(Box::new(callback));
     }
 
     pub fn id(&self) -> &str {
@@ -126,7 +172,27 @@ impl Connection {
             return Err(SocketError::ConnectionClosed.into());
         }
 
-        let mut writer = BinaryWriter::with_capacity(64);
+        let config = TransferConfig::global();
+
+        let permit = if packet_type == PacketType::FileChunk {
+            Some(
+                self.chunk_permits
+                    .clone()
+                    .acquire_owned()
+                    .await
+                    .map_err(|_| SocketError::ConnectionClosed)?,
+            )
+        } else {
+            None
+        };
+
+        let initial_capacity = if packet_type == PacketType::FileChunk {
+            config.chunk_size + 128
+        } else {
+            64
+        };
+
+        let mut writer = BinaryWriter::with_capacity(initial_capacity);
 
         writer.write_u32(0);
         let body_start = writer.len();
@@ -138,8 +204,8 @@ impl Connection {
         let body_len = (writer.len() - body_start) as u32;
         writer.write_u32_at(0, body_len);
 
-        if packet_type != PacketType::SystemHeartbeat {
-            log::debug!(
+        if packet_type != PacketType::SystemHeartbeat && packet_type != PacketType::FileChunk {
+            log::info!(
                 "Sending packet: {:?} (id: {}, len: {})",
                 packet_type,
                 request_id,
@@ -148,7 +214,7 @@ impl Connection {
         }
 
         self.outgoing_tx
-            .send(writer.into_bytes())
+            .send(OutgoingPacket::new(writer.into_bytes(), permit))
             .await
             .context("failed to queue packet for sending")?;
         Ok(())
@@ -172,8 +238,20 @@ impl Connection {
         writer.write_i32(request_id);
         writer.write_bytes(payload);
 
+        let permit = if packet_type == PacketType::FileChunk {
+            Some(
+                self.chunk_permits
+                    .clone()
+                    .acquire_owned()
+                    .await
+                    .map_err(|_| SocketError::ConnectionClosed)?,
+            )
+        } else {
+            None
+        };
+
         self.outgoing_tx
-            .send(writer.into_bytes())
+            .send(OutgoingPacket::new(writer.into_bytes(), permit))
             .await
             .context("failed to queue raw packet for sending")?;
         Ok(())
@@ -181,11 +259,29 @@ impl Connection {
 
     pub async fn close(&self) {
         self.closing.store(true, Ordering::SeqCst);
+        if self.closed.swap(true, Ordering::AcqRel) {
+            return;
+        }
+
         *self.state.write().await = ConnectionState::Closing;
+
+        if let Some(cb) = self.on_close.lock().await.take() {
+            cb(self.id.clone());
+        }
 
         if let Some(mut writer) = self.writer.lock().await.take() {
             let _ = writer.shutdown().await;
         }
+    }
+
+    pub async fn close_after_flush(&self) {
+        if self.closing.swap(true, Ordering::AcqRel) {
+            return;
+        }
+
+        *self.state.write().await = ConnectionState::Closing;
+
+        let _ = self.outgoing_tx.send(OutgoingPacket::sentinel()).await;
     }
 
     pub async fn request<F>(
@@ -229,12 +325,24 @@ impl Connection {
         self.closing.load(Ordering::SeqCst)
     }
 
+    pub fn begin_send_batch(&self) {
+        self.active_send_batches.fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub async fn end_send_batch_and_maybe_close(&self) {
+        let prev = self.active_send_batches.fetch_sub(1, Ordering::SeqCst);
+        if prev <= 1 {
+            self.close_after_flush().await;
+        }
+    }
+
     async fn read_loop(
         conn: Arc<Self>,
         read_half: tokio::io::ReadHalf<SocketStream>,
         incoming_tx: mpsc::Sender<(PacketType, i32, Vec<u8>)>,
     ) -> SocketResult<()> {
-        let mut reader = BufReader::new(read_half);
+        let config = TransferConfig::global();
+        let mut reader = BufReader::with_capacity(config.read_buffer_size, read_half);
 
         loop {
             if conn.closing.load(Ordering::SeqCst) {
@@ -245,7 +353,7 @@ impl Connection {
             match reader.read_exact(&mut len_buf).await {
                 Ok(_) => {}
                 Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                    log::debug!("Connection closed by peer");
+                    log::info!("Connection closed by peer");
                     break;
                 }
                 Err(e) => {
@@ -298,8 +406,10 @@ impl Connection {
 
             if !is_handled {
                 if let Some(payload_data) = payload_opt {
-                    if packet_type != PacketType::SystemHeartbeat {
-                        log::debug!("Received packet pushed to queue: {:?}", packet_type);
+                    if packet_type != PacketType::SystemHeartbeat
+                        && packet_type != PacketType::FileChunk
+                    {
+                        log::info!("Received packet pushed to queue: {:?}", packet_type);
                     }
 
                     if incoming_tx
@@ -307,9 +417,11 @@ impl Connection {
                         .await
                         .is_err()
                     {
-                        log::debug!("Incoming channel closed");
+                        log::info!("Incoming channel closed");
                         break;
                     }
+
+                    tokio::task::yield_now().await;
                 }
             }
         }
@@ -325,21 +437,69 @@ impl Connection {
 
     async fn write_loop(
         conn: Arc<Self>,
-        mut outgoing_rx: mpsc::Receiver<Vec<u8>>,
+        mut outgoing_rx: mpsc::Receiver<OutgoingPacket>,
     ) -> SocketResult<()> {
-        while let Some(data) = outgoing_rx.recv().await {
+        let config = TransferConfig::global();
+        let flush_threshold = config.flush_threshold;
+        let flush_interval = Duration::from_millis(config.flush_interval_ms);
+
+        let mut bytes_since_flush: usize = 0;
+        let mut last_flush = Instant::now();
+
+        loop {
+            let packet = tokio::select! {
+                maybe_packet = outgoing_rx.recv() => {
+                    match maybe_packet {
+                        Some(packet) => packet,
+                        None => break,
+                    }
+                }
+                _ = time::sleep_until(last_flush + flush_interval), if bytes_since_flush > 0 => {
+                    let mut writer_guard = conn.writer.lock().await;
+                    if let Some(writer) = writer_guard.as_mut() {
+                        if let Err(e) = writer.flush().await {
+                            log::error!("Periodic flush error: {}", e);
+                            break;
+                        }
+                    }
+                    bytes_since_flush = 0;
+                    last_flush = Instant::now();
+                    continue;
+                }
+            };
+
+            if packet.data.is_empty() {
+                break;
+            }
+
+            let data_len = packet.data.len();
+
             let mut writer_guard = conn.writer.lock().await;
             if let Some(writer) = writer_guard.as_mut() {
-                if let Err(e) = writer.write_all(&data).await {
+                if let Err(e) = writer.write_all(&packet.data).await {
                     log::error!("Write error: {}", e);
                     break;
                 }
-                if let Err(e) = writer.flush().await {
-                    log::error!("Flush error: {}", e);
-                    break;
+
+                bytes_since_flush += data_len;
+
+                if bytes_since_flush >= flush_threshold {
+                    if let Err(e) = writer.flush().await {
+                        log::error!("Threshold flush error: {}", e);
+                        break;
+                    }
+                    bytes_since_flush = 0;
+                    last_flush = Instant::now();
                 }
             } else {
                 break;
+            }
+        }
+
+        {
+            let mut writer_guard = conn.writer.lock().await;
+            if let Some(writer) = writer_guard.as_mut() {
+                let _ = writer.flush().await;
             }
         }
 
@@ -353,6 +513,11 @@ impl std::fmt::Debug for Connection {
         f.debug_struct("Connection")
             .field("id", &self.id)
             .field("closing", &self.closing.load(Ordering::SeqCst))
+            .field("closed", &self.closed.load(Ordering::SeqCst))
+            .field(
+                "active_send_batches",
+                &self.active_send_batches.load(Ordering::SeqCst),
+            )
             .finish()
     }
 }

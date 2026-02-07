@@ -14,12 +14,12 @@ pub mod tls;
 
 pub use binary::{BinaryReader, BinaryWriter};
 pub use client::SocketClient;
-pub use config::SocketClientConfig;
+pub use config::{ServerConfig, SocketClientConfig, TransferConfig};
 pub use connection::{Connection, ConnectionState};
 pub use error::{Context, SocketError, SocketResult};
 pub use handlers::*;
 pub use ids::{LinkKey, PairKey, RouteKind};
-pub use manager::SocketServerManager;
+pub use manager::*;
 pub use protocol::PacketType;
 pub use router::PacketRouter;
 pub use server::{ConnectionEvent, ConnectionServerConfig, SocketServer};

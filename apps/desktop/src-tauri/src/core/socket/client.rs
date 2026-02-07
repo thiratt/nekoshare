@@ -132,7 +132,7 @@ impl SocketClient {
                 SocketStream::Tls(tls_stream)
             }
             None => {
-                log::debug!("Using plain TCP for LAN connection");
+                log::info!("Using plain TCP for LAN connection");
                 SocketStream::Plain(tcp_stream)
             }
         };
@@ -148,7 +148,7 @@ impl SocketClient {
         tokio::spawn(async move {
             while let Some((packet_type, request_id, payload)) = incoming_rx.recv().await {
                 client_for_loop
-                    .handle_packet(packet_type, request_id, &payload)
+                    .handle_packet(packet_type, request_id, payload)
                     .await;
             }
 
@@ -266,12 +266,18 @@ impl SocketClient {
             .ok_or_else(|| SocketError::NotConnected.into())
     }
 
+    pub async fn get_connection_arc(&self) -> Option<Arc<Connection>> {
+        self.connection.read().await.clone()
+    }
+
     async fn register_builtin_handlers(&self) {
+        super::register_all_handlers(&self.router).await;
+
         self.router
             .register(
                 PacketType::SystemHandshake,
                 |_conn, payload, _req_id| async move {
-                    log::debug!("Received handshake payload: {:?}", payload);
+                    log::info!("Received handshake payload: {:?}", payload);
 
                     Ok(())
                 },
@@ -290,9 +296,9 @@ impl SocketClient {
             .await;
     }
 
-    async fn handle_packet(&self, packet_type: PacketType, request_id: i32, payload: &[u8]) {
+    async fn handle_packet(&self, packet_type: PacketType, request_id: i32, payload: Vec<u8>) {
         if packet_type == PacketType::AuthLoginResponse {
-            self.handle_auth_response(payload).await;
+            self.handle_auth_response(&payload).await;
             return;
         }
 

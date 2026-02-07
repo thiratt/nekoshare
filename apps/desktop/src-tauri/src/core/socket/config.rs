@@ -32,11 +32,11 @@ impl SocketClientConfig {
     pub fn with_fingerprint(mut self, fingerprint: String) -> Self {
         self.fingerprint = Some(fingerprint);
 
-        if self.use_tls == true {
-            log::warn!("With fingerprint is provided TLS feature. Please remove 'with_tls(true)' setting to avoid conflicts.");
-        } else {
-            self.use_tls = true;
+        if !self.use_tls {
+            log::warn!("TLS automatically enabled when setting a fingerprint.");
         }
+
+        self.use_tls = true;
 
         self
     }
@@ -64,5 +64,86 @@ impl ServerConfig {
 impl Default for ServerConfig {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TransferConfig {
+    pub chunk_size: usize,
+    pub write_buffer_size: usize,
+    pub read_buffer_size: usize,
+    pub flush_threshold: usize,
+    pub flush_interval_ms: u64,
+    pub tcp_nodelay: bool,
+    pub preallocate_files: bool,
+    pub sync_on_complete: bool,
+    pub outgoing_channel_size: usize,
+    pub incoming_channel_size: usize,
+    pub max_in_flight_chunks: usize,
+}
+
+impl Default for TransferConfig {
+    fn default() -> Self {
+        Self::lan_optimized()
+    }
+}
+
+impl TransferConfig {
+    pub fn lan_optimized() -> Self {
+        Self {
+            chunk_size: 1024 * 1024,            // 1 MB
+            write_buffer_size: 2 * 1024 * 1024, // 2 MB
+            read_buffer_size: 2 * 1024 * 1024,  // 2 MB
+            flush_threshold: 4 * 1024 * 1024,   // 4 MB
+            flush_interval_ms: 50,              // 50 ms
+            tcp_nodelay: true,
+            preallocate_files: false,
+            sync_on_complete: true,
+            outgoing_channel_size: 64,
+            incoming_channel_size: 64,
+            max_in_flight_chunks: 8,
+        }
+    }
+
+    pub fn low_memory() -> Self {
+        Self {
+            chunk_size: 256 * 1024,        // 256 KB
+            write_buffer_size: 256 * 1024, // 256 KB
+            read_buffer_size: 256 * 1024,  // 256 KB
+            flush_threshold: 512 * 1024,   // 512 KB
+            flush_interval_ms: 100,        // 100 ms
+            tcp_nodelay: true,
+            preallocate_files: false,
+            sync_on_complete: false,
+            outgoing_channel_size: 16,
+            incoming_channel_size: 16,
+            max_in_flight_chunks: 2,
+        }
+    }
+
+    pub fn wan_optimized() -> Self {
+        Self {
+            chunk_size: 64 * 1024,         // 64 KB
+            write_buffer_size: 512 * 1024, // 512 KB
+            read_buffer_size: 512 * 1024,  // 512 KB
+            flush_threshold: 256 * 1024,   // 256 KB
+            flush_interval_ms: 200,        // 200 ms
+            tcp_nodelay: false,
+            preallocate_files: true,
+            sync_on_complete: true,
+            outgoing_channel_size: 128,
+            incoming_channel_size: 128,
+            max_in_flight_chunks: 32,
+        }
+    }
+
+    pub fn global() -> &'static Self {
+        static CONFIG: std::sync::OnceLock<TransferConfig> = std::sync::OnceLock::new();
+        CONFIG.get_or_init(Self::default)
+    }
+
+    pub fn set_global(config: Self) -> Result<(), Self> {
+        static CONFIG: std::sync::OnceLock<TransferConfig> = std::sync::OnceLock::new();
+        CONFIG.set(config)
     }
 }

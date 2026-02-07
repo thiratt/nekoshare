@@ -58,10 +58,10 @@ impl PacketRouter {
         &self,
         packet_type: PacketType,
         connection: Arc<Connection>,
-        payload: &[u8],
+        payload: Vec<u8>,
         request_id: i32,
     ) -> bool {
-        let payload_owned = payload.to_vec();
+        log::debug!("Router dispatching: {:?}", packet_type);
 
         let handler = {
             let handlers = self.handlers.read().await;
@@ -69,7 +69,7 @@ impl PacketRouter {
         };
 
         if let Some(handler) = handler {
-            if let Err(e) = handler(connection, payload_owned, request_id).await {
+            if let Err(e) = handler(connection, payload, request_id).await {
                 log::error!("Handler error for {:?}: {}", packet_type, e);
             }
             return true;
@@ -81,7 +81,7 @@ impl PacketRouter {
         };
 
         if let Some(handler) = default_handler {
-            if let Err(e) = handler(connection, payload_owned, request_id).await {
+            if let Err(e) = handler(connection, payload, request_id).await {
                 log::error!("Default handler error for {:?}: {}", packet_type, e);
             }
             return true;

@@ -5,11 +5,38 @@ use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream as ClientTlsStream;
 use tokio_rustls::server::TlsStream as ServerTlsStream;
 
+use super::config::TransferConfig;
+
+pub fn configure_tcp_socket(stream: &TcpStream, config: &TransferConfig) -> std::io::Result<()> {
+    if config.tcp_nodelay {
+        stream.set_nodelay(true)?;
+    }
+
+    Ok(())
+}
+
 #[derive(Debug)]
 pub enum SocketStream {
     Plain(TcpStream),
     Tls(ClientTlsStream<TcpStream>),
     ServerTls(ServerTlsStream<TcpStream>),
+}
+
+impl SocketStream {
+    pub fn get_tcp_ref(&self) -> Option<&TcpStream> {
+        match self {
+            SocketStream::Plain(s) => Some(s),
+            SocketStream::Tls(s) => Some(s.get_ref().0),
+            SocketStream::ServerTls(s) => Some(s.get_ref().0),
+        }
+    }
+
+    pub fn configure(&self, config: &TransferConfig) -> std::io::Result<()> {
+        if let Some(tcp) = self.get_tcp_ref() {
+            configure_tcp_socket(tcp, config)?;
+        }
+        Ok(())
+    }
 }
 
 impl AsyncRead for SocketStream {

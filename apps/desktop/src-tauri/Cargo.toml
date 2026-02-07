@@ -20,6 +20,7 @@ tauri-build = { version = "2.5.1", features = [] }
 [dependencies]
 anyhow = "1.0"
 chrono = { version = "0.4.43", features = ["serde"] }
+dashmap = "6.1.0"
 directories = "6.0.0"
 hex = "0.4"
 log = "0.4"

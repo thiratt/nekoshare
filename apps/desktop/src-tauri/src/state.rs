@@ -27,11 +27,18 @@ impl GlobalState {
     }
 
     pub fn get<T: Any + Send + Sync>() -> Arc<T> {
-        let state = INSTANCE.get().expect("GlobalState not initialized! Call .init() first.");
-        
-        let service = state.map.get(&TypeId::of::<T>())
+        let state = INSTANCE
+            .get()
+            .expect("GlobalState not initialized! Call .init() first.");
+
+        let service = state
+            .map
+            .get(&TypeId::of::<T>())
             .unwrap_or_else(|| panic!("Service {} not registered!", std::any::type_name::<T>()));
 
-        service.clone().downcast::<T>().expect("Failed to downcast type")
+        service
+            .clone()
+            .downcast::<T>()
+            .expect("Failed to downcast type")
     }
 }

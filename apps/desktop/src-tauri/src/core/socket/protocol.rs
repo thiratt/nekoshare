@@ -57,6 +57,7 @@ pub enum PacketType {
     FilePause = 0x43,
     FileResume = 0x44,
     FileAck = 0x45,
+    FileFinish = 0x46,
 
     // ==========================================
     // 0x50 - 0x5F: File Transfer (Data Plane)
@@ -138,6 +139,7 @@ impl PacketType {
             0x43 => PacketType::FilePause,
             0x44 => PacketType::FileResume,
             0x45 => PacketType::FileAck,
+            0x46 => PacketType::FileFinish,
             // File transfer data
             0x50 => PacketType::FileChunk,
             // Messaging
