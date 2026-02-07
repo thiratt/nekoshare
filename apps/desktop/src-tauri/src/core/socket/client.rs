@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::net::TcpStream;
-use tokio::sync::{oneshot, Mutex, RwLock};
+use tokio::sync::RwLock;
 use tokio::time::{self, Duration};
 use tokio_rustls::rustls::pki_types::ServerName;
 use tokio_rustls::rustls::{self, ClientConfig};
@@ -23,7 +23,6 @@ pub struct SocketClient {
     connection: RwLock<Option<Arc<Connection>>>,
     router: Arc<PacketRouter>,
     is_running: AtomicBool,
-    auth_response: Mutex<Option<oneshot::Sender<SocketResult<UserInfo>>>>,
 }
 
 impl SocketClient {
@@ -33,7 +32,6 @@ impl SocketClient {
             connection: RwLock::new(None),
             router: Arc::new(PacketRouter::new()),
             is_running: AtomicBool::new(false),
-            auth_response: Mutex::new(None),
         })
     }
 
@@ -186,9 +184,6 @@ impl SocketClient {
     pub async fn authenticate(&self, token: &str) -> SocketResult<bool> {
         let conn = self.get_connection().await?;
 
-        let (tx, _rx) = oneshot::channel();
-        *self.auth_response.lock().await = Some(tx);
-
         let response = conn
             .request(PacketType::AuthLoginRequest, |w| {
                 w.write_string(token);
@@ -205,7 +200,7 @@ impl SocketClient {
                     Ok(u) => u,
                     Err(e) => {
                         log::error!("Failed to parse user info JSON: {}", e);
-                        serde_json::from_str(&data).unwrap_or_default()
+                        UserInfo::default()
                     }
                 };
 
@@ -297,56 +292,11 @@ impl SocketClient {
     }
 
     async fn handle_packet(&self, packet_type: PacketType, request_id: i32, payload: Vec<u8>) {
-        if packet_type == PacketType::AuthLoginResponse {
-            self.handle_auth_response(&payload).await;
-            return;
-        }
-
         let conn = self.connection.read().await.clone();
         if let Some(conn) = conn {
             self.router
                 .dispatch(packet_type, conn, payload, request_id)
                 .await;
-        }
-    }
-
-    async fn handle_auth_response(&self, payload: &[u8]) {
-        use super::binary::BinaryReader;
-
-        let mut reader = BinaryReader::new(payload);
-
-        let result = match reader.read_u8() {
-            Ok(1) => {
-                let data = reader.read_string().unwrap_or_default();
-                let user: UserInfo = match serde_json::from_str(&data) {
-                    Ok(u) => u,
-                    Err(e) => {
-                        log::error!("Failed to parse user info JSON: {}", e);
-                        serde_json::from_str(&data).unwrap_or_default()
-                    }
-                };
-
-                let conn = self.connection.read().await.clone();
-                if let Some(conn) = conn {
-                    conn.set_authenticated(user.clone()).await;
-                }
-
-                log::info!("Authenticated as user: {}", user.name);
-                Ok(user)
-            }
-            Ok(_) => {
-                let reason = reader
-                    .read_string()
-                    .unwrap_or_else(|_| "Unknown error".to_string());
-                log::error!("Authentication failed: {}", reason);
-
-                Err(SocketError::auth_failed(reason).into())
-            }
-            Err(e) => Err(e),
-        };
-
-        if let Some(tx) = self.auth_response.lock().await.take() {
-            let _ = tx.send(result);
         }
     }
 
