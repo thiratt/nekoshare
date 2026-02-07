@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AppError, ErrorCategory, ErrorSource } from "@workspace/app-ui/lib/errors";
+import { AppError, ErrorCategory, ErrorSource, type Result } from "@workspace/app-ui/lib/errors";
 import { PacketType } from "@workspace/app-ui/lib/nk-socket/protocol";
 import { xfetchApi } from "@workspace/app-ui/lib/xfetch";
 import type { FriendItem, FriendListResponse, UserSearchResult } from "@workspace/app-ui/types/friends";
@@ -28,6 +28,62 @@ const FRIENDS_API_ENDPOINTS = {
 const SEARCH_DEBOUNCE_MS = 300;
 
 const sortByName = (a: FriendItem, b: FriendItem): number => a.name.localeCompare(b.name);
+const nowIso = (): string => new Date().toISOString();
+
+type FriendUserPayload = FriendRequestReceivedPayload["user"];
+
+function createFriendItem(
+	user: FriendUserPayload,
+	friendId: string,
+	status: FriendItem["status"],
+	createdAt = nowIso(),
+): FriendItem {
+	return {
+		id: user.id,
+		friendId,
+		name: user.name,
+		email: user.email,
+		avatarUrl: user.avatarUrl,
+		status,
+		sharedCount: 0,
+		lastActive: nowIso(),
+		createdAt,
+	};
+}
+
+function addOrReplaceFriend(list: FriendItem[], item: FriendItem): FriendItem[] {
+	const filtered = list.filter((entry) => entry.friendId !== item.friendId);
+	return [item, ...filtered].sort(sortByName);
+}
+
+function setFriendPresence(friends: FriendItem[], userId: string, isOnline: boolean): FriendItem[] {
+	let changed = false;
+
+	const nextFriends = friends.map((friend) => {
+		if (friend.id !== userId || friend.isOnline === isOnline) {
+			return friend;
+		}
+
+		changed = true;
+		return { ...friend, isOnline };
+	});
+
+	return changed ? nextFriends : friends;
+}
+
+function removeByFriendId(list: FriendItem[], friendId: string): FriendItem[] {
+	const nextList = list.filter((item) => item.friendId !== friendId);
+	return nextList.length === list.length ? list : nextList;
+}
+
+function applySocketResult<T>(result: Result<T>, packetName: string, onSuccess: (payload: T) => void): void {
+	if (result.status === "success") {
+		onSuccess(result.data);
+		return;
+	}
+
+	console.error(`[useFriends] Failed to parse ${packetName}:`, result.error.message);
+}
 
 export interface UseFriendsState {
 	readonly friends: FriendItem[];
@@ -68,159 +124,135 @@ export function useFriends(): UseFriendsReturn {
 
 	const socketHandlers = useMemo(
 		() => ({
-			[PacketType.FRIEND_REQUEST_RECEIVED]: (result: {
-				status: string;
-				data?: FriendRequestReceivedPayload;
-				error?: { message: string };
-			}) => {
-				if (result.status === "success" && result.data) {
-					const payload = result.data;
-					const newIncoming: FriendItem = {
-						id: payload.user.id,
-						friendId: payload.friendId,
-						name: payload.user.name,
-						email: payload.user.email,
-						avatarUrl: payload.user.avatarUrl,
-						status: "incoming",
-						sharedCount: 0,
-						lastActive: new Date().toISOString(),
-						createdAt: payload.createdAt,
-					};
+			[PacketType.FRIEND_REQUEST_RECEIVED]: (result: Result<FriendRequestReceivedPayload>) => {
+				applySocketResult(result, "FRIEND_REQUEST_RECEIVED", (payload) => {
 					setState((prev) => {
 						if (prev.incoming.some((item) => item.friendId === payload.friendId)) {
 							return prev;
 						}
+
+						const incomingItem = createFriendItem(
+							payload.user,
+							payload.friendId,
+							"incoming",
+							payload.createdAt,
+						);
 						return {
 							...prev,
-							incoming: [newIncoming, ...prev.incoming].sort(sortByName),
+							incoming: addOrReplaceFriend(prev.incoming, incomingItem),
 						};
 					});
-				} else {
-					console.error("[useFriends] Failed to parse FRIEND_REQUEST_RECEIVED:", result.error?.message);
-				}
+				});
 			},
 
-			[PacketType.FRIEND_REQUEST_ACCEPTED]: (result: {
-				status: string;
-				data?: FriendRequestAcceptedPayload;
-				error?: { message: string };
-			}) => {
-				if (result.status === "success" && result.data) {
-					const payload = result.data;
+			[PacketType.FRIEND_REQUEST_ACCEPTED]: (result: Result<FriendRequestAcceptedPayload>) => {
+				applySocketResult(result, "FRIEND_REQUEST_ACCEPTED", (payload) => {
 					setState((prev) => {
 						const outgoingItem = prev.outgoing.find((item) => item.friendId === payload.friendId);
-						if (!outgoingItem) {
-							const newFriend: FriendItem = {
-								id: payload.user.id,
-								friendId: payload.friendId,
-								name: payload.user.name,
-								email: payload.user.email,
-								avatarUrl: payload.user.avatarUrl,
-								status: "friend",
-								sharedCount: 0,
-								lastActive: new Date().toISOString(),
-								createdAt: new Date().toISOString(),
-							};
-							return {
-								...prev,
-								friends: [newFriend, ...prev.friends].sort(sortByName),
-							};
-						}
+						const acceptedFriend = outgoingItem
+							? { ...outgoingItem, status: "friend" as const }
+							: createFriendItem(payload.user, payload.friendId, "friend");
+
 						return {
 							...prev,
-							outgoing: prev.outgoing.filter((item) => item.friendId !== payload.friendId),
-							friends: [{ ...outgoingItem, status: "friend" as const }, ...prev.friends].sort(sortByName),
+							outgoing: removeByFriendId(prev.outgoing, payload.friendId),
+							friends: addOrReplaceFriend(prev.friends, acceptedFriend),
 						};
 					});
-				} else {
-					console.error("[useFriends] Failed to parse FRIEND_REQUEST_ACCEPTED:", result.error?.message);
-				}
+				});
 			},
 
-			[PacketType.FRIEND_REQUEST_REJECTED]: (result: {
-				status: string;
-				data?: FriendRequestRejectedPayload;
-				error?: { message: string };
-			}) => {
-				if (result.status === "success" && result.data) {
-					const payload = result.data;
-					setState((prev) => ({
-						...prev,
-						outgoing: prev.outgoing.filter((item) => item.friendId !== payload.friendId),
-					}));
-				} else {
-					console.error("[useFriends] Failed to parse FRIEND_REQUEST_REJECTED:", result.error?.message);
-				}
+			[PacketType.FRIEND_REQUEST_REJECTED]: (result: Result<FriendRequestRejectedPayload>) => {
+				applySocketResult(result, "FRIEND_REQUEST_REJECTED", (payload) => {
+					setState((prev) => {
+						const nextOutgoing = removeByFriendId(prev.outgoing, payload.friendId);
+
+						if (nextOutgoing === prev.outgoing) {
+							return prev;
+						}
+
+						return {
+							...prev,
+							outgoing: nextOutgoing,
+						};
+					});
+				});
 			},
 
-			[PacketType.FRIEND_REQUEST_CANCELLED]: (result: {
-				status: string;
-				data?: FriendRequestCancelledPayload;
-				error?: { message: string };
-			}) => {
-				if (result.status === "success" && result.data) {
-					const payload = result.data;
-					setState((prev) => ({
-						...prev,
-						incoming: prev.incoming.filter((item) => item.friendId !== payload.friendId),
-					}));
-				} else {
-					console.error("[useFriends] Failed to parse FRIEND_REQUEST_CANCELLED:", result.error?.message);
-				}
+			[PacketType.FRIEND_REQUEST_CANCELLED]: (result: Result<FriendRequestCancelledPayload>) => {
+				applySocketResult(result, "FRIEND_REQUEST_CANCELLED", (payload) => {
+					setState((prev) => {
+						const nextIncoming = removeByFriendId(prev.incoming, payload.friendId);
+
+						if (nextIncoming === prev.incoming) {
+							return prev;
+						}
+
+						return {
+							...prev,
+							incoming: nextIncoming,
+						};
+					});
+				});
 			},
 
-			[PacketType.FRIEND_REMOVED]: (result: {
-				status: string;
-				data?: FriendRemovedPayload;
-				error?: { message: string };
-			}) => {
-				if (result.status === "success" && result.data) {
-					const payload = result.data;
-					setState((prev) => ({
-						...prev,
-						friends: prev.friends.filter((item) => item.friendId !== payload.friendId),
-						incoming: prev.incoming.filter((item) => item.friendId !== payload.friendId),
-						outgoing: prev.outgoing.filter((item) => item.friendId !== payload.friendId),
-					}));
-				} else {
-					console.error("[useFriends] Failed to parse FRIEND_REMOVED:", result.error?.message);
-				}
+			[PacketType.FRIEND_REMOVED]: (result: Result<FriendRemovedPayload>) => {
+				applySocketResult(result, "FRIEND_REMOVED", (payload) => {
+					setState((prev) => {
+						const nextFriends = removeByFriendId(prev.friends, payload.friendId);
+						const nextIncoming = removeByFriendId(prev.incoming, payload.friendId);
+						const nextOutgoing = removeByFriendId(prev.outgoing, payload.friendId);
+
+						if (
+							nextFriends === prev.friends &&
+							nextIncoming === prev.incoming &&
+							nextOutgoing === prev.outgoing
+						) {
+							return prev;
+						}
+
+						return {
+							...prev,
+							friends: nextFriends,
+							incoming: nextIncoming,
+							outgoing: nextOutgoing,
+						};
+					});
+				});
 			},
 
-			[PacketType.FRIEND_ONLINE]: (result: {
-				status: string;
-				data?: FriendPresencePayload;
-				error?: { message: string };
-			}) => {
-				if (result.status === "success" && result.data) {
-					const { userId } = result.data;
-					setState((prev) => ({
-						...prev,
-						friends: prev.friends.map((friend) =>
-							friend.id === userId ? { ...friend, isOnline: true } : friend,
-						),
-					}));
-				} else {
-					console.error("[useFriends] Failed to parse FRIEND_ONLINE:", result.error?.message);
-				}
+			[PacketType.FRIEND_ONLINE]: (result: Result<FriendPresencePayload>) => {
+				applySocketResult(result, "FRIEND_ONLINE", ({ userId }) => {
+					setState((prev) => {
+						const nextFriends = setFriendPresence(prev.friends, userId, true);
+
+						if (nextFriends === prev.friends) {
+							return prev;
+						}
+
+						return {
+							...prev,
+							friends: nextFriends,
+						};
+					});
+				});
 			},
 
-			[PacketType.FRIEND_OFFLINE]: (result: {
-				status: string;
-				data?: FriendPresencePayload;
-				error?: { message: string };
-			}) => {
-				if (result.status === "success" && result.data) {
-					const { userId } = result.data;
-					setState((prev) => ({
-						...prev,
-						friends: prev.friends.map((friend) =>
-							friend.id === userId ? { ...friend, isOnline: false } : friend,
-						),
-					}));
-				} else {
-					console.error("[useFriends] Failed to parse FRIEND_OFFLINE:", result.error?.message);
-				}
+			[PacketType.FRIEND_OFFLINE]: (result: Result<FriendPresencePayload>) => {
+				applySocketResult(result, "FRIEND_OFFLINE", ({ userId }) => {
+					setState((prev) => {
+						const nextFriends = setFriendPresence(prev.friends, userId, false);
+
+						if (nextFriends === prev.friends) {
+							return prev;
+						}
+
+						return {
+							...prev,
+							friends: nextFriends,
+						};
+					});
+				});
 			},
 		}),
 		[],
@@ -271,6 +303,25 @@ export function useFriends(): UseFriendsReturn {
 		await fetchFriends();
 	}, [fetchFriends]);
 
+	const runOptimisticMutation = useCallback(
+		async <T>(
+			applyOptimistic: (prev: UseFriendsState) => UseFriendsState,
+			rollbackOptimistic: (prev: UseFriendsState) => UseFriendsState,
+			request: () => Promise<Result<T>>,
+		): Promise<T> => {
+			setState(applyOptimistic);
+
+			const result = await request();
+			if (result.status === "error") {
+				setState(rollbackOptimistic);
+				throw result.error;
+			}
+
+			return result.data;
+		},
+		[],
+	);
+
 	const sendRequest = useCallback(
 		async (userId: string): Promise<void> => {
 			if (!userId || userId.trim().length === 0) {
@@ -303,21 +354,11 @@ export function useFriends(): UseFriendsReturn {
 				return;
 			}
 
-			const newItem: FriendItem = {
-				id: responseData.user.id,
-				friendId: responseData.friendId,
-				name: responseData.user.name,
-				email: responseData.user.email,
-				avatarUrl: responseData.user.avatarUrl,
-				status: "outgoing",
-				sharedCount: 0,
-				lastActive: new Date().toISOString(),
-				createdAt: new Date().toISOString(),
-			};
+			const newItem = createFriendItem(responseData.user, responseData.friendId, "outgoing");
 
 			setState((prev) => ({
 				...prev,
-				outgoing: [newItem, ...prev.outgoing].sort(sortByName),
+				outgoing: addOrReplaceFriend(prev.outgoing, newItem),
 			}));
 		},
 		[refresh],
@@ -336,108 +377,94 @@ export function useFriends(): UseFriendsReturn {
 				);
 			}
 
-			setState((prev) => ({
-				...prev,
-				incoming: prev.incoming.filter((item) => item.friendId !== friendId),
-				friends: [{ ...targetItem, status: "friend" as const }, ...prev.friends].sort(sortByName),
-			}));
-
-			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.ACCEPT(friendId), {
-				method: "PATCH",
-				operation: "Accept friend request",
-			});
-
-			if (result.status === "error") {
-				setState((prev) => ({
+			await runOptimisticMutation(
+				(prev) => ({
 					...prev,
-					friends: prev.friends.filter((item) => item.friendId !== friendId),
-					incoming: [targetItem, ...prev.incoming].sort(sortByName),
-				}));
-				throw result.error;
-			}
+					incoming: removeByFriendId(prev.incoming, friendId),
+					friends: addOrReplaceFriend(prev.friends, { ...targetItem, status: "friend" as const }),
+				}),
+				(prev) => ({
+					...prev,
+					friends: removeByFriendId(prev.friends, friendId),
+					incoming: addOrReplaceFriend(prev.incoming, targetItem),
+				}),
+				() =>
+					xfetchApi<null>(FRIENDS_API_ENDPOINTS.ACCEPT(friendId), {
+						method: "PATCH",
+						operation: "Accept friend request",
+					}),
+			);
 		},
-		[state.incoming],
+		[runOptimisticMutation, state.incoming],
 	);
 
 	const rejectRequest = useCallback(
 		async (friendId: string): Promise<void> => {
 			const targetItem = state.incoming.find((item) => item.friendId === friendId);
 
-			setState((prev) => ({
-				...prev,
-				incoming: prev.incoming.filter((item) => item.friendId !== friendId),
-			}));
-
-			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.REJECT(friendId), {
-				method: "DELETE",
-				operation: "Reject friend request",
-			});
-
-			if (result.status === "error") {
-				if (targetItem) {
-					setState((prev) => ({
-						...prev,
-						incoming: [targetItem, ...prev.incoming].sort(sortByName),
-					}));
-				}
-				throw result.error;
-			}
+			await runOptimisticMutation(
+				(prev) => ({
+					...prev,
+					incoming: removeByFriendId(prev.incoming, friendId),
+				}),
+				(prev) => ({
+					...prev,
+					incoming: targetItem ? addOrReplaceFriend(prev.incoming, targetItem) : prev.incoming,
+				}),
+				() =>
+					xfetchApi<null>(FRIENDS_API_ENDPOINTS.REJECT(friendId), {
+						method: "DELETE",
+						operation: "Reject friend request",
+					}),
+			);
 		},
-		[state.incoming],
+		[runOptimisticMutation, state.incoming],
 	);
 
 	const cancelRequest = useCallback(
 		async (friendId: string): Promise<void> => {
 			const targetItem = state.outgoing.find((item) => item.friendId === friendId);
 
-			setState((prev) => ({
-				...prev,
-				outgoing: prev.outgoing.filter((item) => item.friendId !== friendId),
-			}));
-
-			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.CANCEL(friendId), {
-				method: "DELETE",
-				operation: "Cancel friend request",
-			});
-
-			if (result.status === "error") {
-				if (targetItem) {
-					setState((prev) => ({
-						...prev,
-						outgoing: [targetItem, ...prev.outgoing].sort(sortByName),
-					}));
-				}
-				throw result.error;
-			}
+			await runOptimisticMutation(
+				(prev) => ({
+					...prev,
+					outgoing: removeByFriendId(prev.outgoing, friendId),
+				}),
+				(prev) => ({
+					...prev,
+					outgoing: targetItem ? addOrReplaceFriend(prev.outgoing, targetItem) : prev.outgoing,
+				}),
+				() =>
+					xfetchApi<null>(FRIENDS_API_ENDPOINTS.CANCEL(friendId), {
+						method: "DELETE",
+						operation: "Cancel friend request",
+					}),
+			);
 		},
-		[state.outgoing],
+		[runOptimisticMutation, state.outgoing],
 	);
 
 	const removeFriend = useCallback(
 		async (friendId: string): Promise<void> => {
 			const targetItem = state.friends.find((item) => item.friendId === friendId);
 
-			setState((prev) => ({
-				...prev,
-				friends: prev.friends.filter((item) => item.friendId !== friendId),
-			}));
-
-			const result = await xfetchApi<null>(FRIENDS_API_ENDPOINTS.REMOVE(friendId), {
-				method: "DELETE",
-				operation: "Remove friend",
-			});
-
-			if (result.status === "error") {
-				if (targetItem) {
-					setState((prev) => ({
-						...prev,
-						friends: [targetItem, ...prev.friends].sort(sortByName),
-					}));
-				}
-				throw result.error;
-			}
+			await runOptimisticMutation(
+				(prev) => ({
+					...prev,
+					friends: removeByFriendId(prev.friends, friendId),
+				}),
+				(prev) => ({
+					...prev,
+					friends: targetItem ? addOrReplaceFriend(prev.friends, targetItem) : prev.friends,
+				}),
+				() =>
+					xfetchApi<null>(FRIENDS_API_ENDPOINTS.REMOVE(friendId), {
+						method: "DELETE",
+						operation: "Remove friend",
+					}),
+			);
 		},
-		[state.friends],
+		[runOptimisticMutation, state.friends],
 	);
 
 	return {
