@@ -1,4 +1,4 @@
-import { ApiDevice } from "@workspace/app-ui/types/device";
+import type { ApiDevice } from "@workspace/app-ui/types/device";
 
 export interface SocketDeviceUpdatedPayload {
 	id: string;
@@ -105,6 +105,9 @@ export interface FileOfferPayload {
 	readonly transferId: string;
 	readonly senderDeviceId: string;
 	readonly senderDeviceFingerprint: string;
+	readonly senderDeviceName?: string | null;
+	readonly senderUserId?: string | null;
+	readonly senderUserName?: string | null;
 	readonly files: FileMetadata[];
 }
 
