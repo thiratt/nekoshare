@@ -1,5 +1,8 @@
 import { createServer, Server as NetServer, Socket } from "net";
 import { Logger } from "@/core/logger";
+import { db } from "@/adapters/db";
+import { device } from "@/adapters/db/schemas";
+import { eq } from "drizzle-orm";
 import { PacketType } from "../shared";
 import { TCPConnection, tcpSessionManager, bootstrapTCPControllers } from "./connection";
 import { handleDeviceSocketDisconnect } from "../shared/controllers";
@@ -64,7 +67,22 @@ export async function createTCPSocketInstance() {
 			if (connection) {
 				const sessionId = connection.session?.id;
 				if (sessionId) {
-					handleDeviceSocketDisconnect(sessionId);
+					db.query.device
+						.findFirst({
+							where: eq(device.sessionId, sessionId),
+							columns: { id: true },
+						})
+						.then((deviceInfo) => {
+							if (!deviceInfo) {
+								Logger.warn("TCP", `No device found for session ${sessionId} during disconnect cleanup`);
+								return;
+							}
+
+							handleDeviceSocketDisconnect(deviceInfo.id);
+						})
+						.catch((err) => {
+							Logger.warn("TCP", `Failed to resolve device for session ${sessionId}: ${err?.message || err}`);
+						});
 				}
 				connection.close();
 			}

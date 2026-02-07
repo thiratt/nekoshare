@@ -132,20 +132,33 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 						const userId = connection.user?.id;
 						const sessionId = connection.session?.id;
 
-						let deviceInfoPromise:
-							| Promise<{ id: string; deviceIdentifier: string | null } | undefined>
-							| undefined;
-						if (sessionId && userId) {
-							deviceInfoPromise = db.query.device
-								.findFirst({
-									where: eq(device.sessionId, sessionId),
-									columns: { id: true, deviceIdentifier: true },
-								})
-								.catch(() => undefined);
-						}
+						const deviceInfoPromise = sessionId
+							? db.query.device
+									.findFirst({
+										where: eq(device.sessionId, sessionId),
+										columns: { id: true, deviceIdentifier: true },
+									})
+									.catch((err) => {
+										Logger.warn(
+											"WebSocket",
+											`Failed to resolve device for session ${sessionId}: ${err?.message || err}`,
+										);
+										return undefined;
+									})
+							: undefined;
 
-						if (sessionId) {
-							handleDeviceSocketDisconnect(sessionId);
+						if (deviceInfoPromise) {
+							deviceInfoPromise.then((deviceInfo) => {
+								if (!deviceInfo) {
+									return;
+								}
+
+								handleDeviceSocketDisconnect(deviceInfo.id);
+
+								if (userId) {
+									broadcastDeviceOffline(userId, deviceInfo.id, deviceInfo.deviceIdentifier ?? undefined);
+								}
+							});
 						}
 
 						connection.close();
@@ -156,25 +169,6 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 									broadcastUserOffline(userId, friendIds);
 								}
 							});
-						}
-
-						if (userId && deviceInfoPromise) {
-							deviceInfoPromise
-								.then((deviceInfo) => {
-									if (deviceInfo) {
-										broadcastDeviceOffline(
-											userId,
-											deviceInfo.id,
-											deviceInfo.deviceIdentifier ?? undefined,
-										);
-									}
-								})
-								.catch((err) => {
-									Logger.warn(
-										"WebSocket",
-										`Failed to broadcast device offline: ${err?.message || err}`,
-									);
-								});
 						}
 					}
 					Logger.info("WebSocket", `WebSocket connection closed (code: ${evt.code}).`);
