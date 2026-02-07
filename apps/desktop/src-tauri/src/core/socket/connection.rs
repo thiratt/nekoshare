@@ -12,7 +12,7 @@ use crate::core::socket::TransferConfig;
 
 use super::binary::BinaryWriter;
 use super::error::{Context, SocketError, SocketResult};
-use super::protocol::{PacketType, HEADER_SIZE};
+use super::protocol::{PacketType, HEADER_SIZE, MAX_FRAME_SIZE};
 
 pub type OnCloseCallback = Box<dyn Fn(String) + Send + Sync + 'static>;
 
@@ -393,6 +393,14 @@ impl Connection {
             }
 
             let frame_len = u32::from_le_bytes(len_buf) as usize;
+            if frame_len > MAX_FRAME_SIZE {
+                log::warn!(
+                    "Frame too large from peer: {} bytes (max: {}), closing connection",
+                    frame_len,
+                    MAX_FRAME_SIZE
+                );
+                return Err(SocketError::PacketTooLarge(frame_len).into());
+            }
 
             let mut frame_buf = vec![0u8; frame_len];
             match reader.read_exact(&mut frame_buf).await {

@@ -3,6 +3,7 @@ use std::fmt;
 pub const HEADER_SIZE: usize = 5;
 pub const TUNNEL_HEADER_SIZE: usize = 13;
 pub const MAX_PAYLOAD_SIZE: usize = 16 * 1024 * 1024;
+pub const MAX_FRAME_SIZE: usize = MAX_PAYLOAD_SIZE + HEADER_SIZE;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
