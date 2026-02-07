@@ -247,7 +247,24 @@ const useNekoShare = (): UseNekoShareReturn => {
 	};
 };
 
-export { NekoShareProvider, useNekoShare };
+const useNekoShareDesktop = (): UseNekoShareReturn & { currentDevice: LocalDeviceInfo } => {
+	const context = useContext(NekoShareContext);
+	if (context === null) {
+		throw new Error("useNekoShareDesktop must be used within a NekoShareProvider");
+	}
+	if (!context.currentDevice) {
+		throw new Error("useNekoShareDesktop requires currentDevice to be defined");
+	}
+
+	const base = useNekoShare();
+
+	return {
+		...base,
+		currentDevice: context.currentDevice,
+	};
+};
+
+export { NekoShareProvider, useNekoShare, useNekoShareDesktop };
 
 export {
 	useGlobalLoading,
