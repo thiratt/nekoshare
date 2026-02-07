@@ -1,7 +1,6 @@
 use tokio::sync::mpsc;
 
 use tauri::{App, Emitter, Manager};
-use tokio::sync::Mutex;
 
 use state::GlobalState;
 
@@ -10,7 +9,6 @@ mod config;
 mod core;
 mod state;
 
-use commands::socket::SocketState;
 use core::socket::{ConnectionEvent, SocketManager};
 
 use crate::core::device::DeviceManager;
@@ -59,7 +57,7 @@ fn setup_app(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let (event_tx, mut event_rx) = mpsc::channel::<ConnectionEvent>(256);
     let manager = SocketManager::new(event_tx);
 
-    app.manage(Mutex::new(SocketState::new(manager)));
+    app.manage(manager);
 
     let app_handle = app.handle().clone();
     tauri::async_runtime::spawn(async move {

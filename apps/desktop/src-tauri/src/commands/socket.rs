@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_store::StoreExt;
 use thiserror::Error;
-use tokio::{fs::File, io::AsyncReadExt, sync::Mutex};
+use tokio::{fs::File, io::AsyncReadExt};
 use uuid::Uuid;
 
 use crate::{
@@ -334,16 +334,6 @@ pub enum SocketCommandError {
     ServerError(String),
 }
 
-pub struct SocketState {
-    pub manager: Arc<SocketManager>,
-}
-
-impl SocketState {
-    pub fn new(manager: Arc<SocketManager>) -> Self {
-        Self { manager }
-    }
-}
-
 #[derive(serde::Serialize, Clone)]
 pub enum ConnectionStatus {
     Connected,
@@ -427,17 +417,14 @@ async fn load_receive_dir_from_store(app: &AppHandle) -> Option<PathBuf> {
 
 #[tauri::command]
 pub async fn socket_client_connect_to(
-    state: State<'_, Mutex<SocketState>>,
+    state: State<'_, Arc<SocketManager>>,
     device_id: String,
     receiver_id: String,
     receiver_address: String,
     receiver_port: u16,
     receiver_fingerprint: String,
 ) -> Result<ClientConnectionResponse, SocketCommandError> {
-    let manager = {
-        let state_guard = state.lock().await;
-        state_guard.manager.clone()
-    };
+    let manager = state.inner().clone();
 
     let address = format!("{}:{}", receiver_address, receiver_port);
 
@@ -458,15 +445,12 @@ pub async fn socket_client_connect_to(
 
 #[tauri::command]
 pub async fn socket_client_disconnect_from(
-    state: State<'_, Mutex<SocketState>>,
+    state: State<'_, Arc<SocketManager>>,
     device_id: String,
     target_id: String,
     route: String,
 ) -> Result<ClientConnectionResponse, SocketCommandError> {
-    let manager = {
-        let state_guard = state.lock().await;
-        state_guard.manager.clone()
-    };
+    let manager = state.inner().clone();
 
     let local = parse_uuid(&device_id, "device_id")?;
     let peer = parse_uuid(&target_id, "target_id")?;
@@ -484,15 +468,12 @@ pub async fn socket_client_disconnect_from(
 
 #[tauri::command]
 pub async fn socket_client_is_connected(
-    state: State<'_, Mutex<SocketState>>,
+    state: State<'_, Arc<SocketManager>>,
     device_id: String,
     target_id: String,
     route: String,
 ) -> Result<ClientConnectionResponse, SocketCommandError> {
-    let manager = {
-        let state_guard = state.lock().await;
-        state_guard.manager.clone()
-    };
+    let manager = state.inner().clone();
 
     let local = parse_uuid(&device_id, "device_id")?;
     let peer = parse_uuid(&target_id, "target_id")?;
@@ -514,7 +495,7 @@ pub async fn socket_client_is_connected(
 
 #[tauri::command]
 pub async fn socket_client_send_files(
-    state: State<'_, Mutex<SocketState>>,
+    state: State<'_, Arc<SocketManager>>,
     app: AppHandle,
     device_id: String,
     target_id: String,
@@ -526,10 +507,7 @@ pub async fn socket_client_send_files(
 ) -> Result<ClientConnectionResponse, SocketCommandError> {
     let chunk_size = TransferConfig::global().chunk_size;
 
-    let manager = {
-        let state_guard = state.lock().await;
-        state_guard.manager.clone()
-    };
+    let manager = state.inner().clone();
 
     let local = parse_uuid(&device_id, "device_id")?;
     let peer = parse_uuid(&target_id, "target_id")?;
@@ -589,14 +567,11 @@ pub async fn socket_client_send_files(
 
 #[tauri::command]
 pub async fn socket_server_start(
-    state: State<'_, Mutex<SocketState>>,
+    state: State<'_, Arc<SocketManager>>,
     app: AppHandle,
     sender_fingerprint: String,
 ) -> Result<ServerStartResponse, SocketCommandError> {
-    let manager = {
-        let state_guard = state.lock().await;
-        state_guard.manager.clone()
-    };
+    let manager = state.inner().clone();
 
     set_transfer_event_app_handle(app.clone());
 
@@ -632,24 +607,18 @@ pub async fn socket_server_start(
 
 #[tauri::command]
 pub async fn socket_server_stop(
-    state: State<'_, Mutex<SocketState>>,
+    state: State<'_, Arc<SocketManager>>,
 ) -> Result<String, SocketCommandError> {
-    let _manager = {
-        let state_guard = state.lock().await;
-        state_guard.manager.clone()
-    };
+    let _manager = state.inner().clone();
 
     todo!()
 }
 
 #[tauri::command]
 pub async fn socket_server_has_active_connection(
-    state: State<'_, Mutex<SocketState>>,
+    state: State<'_, Arc<SocketManager>>,
 ) -> Result<bool, SocketCommandError> {
-    let manager = {
-        let state_guard = state.lock().await;
-        state_guard.manager.clone()
-    };
+    let manager = state.inner().clone();
 
     Ok(manager.has_active_server_connection())
 }
