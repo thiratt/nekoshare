@@ -15,6 +15,7 @@ import { FileIcon } from "./icon";
 
 interface StatusBadgeProps {
 	status: ShareItem["status"];
+	progressPercent?: number;
 }
 
 interface UseColumnsProps {
@@ -22,13 +23,18 @@ interface UseColumnsProps {
 	onItemDelete: (id: number) => void;
 }
 
-export const StatusBadge = memo(function StatusBadge({ status }: StatusBadgeProps) {
+export const StatusBadge = memo(function StatusBadge({ status, progressPercent }: StatusBadgeProps) {
 	const { icon: Icon, color, label } = STATUS_CONFIG[status];
+	const percent =
+		typeof progressPercent === "number" && Number.isFinite(progressPercent)
+			? Math.max(0, Math.min(100, Math.round(progressPercent)))
+			: null;
+	const displayLabel = status === "processing" ? `${percent ?? 0}%` : label;
 
 	return (
 		<Badge className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${color}`}>
 			<Icon className="w-3 h-3" />
-			{label}
+			{displayLabel}
 		</Badge>
 	);
 });
@@ -92,7 +98,8 @@ export function useColumns({ onItemReveal, onItemDelete }: UseColumnsProps): Col
 				},
 			},
 			{
-				accessorKey: "from",
+				id: "from",
+				accessorFn: (row) => (row.from === "me" ? "ฉัน" : row.friendName ?? "Unknown"),
 				header: ({ column }) => (
 					<div
 						className="flex items-center gap-2"
@@ -102,7 +109,7 @@ export function useColumns({ onItemReveal, onItemDelete }: UseColumnsProps): Col
 						<LuArrowUpDown />
 					</div>
 				),
-				cell: ({ row }) => (row.original.from === "me" ? "ฉัน" : "เพื่อน"),
+				cell: ({ row }) => (row.original.from === "me" ? "ฉัน" : row.original.friendName ?? "Unknown"),
 			},
 			{
 				accessorKey: "device",
@@ -141,7 +148,12 @@ export function useColumns({ onItemReveal, onItemDelete }: UseColumnsProps): Col
 						<LuArrowUpDown />
 					</div>
 				),
-				cell: ({ row }) => <StatusBadge status={row.original.status} />,
+				cell: ({ row }) => (
+					<StatusBadge
+						status={row.original.status}
+						progressPercent={row.original.progressPercent}
+					/>
+				),
 			},
 			{
 				accessorKey: "uploadedAt",

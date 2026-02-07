@@ -155,8 +155,16 @@ const VirtualRow = memo(
 	},
 );
 
-export function HomeUI({ onItemClick, onItemReveal, onItemRemove, data, loading: externalLoading, invoke }: HomeProps) {
-	const { items, loading, refreshData, setItems } = useShareData({ data, externalLoading });
+export function HomeUI({
+	onItemClick,
+	onItemReveal,
+	onItemRemove,
+	onRefresh,
+	data,
+	loading: externalLoading,
+	invoke,
+}: HomeProps) {
+	const { items, loading, refreshData, setItems } = useShareData({ data, externalLoading, onRefresh });
 
 	const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
 	const [deleteBulkIds, setDeleteBulkIds] = useState<number[]>([]);

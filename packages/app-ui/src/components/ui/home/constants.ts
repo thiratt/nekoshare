@@ -1,7 +1,5 @@
 import { LuCircleAlert, LuCircleCheck, LuClock } from "react-icons/lu";
 
-export const MOCK_DEVICES = ["MacBook Pro M2", "Dell XPS 13", "iPhone 15 Pro", "Galaxy S24", "iPad Pro"];
-
 export const ITEMS_PER_PAGE = 10;
 
 export const STATUS_CONFIG = {
