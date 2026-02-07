@@ -19,7 +19,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             GlobalState::new()
-            .register(DeviceManager::new())
+            .register(DeviceManager::new().expect("Failed to initialize DeviceManager"))
             .init();
 
             app.manage(Mutex::new(SocketState::new()));
