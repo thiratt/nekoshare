@@ -28,16 +28,11 @@ interface DropOverlayContextValue {
 	actions: DropOverlayActions;
 	computed: DropOverlayComputed;
 	containerRef: RefObject<HTMLDivElement | null>;
-}
-
-const DropOverlayContext = createContext<DropOverlayContextValue | null>(null);
-
-interface DropEventContext {
 	handlers: DropEventHandlers;
 	dropZonesRef: RefObject<DropZoneRect[]>;
 }
 
-const DropEventContext = createContext<DropEventContext | null>(null);
+const DropOverlayContext = createContext<DropOverlayContextValue | null>(null);
 interface DropOverlayProviderProps {
 	children: ReactNode;
 	onSendFiles?: (files: FileEntry[], targets: string[], options: GlobalOptions) => void;
@@ -272,23 +267,13 @@ export function DropOverlayProvider({
 			actions,
 			computed,
 			containerRef,
-		}),
-		[state, actions, computed],
-	);
-
-	const eventContextValue = useMemo<DropEventContext>(
-		() => ({
 			handlers,
 			dropZonesRef,
 		}),
-		[handlers],
+		[state, actions, computed, handlers],
 	);
 
-	return (
-		<DropOverlayContext.Provider value={overlayContextValue}>
-			<DropEventContext.Provider value={eventContextValue}>{children}</DropEventContext.Provider>
-		</DropOverlayContext.Provider>
-	);
+	return <DropOverlayContext.Provider value={overlayContextValue}>{children}</DropOverlayContext.Provider>;
 }
 
 export function useDropOverlay(): DropOverlayContextValue {
@@ -310,17 +295,11 @@ export function useDropOverlayActions(): DropOverlayActions {
 }
 
 export function useDropEventHandlers(): DropEventHandlers {
-	const context = useContext(DropEventContext);
-	if (!context) {
-		throw new Error("useDropEventHandlers must be used within a DropOverlayProvider");
-	}
-	return context.handlers;
+	const { handlers } = useDropOverlay();
+	return handlers;
 }
 
 export function useDropZonesRef(): RefObject<DropZoneRect[]> {
-	const context = useContext(DropEventContext);
-	if (!context) {
-		throw new Error("useDropZonesRef must be used within a DropOverlayProvider");
-	}
-	return context.dropZonesRef;
+	const { dropZonesRef } = useDropOverlay();
+	return dropZonesRef;
 }
