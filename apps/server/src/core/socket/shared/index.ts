@@ -3,7 +3,13 @@ export type { TransportType, IConnection, ISessionManager, CommandHandler, UserD
 
 export { BinaryReader, BinaryWriter } from "./binary-utils";
 
-export { BUFFER_HIGH_WATER_MARK, BUFFER_LOW_WATER_MARK, DRAIN_CHECK_INTERVAL, MAX_CONTROL_PACKET_SIZE } from "./config";
+export {
+	BUFFER_HIGH_WATER_MARK,
+	BUFFER_LOW_WATER_MARK,
+	DRAIN_CHECK_INTERVAL,
+	MAX_CONTROL_PACKET_SIZE,
+	MAX_FRAME_SIZE,
+} from "./config";
 
 export { BaseConnection } from "./base-connection";
 export { PacketRouter } from "./router";

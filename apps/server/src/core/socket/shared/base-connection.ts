@@ -1,5 +1,5 @@
 import { BinaryReader, BinaryWriter } from "./binary-utils";
-import { HEADER_SIZE } from "./config";
+import { HEADER_SIZE, MAX_FRAME_SIZE } from "./config";
 import { PacketType } from "./protocol";
 import { Logger } from "@/core/logger";
 import type { Session, User } from "@/core/auth";
@@ -96,6 +96,15 @@ export abstract class BaseConnection {
 
 			if (buffer.length < HEADER_SIZE) {
 				Logger.warn(this.transportType, `Malformed header from ${this.id}`);
+				return;
+			}
+
+			if (buffer.length > MAX_FRAME_SIZE) {
+				Logger.warn(
+					this.transportType,
+					`Frame too large from ${this.id}: ${buffer.length} bytes (max: ${MAX_FRAME_SIZE})`,
+				);
+				this.shutdown();
 				return;
 			}
 

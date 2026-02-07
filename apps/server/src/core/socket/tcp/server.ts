@@ -3,7 +3,7 @@ import { Logger } from "@/core/logger";
 import { db } from "@/adapters/db";
 import { device } from "@/adapters/db/schemas";
 import { eq } from "drizzle-orm";
-import { PacketType } from "../shared";
+import { PacketType, HEADER_SIZE, MAX_FRAME_SIZE } from "../shared";
 import { TCPConnection, tcpSessionManager, bootstrapTCPControllers } from "./connection";
 import { handleDeviceSocketDisconnect } from "../shared/controllers";
 import { env } from "@/config/env";
@@ -46,6 +46,19 @@ export async function createTCPSocketInstance() {
 				}
 
 				const frameLength = inputBuffer.readUInt32LE(0);
+				if (frameLength < HEADER_SIZE || frameLength > MAX_FRAME_SIZE) {
+					Logger.warn(
+						"TCP",
+						`Invalid frame length ${frameLength} from ${clientId} (allowed: ${HEADER_SIZE}-${MAX_FRAME_SIZE})`,
+					);
+					inputBuffer = Buffer.alloc(0);
+					if (connection) {
+						connection.close();
+						connection = undefined;
+					}
+					socket.destroy();
+					return;
+				}
 
 				if (inputBuffer.length < 4 + frameLength) {
 					break;
