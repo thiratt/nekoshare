@@ -19,7 +19,7 @@ pub async fn ns_get_device_info() -> Result<DeviceInfoWithFingerprint, CommandEr
 #[tauri::command]
 pub fn ns_get_device_info_with_key() -> Result<DeviceInfoWithKey, CommandError> {
     let manager = get_manager();
-        let info = manager.info_with_key().map_err(CommandError::from)?;
+    let info = manager.info_with_key().map_err(CommandError::from)?;
 
     Ok(info)
 }
