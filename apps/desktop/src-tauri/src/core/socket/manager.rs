@@ -5,8 +5,7 @@ use uuid::Uuid;
 
 use crate::core::socket::{
     ids::{LinkKey, PairKey},
-    Connection, ConnectionEvent, ConnectionServerConfig, PacketType, SocketClientConfig,
-    SocketError, SocketResult, SocketServer,
+    Connection, ConnectionEvent, SocketClientConfig, SocketError, SocketResult, SocketServer,
 };
 
 pub struct SocketManager {
@@ -67,22 +66,8 @@ impl SocketManager {
         Ok(connection)
     }
 
-    pub async fn start_server(
-        self: &Arc<Self>,
-        config: ConnectionServerConfig,
-        sender_fingerprint: String,
-    ) -> SocketResult<u16> {
+    pub async fn start_server(self: &Arc<Self>, sender_fingerprint: String) -> SocketResult<u16> {
         let server = SocketServer::with_events(sender_fingerprint, self.event_tx.clone());
-
-        let manager_clone = self.clone();
-
-        // Note: ต้องเพิ่ม method set_connection_handler ใน server.rs (มีอยู่แล้วในโค้ดที่คุณให้มา แต่ต้องปรับให้เรียกใช้)
-        // ใน server.rs ของคุณมี on_connection อยู่แล้ว แต่ยังไม่ได้ถูกเรียกใช้ใน handle_handshake_and_run
-        // เดี๋ยวผมจะบอกวิธีแก้ server.rs ด้านล่าง
-
-        // Hack: เนื่องจาก server.rs ปัจจุบันยังไม่รองรับ callback ที่ส่ง manager กลับมาได้สมบูรณ์แบบ
-        // เราจะใช้กลไกของ event loop ใน server แทน หรือต้องแก้ server.rs เพิ่ม
-        // เพื่อความง่าย ผมแนะนำให้แก้ server.rs ให้รับ callback ครับ
 
         let port = server.start().await?;
         self.servers.insert(port, server);
@@ -106,17 +91,6 @@ impl SocketManager {
         log::info!("Session registered: {}", pair_key);
     }
 
-    // Helper สำหรับ Server: เมื่อมี Connection ใหม่เข้ามา Server จะเรียกฟังก์ชันนี้
-    pub async fn handle_incoming(
-        self: &Arc<Self>,
-        connection: Arc<Connection>,
-        // ในอนาคต Packet แรกควรเป็น Handshake ที่บอกว่าฉันคือใคร (Device ID)
-        // ตอนนี้สมมติว่าเรารู้ ID จากวิธีอื่นไปก่อน หรือรอ Handshake
-    ) {
-        // TODO: รอ implement Handshake packet เพื่อดึง Remote Device ID
-        // ตอนนี้เก็บไว้ใน Temp list หรือรอ authenticate ก่อนก็ได้
-    }
-
     pub fn get_connection(&self, pair_key: &PairKey) -> Option<Arc<Connection>> {
         self.active_sessions
             .get(pair_key)
@@ -129,9 +103,9 @@ impl SocketManager {
             .any(|entry| entry.value().has_active_connection())
     }
 
-    pub fn disconnect(&self, pair_key: &PairKey) -> SocketResult<()> {
+    pub async fn disconnect(&self, pair_key: &PairKey) -> SocketResult<()> {
         if let Some(conn) = self.active_sessions.get(pair_key) {
-            conn.close();
+            conn.close().await;
             Ok(())
         } else {
             Err(

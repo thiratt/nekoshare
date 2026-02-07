@@ -8,6 +8,7 @@ import {
   useLocation,
 } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { stat } from "@tauri-apps/plugin-fs";
 import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 
@@ -41,6 +42,10 @@ import { SetupApplicationUI } from "@/components/setup";
 import { useNSDesktop } from "@/context/NSDesktopContext";
 import { useTauriFileDrop } from "@/hooks/use-tauri-file-drop";
 import { getCachedSession } from "@/lib/auth";
+import {
+  type TransferProgressEvent,
+  useTransferStore,
+} from "@/lib/store/transfers";
 import { parseDropZoneId } from "@/lib/transfer";
 
 export const Route = createFileRoute("/home")({
@@ -145,6 +150,11 @@ function RouteComponent() {
   const { send } = useNekoSocket();
   const { devices } = useDevices();
   const { toast } = useToast();
+  const upsertTransfer = useTransferStore((state) => state.upsertFromEvent);
+  const registerIncomingMeta = useTransferStore(
+    (state) => state.registerIncomingMeta,
+  );
+  const clearOldTransfers = useTransferStore((state) => state.clearOld);
   const pendingTransfers = useRef<Map<string, string[]>>(new Map());
   const titlebarHelperActions = useMemo(
     () => [
@@ -176,8 +186,27 @@ function RouteComponent() {
 
       console.log("[PacketRouter] Received FILE_OFFER:", message.data);
 
-      const { senderDeviceId, senderDeviceFingerprint, transferId } =
-        message.data;
+      const {
+        senderDeviceId,
+        senderDeviceFingerprint,
+        senderDeviceName,
+        senderUserId,
+        senderUserName,
+        transferId,
+      } = message.data;
+
+      const sameAccount = senderUserId
+        ? senderUserId === user.id
+        : devices.some((d) => d.id === senderDeviceId);
+
+      registerIncomingMeta({
+        transferId,
+        sourceUserId: senderUserId ?? null,
+        sourceUserName: senderUserName ?? null,
+        sourceDeviceId: senderDeviceId ?? null,
+        sourceDeviceName: senderDeviceName ?? null,
+        sameAccount,
+      });
 
       const hasActiveDirect = await invoke<boolean>(
         "socket_server_has_active_connection",
@@ -263,6 +292,10 @@ function RouteComponent() {
           deviceId: user.deviceId,
           targetId: receiverDeviceId,
           filePaths: filesToSend,
+          transferId,
+          sourceUserId: user.id,
+          sourceUserName: user.name ?? null,
+          sourceDeviceName: currentDevice.name,
           route: "direct",
         });
 
@@ -318,6 +351,42 @@ function RouteComponent() {
   useEffect(() => {
     setGlobalLoading(false);
   }, [setGlobalLoading]);
+
+  useEffect(() => {
+    let unlistenFn: null | (() => void) = null;
+    let active = true;
+
+    const setup = async () => {
+      const unlisten = await listen<TransferProgressEvent>(
+        "transfer-progress",
+        (event) => {
+          if (!active) return;
+          upsertTransfer(event.payload);
+        },
+      );
+
+      if (!active) {
+        unlisten();
+        return;
+      }
+
+      unlistenFn = unlisten;
+    };
+
+    setup();
+
+    const cleanupInterval = window.setInterval(() => {
+      clearOldTransfers(1000 * 60 * 60 * 24);
+    }, 1000 * 60);
+
+    return () => {
+      active = false;
+      window.clearInterval(cleanupInterval);
+      if (unlistenFn) {
+        unlistenFn();
+      }
+    };
+  }, [upsertTransfer, clearOldTransfers]);
 
   const handleProcessFiles = useCallback(
     async (paths: string[]): Promise<FileEntry[]> => {

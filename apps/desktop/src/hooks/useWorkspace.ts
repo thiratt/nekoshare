@@ -47,6 +47,8 @@ export function useWorkspace(): UseWorkspaceReturn {
 
   const isMountedRef = useRef(true);
   const lastPathRef = useRef<string | null>(null);
+  const isLoadingRef = useRef(false);
+  const pendingReloadRef = useRef(false);
 
   const directoryPath = config.fileLocation;
 
@@ -76,9 +78,26 @@ export function useWorkspace(): UseWorkspaceReturn {
     }
   }, [directoryPath]);
 
-  const refresh = useCallback(async () => {
-    await loadFiles();
+  const loadFilesSafely = useCallback(async () => {
+    if (isLoadingRef.current) {
+      pendingReloadRef.current = true;
+      return;
+    }
+
+    isLoadingRef.current = true;
+    try {
+      do {
+        pendingReloadRef.current = false;
+        await loadFiles();
+      } while (pendingReloadRef.current && isMountedRef.current);
+    } finally {
+      isLoadingRef.current = false;
+    }
   }, [loadFiles]);
+
+  const refresh = useCallback(async () => {
+    await loadFilesSafely();
+  }, [loadFilesSafely]);
 
   useEffect(() => {
     if (configStatus === "loading") {
@@ -95,17 +114,27 @@ export function useWorkspace(): UseWorkspaceReturn {
 
     if (lastPathRef.current !== directoryPath) {
       lastPathRef.current = directoryPath;
-      loadFiles();
+      void loadFilesSafely();
     }
-  }, [configStatus, isReady, directoryPath, loadFiles]);
+  }, [configStatus, isReady, directoryPath, loadFilesSafely]);
 
   useFileWatcher(
     directoryPath,
     useCallback(() => {
-      loadFiles();
-    }, [loadFiles]),
-    { enabled: isReady && !!directoryPath, debounceMs: 150 },
+      void loadFilesSafely();
+    }, [loadFilesSafely]),
+    { enabled: isReady && !!directoryPath, debounceMs: 200 },
   );
+
+  useEffect(() => {
+    if (!isReady || !directoryPath) return;
+
+    const timer = window.setInterval(() => {
+      void loadFilesSafely();
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [directoryPath, isReady, loadFilesSafely]);
 
   useEffect(() => {
     isMountedRef.current = true;

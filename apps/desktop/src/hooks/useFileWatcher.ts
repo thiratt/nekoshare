@@ -43,6 +43,18 @@ export function useFileWatcher(
   const unwatchRef = useRef<(() => void) | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(false);
+  const pendingPathsRef = useRef<Set<string>>(new Set());
+  const pendingTypeRef = useRef<WatchEventType>("any");
+
+  const mergeEventType = (
+    current: WatchEventType,
+    incoming: WatchEventType,
+  ): WatchEventType => {
+    if (current === "remove" || incoming === "remove") return "remove";
+    if (current === "create" || incoming === "create") return "create";
+    if (current === "modify" || incoming === "modify") return "modify";
+    return "any";
+  };
 
   useEffect(() => {
     callbackRef.current = callback;
@@ -51,7 +63,6 @@ export function useFileWatcher(
   useEffect(() => {
     isMountedRef.current = true;
     let isUnmountedLocal = false;
-    let shouldAbortImmediately = false;
 
     if (!enabled || !path) {
       return;
@@ -63,31 +74,33 @@ export function useFileWatcher(
           const eventType = normalizeEventType(event);
           const paths = event.paths.map((p) => String(p));
 
+          for (const eventPath of paths) {
+            pendingPathsRef.current.add(eventPath);
+          }
+          pendingTypeRef.current = mergeEventType(
+            pendingTypeRef.current,
+            eventType,
+          );
+
           if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current);
           }
 
           debounceTimerRef.current = setTimeout(() => {
             if (isMountedRef.current) {
-              callbackRef.current({ type: eventType, paths });
+              const mergedPaths = Array.from(pendingPathsRef.current);
+              const mergedType = pendingTypeRef.current;
+              pendingPathsRef.current.clear();
+              pendingTypeRef.current = "any";
+              callbackRef.current({
+                type: mergedType,
+                paths: mergedPaths.length > 0 ? mergedPaths : paths,
+              });
             }
           }, debounceMs);
-
-          if (eventType === "remove") {
-            if (unwatchRef.current) {
-              unwatchRef.current();
-              unwatchRef.current = null;
-            } else {
-              shouldAbortImmediately = true;
-            }
-          }
         });
 
-        if (
-          isUnmountedLocal ||
-          !isMountedRef.current ||
-          shouldAbortImmediately
-        ) {
+        if (isUnmountedLocal || !isMountedRef.current) {
           unwatch();
         } else {
           unwatchRef.current = unwatch;
@@ -104,6 +117,8 @@ export function useFileWatcher(
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
+      pendingPathsRef.current.clear();
+      pendingTypeRef.current = "any";
       if (unwatchRef.current) {
         unwatchRef.current();
         unwatchRef.current = null;

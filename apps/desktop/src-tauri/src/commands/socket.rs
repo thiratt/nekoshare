@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_store::StoreExt;
 use thiserror::Error;
 use tokio::{fs::File, io::AsyncReadExt, sync::Mutex};
@@ -12,15 +12,45 @@ use crate::{
     core::{
         device::DeviceManager,
         socket::{
-            handlers::file::set_receive_base_dir,
+            handlers::file::{set_receive_base_dir, set_transfer_event_app_handle},
             ids::{LinkKey, RouteKind},
-            ConnectionServerConfig, PacketType, SocketClientConfig, SocketManager, TransferConfig,
+            PacketType, SocketClientConfig, SocketManager, TransferConfig,
         },
     },
     state::GlobalState,
 };
 
 const STORE_FILE_NAME: &str = "nekoshare.json";
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct TransferProgressEvent {
+    transfer_id: String,
+    file_id: String,
+    file_path: String,
+    file_name: String,
+    direction: &'static str,
+    source_user_id: Option<String>,
+    source_user_name: Option<String>,
+    source_device_id: Option<String>,
+    source_device_name: Option<String>,
+    same_account: Option<bool>,
+    target_device_id: String,
+    total_bytes: u64,
+    sent_bytes: u64,
+    progress_percent: f64,
+    status: &'static str,
+    error: Option<String>,
+    timestamp_ms: i64,
+}
+
+fn now_timestamp_ms() -> i64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(duration) => duration.as_millis() as i64,
+        Err(_) => 0,
+    }
+}
 
 #[derive(Debug, Error, Serialize, Deserialize)]
 pub enum SocketCommandError {
@@ -177,7 +207,7 @@ pub async fn socket_client_disconnect_from(
     let route_kind = parse_route_kind(&route)?;
     let pair_key = LinkKey::new(local, peer, route_kind).pair_key();
 
-    let _ = manager.disconnect(&pair_key);
+    let _ = manager.disconnect(&pair_key).await;
 
     Ok(ClientConnectionResponse {
         status: ConnectionStatus::Disconnected,
@@ -218,9 +248,14 @@ pub async fn socket_client_is_connected(
 #[tauri::command]
 pub async fn socket_client_send_files(
     state: State<'_, Mutex<SocketState>>,
+    app: AppHandle,
     device_id: String,
     target_id: String,
     file_paths: Vec<String>,
+    transfer_id: Option<String>,
+    source_user_id: Option<String>,
+    source_user_name: Option<String>,
+    source_device_name: Option<String>,
 ) -> Result<ClientConnectionResponse, SocketCommandError> {
     let config = TransferConfig::global();
     let chunk_size = config.chunk_size;
@@ -255,15 +290,23 @@ pub async fn socket_client_send_files(
     let queued_count = file_paths.len();
     let connection = connection.clone();
     let file_paths = file_paths.clone();
+    let app_handle = app.clone();
+    let transfer_id = transfer_id.unwrap_or_else(|| Uuid::new_v4().to_string());
+    let target_id_for_task = target_id.clone();
+    let source_device_id_for_task = device_id.clone();
+    let source_user_id_for_task = source_user_id.clone();
+    let source_user_name_for_task = source_user_name.clone();
+    let source_device_name_for_task = source_device_name.clone();
 
     tokio::spawn(async move {
         let mut total_bytes: u64 = 0;
         let mut buffer = vec![0u8; chunk_size];
+        let progress_emit_step: u64 = 256 * 1024;
 
         connection.begin_send_batch();
         let result = async {
             for path_str in file_paths {
-                let file_id = Uuid::new_v4().to_string();
+                let file_id = format!("{}:{}", transfer_id, Uuid::new_v4());
 
                 let path = std::path::Path::new(&path_str);
                 let file_name = path
@@ -279,6 +322,31 @@ pub async fn socket_client_send_files(
                 let metadata = file.metadata().await.map_err(|e| {
                     SocketCommandError::ConnectionFailed(format!("Metadata error: {}", e))
                 })?;
+
+                let total_size = metadata.len();
+                let mut last_progress_emitted: u64 = 0;
+                let mut file_sent_bytes: u64 = 0;
+
+                let started_event = TransferProgressEvent {
+                    transfer_id: transfer_id.clone(),
+                    file_id: file_id.clone(),
+                    file_path: path_str.clone(),
+                    file_name: file_name.clone(),
+                    direction: "send",
+                    source_user_id: source_user_id_for_task.clone(),
+                    source_user_name: source_user_name_for_task.clone(),
+                    source_device_id: Some(source_device_id_for_task.clone()),
+                    source_device_name: source_device_name_for_task.clone(),
+                    same_account: Some(true),
+                    target_device_id: target_id_for_task.clone(),
+                    total_bytes: total_size,
+                    sent_bytes: 0,
+                    progress_percent: 0.0,
+                    status: "processing",
+                    error: None,
+                    timestamp_ms: now_timestamp_ms(),
+                };
+                let _ = app_handle.emit("transfer-progress", started_event);
 
                 let header = FileMetadata {
                     id: file_id.clone(),
@@ -326,6 +394,40 @@ pub async fn socket_client_send_files(
                         })?;
 
                     total_bytes += n as u64;
+                    file_sent_bytes += n as u64;
+
+                    let sent_bytes = file_sent_bytes.min(total_size);
+                    let should_emit = sent_bytes == total_size
+                        || sent_bytes.saturating_sub(last_progress_emitted) >= progress_emit_step;
+
+                    if should_emit {
+                        last_progress_emitted = sent_bytes;
+                        let progress = if total_size == 0 {
+                            100.0
+                        } else {
+                            (sent_bytes as f64 / total_size as f64) * 100.0
+                        };
+                        let progress_event = TransferProgressEvent {
+                            transfer_id: transfer_id.clone(),
+                            file_id: file_id.clone(),
+                            file_path: path_str.clone(),
+                            file_name: file_name.clone(),
+                            direction: "send",
+                            source_user_id: source_user_id_for_task.clone(),
+                            source_user_name: source_user_name_for_task.clone(),
+                            source_device_id: Some(source_device_id_for_task.clone()),
+                            source_device_name: source_device_name_for_task.clone(),
+                            same_account: Some(true),
+                            target_device_id: target_id_for_task.clone(),
+                            total_bytes: total_size,
+                            sent_bytes,
+                            progress_percent: progress.min(100.0),
+                            status: "processing",
+                            error: None,
+                            timestamp_ms: now_timestamp_ms(),
+                        };
+                        let _ = app_handle.emit("transfer-progress", progress_event);
+                    }
                 }
 
                 log::info!("Sending FileFinish for {}", file_name);
@@ -339,6 +441,26 @@ pub async fn socket_client_send_files(
                     })?;
 
                 log::info!("File transfer complete for {} (id: {})", file_name, file_id);
+                let completed_event = TransferProgressEvent {
+                    transfer_id: transfer_id.clone(),
+                    file_id: file_id.clone(),
+                    file_path: path_str.clone(),
+                    file_name: file_name.clone(),
+                    direction: "send",
+                    source_user_id: source_user_id_for_task.clone(),
+                    source_user_name: source_user_name_for_task.clone(),
+                    source_device_id: Some(source_device_id_for_task.clone()),
+                    source_device_name: source_device_name_for_task.clone(),
+                    same_account: Some(true),
+                    target_device_id: target_id_for_task.clone(),
+                    total_bytes: total_size,
+                    sent_bytes: total_size,
+                    progress_percent: 100.0,
+                    status: "success",
+                    error: None,
+                    timestamp_ms: now_timestamp_ms(),
+                };
+                let _ = app_handle.emit("transfer-progress", completed_event);
             }
 
             Ok::<(), SocketCommandError>(())
@@ -349,6 +471,26 @@ pub async fn socket_client_send_files(
 
         if let Err(err) = result {
             log::error!("Send batch failed: {}", err);
+            let failed_event = TransferProgressEvent {
+                transfer_id,
+                file_id: String::new(),
+                file_path: String::new(),
+                file_name: String::new(),
+                direction: "send",
+                source_user_id: source_user_id_for_task,
+                source_user_name: source_user_name_for_task,
+                source_device_id: Some(source_device_id_for_task),
+                source_device_name: source_device_name_for_task,
+                same_account: Some(true),
+                target_device_id: target_id_for_task,
+                total_bytes: 0,
+                sent_bytes: 0,
+                progress_percent: 0.0,
+                status: "failed",
+                error: Some(err.to_string()),
+                timestamp_ms: now_timestamp_ms(),
+            };
+            let _ = app_handle.emit("transfer-progress", failed_event);
         } else {
             log::info!("Batch completed, sent {} bytes", total_bytes);
         }
@@ -375,6 +517,8 @@ pub async fn socket_server_start(
         state_guard.manager.clone()
     };
 
+    set_transfer_event_app_handle(app.clone());
+
     let receive_dir = load_receive_dir_from_store(&app).await;
     set_receive_base_dir(receive_dir.clone()).await;
 
@@ -393,10 +537,8 @@ pub async fn socket_server_start(
         .device_info
         .ip;
 
-    let config = ConnectionServerConfig::default();
-
     let port = manager
-        .start_server(config, sender_fingerprint)
+        .start_server(sender_fingerprint)
         .await
         .map_err(|e| SocketCommandError::ServerError(format!("{:#}", e)))?;
 

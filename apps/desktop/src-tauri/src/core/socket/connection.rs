@@ -58,13 +58,19 @@ pub struct Connection {
     closing: AtomicBool,
     closed: AtomicBool,
     active_send_batches: AtomicUsize,
-    outgoing_tx: mpsc::Sender<OutgoingPacket>,
+    outgoing_control_tx: mpsc::Sender<OutgoingPacket>,
+    outgoing_chunk_tx: mpsc::Sender<OutgoingPacket>,
     chunk_permits: Arc<Semaphore>,
     pending_requests: StdMutex<HashMap<i32, oneshot::Sender<Vec<u8>>>>,
     on_close: TokioMutex<Option<OnCloseCallback>>,
 }
 
 impl Connection {
+    #[inline]
+    fn uses_chunk_lane(packet_type: PacketType) -> bool {
+        matches!(packet_type, PacketType::FileChunk | PacketType::FileFinish)
+    }
+
     pub fn new(
         id: String,
         stream: SocketStream,
@@ -76,7 +82,9 @@ impl Connection {
         }
 
         let (read_half, write_half) = tokio::io::split(stream);
-        let (outgoing_tx, outgoing_rx) =
+        let (outgoing_control_tx, outgoing_control_rx) =
+            mpsc::channel::<OutgoingPacket>(config.outgoing_channel_size);
+        let (outgoing_chunk_tx, outgoing_chunk_rx) =
             mpsc::channel::<OutgoingPacket>(config.outgoing_channel_size);
         let (incoming_tx, incoming_rx) =
             mpsc::channel::<(PacketType, i32, Vec<u8>)>(config.incoming_channel_size);
@@ -94,7 +102,8 @@ impl Connection {
             closing: AtomicBool::new(false),
             closed: AtomicBool::new(false),
             active_send_batches: AtomicUsize::new(0),
-            outgoing_tx,
+            outgoing_control_tx,
+            outgoing_chunk_tx,
             chunk_permits,
             pending_requests: StdMutex::new(HashMap::new()),
             on_close: TokioMutex::new(None),
@@ -109,7 +118,9 @@ impl Connection {
 
         let conn_clone = Arc::clone(&connection);
         tokio::spawn(async move {
-            if let Err(e) = Self::write_loop(conn_clone, outgoing_rx).await {
+            if let Err(e) =
+                Self::write_loop(conn_clone, outgoing_control_rx, outgoing_chunk_rx).await
+            {
                 log::info!("Write loop ended: {}", e);
             }
         });
@@ -213,7 +224,13 @@ impl Connection {
             );
         }
 
-        self.outgoing_tx
+        let outgoing_tx = if Self::uses_chunk_lane(packet_type) {
+            &self.outgoing_chunk_tx
+        } else {
+            &self.outgoing_control_tx
+        };
+
+        outgoing_tx
             .send(OutgoingPacket::new(writer.into_bytes(), permit))
             .await
             .context("failed to queue packet for sending")?;
@@ -250,7 +267,13 @@ impl Connection {
             None
         };
 
-        self.outgoing_tx
+        let outgoing_tx = if Self::uses_chunk_lane(packet_type) {
+            &self.outgoing_chunk_tx
+        } else {
+            &self.outgoing_control_tx
+        };
+
+        outgoing_tx
             .send(OutgoingPacket::new(writer.into_bytes(), permit))
             .await
             .context("failed to queue raw packet for sending")?;
@@ -281,7 +304,14 @@ impl Connection {
 
         *self.state.write().await = ConnectionState::Closing;
 
-        let _ = self.outgoing_tx.send(OutgoingPacket::sentinel()).await;
+        let _ = self
+            .outgoing_control_tx
+            .send(OutgoingPacket::sentinel())
+            .await;
+        let _ = self
+            .outgoing_chunk_tx
+            .send(OutgoingPacket::sentinel())
+            .await;
     }
 
     pub async fn request<F>(
@@ -437,7 +467,8 @@ impl Connection {
 
     async fn write_loop(
         conn: Arc<Self>,
-        mut outgoing_rx: mpsc::Receiver<OutgoingPacket>,
+        mut outgoing_control_rx: mpsc::Receiver<OutgoingPacket>,
+        mut outgoing_chunk_rx: mpsc::Receiver<OutgoingPacket>,
     ) -> SocketResult<()> {
         let config = TransferConfig::global();
         let flush_threshold = config.flush_threshold;
@@ -445,13 +476,28 @@ impl Connection {
 
         let mut bytes_since_flush: usize = 0;
         let mut last_flush = Instant::now();
+        let mut control_closed = false;
+        let mut chunk_closed = false;
 
         loop {
-            let packet = tokio::select! {
-                maybe_packet = outgoing_rx.recv() => {
+            let next_packet = tokio::select! {
+                biased;
+                maybe_packet = outgoing_control_rx.recv(), if !control_closed => {
                     match maybe_packet {
-                        Some(packet) => packet,
-                        None => break,
+                        Some(packet) => Some((packet, true)),
+                        None => {
+                            control_closed = true;
+                            None
+                        }
+                    }
+                }
+                maybe_packet = outgoing_chunk_rx.recv(), if !chunk_closed => {
+                    match maybe_packet {
+                        Some(packet) => Some((packet, false)),
+                        None => {
+                            chunk_closed = true;
+                            None
+                        }
                     }
                 }
                 _ = time::sleep_until(last_flush + flush_interval), if bytes_since_flush > 0 => {
@@ -468,8 +514,25 @@ impl Connection {
                 }
             };
 
-            if packet.data.is_empty() {
+            if control_closed && chunk_closed {
                 break;
+            }
+
+            let Some((packet, is_control)) = next_packet else {
+                continue;
+            };
+
+            if packet.data.is_empty() {
+                if is_control {
+                    control_closed = true;
+                } else {
+                    chunk_closed = true;
+                }
+
+                if control_closed && chunk_closed {
+                    break;
+                }
+                continue;
             }
 
             let data_len = packet.data.len();
@@ -481,15 +544,26 @@ impl Connection {
                     break;
                 }
 
-                bytes_since_flush += data_len;
-
-                if bytes_since_flush >= flush_threshold {
+                if is_control {
+                    // Control packets (offer/finish/system) should be visible to peer immediately
+                    // and should not wait behind chunk buffering.
                     if let Err(e) = writer.flush().await {
-                        log::error!("Threshold flush error: {}", e);
+                        log::error!("Control flush error: {}", e);
                         break;
                     }
                     bytes_since_flush = 0;
                     last_flush = Instant::now();
+                } else {
+                    bytes_since_flush += data_len;
+
+                    if bytes_since_flush >= flush_threshold {
+                        if let Err(e) = writer.flush().await {
+                            log::error!("Threshold flush error: {}", e);
+                            break;
+                        }
+                        bytes_since_flush = 0;
+                        last_flush = Instant::now();
+                    }
                 }
             } else {
                 break;
