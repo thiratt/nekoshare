@@ -4,8 +4,11 @@ use tokio::sync::Mutex;
 mod commands;
 mod config;
 mod core;
+mod state;
 
 use commands::socket::SocketState;
+
+use crate::{core::device::DeviceManager, state::GlobalState};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -15,6 +18,10 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
+            GlobalState::new()
+            .register(DeviceManager::new())
+            .init();
+
             app.manage(Mutex::new(SocketState::new()));
             if cfg!(debug_assertions) {
                 app.handle().plugin(

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Context;
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, ServerName, UnixTime};
 use rustls::server::danger::{ClientCertVerified, ClientCertVerifier};
@@ -7,7 +8,8 @@ use rustls::{ClientConfig, DigitallySignedStruct, Error, SignatureScheme};
 
 use sha2::{Digest, Sha256};
 
-use crate::core::device::get_device_info_with_key;
+use crate::core::device::DeviceManager;
+use crate::state::GlobalState;
 
 const SUPPORTED_SCHEMES: &[SignatureScheme] = &[
     SignatureScheme::ED25519,
@@ -126,10 +128,11 @@ impl ClientCertVerifier for FingerprintVerifier {
 }
 
 pub fn load_certificates(fingerprint: String) -> Result<ClientConfig, Box<dyn std::error::Error>> {
-    let key_info = get_device_info_with_key()?;
+    let device_manager = GlobalState::get::<DeviceManager>();
+    let key_info = device_manager.key().context("Failed to get device key")?;
 
-    let client_certs = vec![CertificateDer::from(key_info.key.cert_der)];
-    let client_key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(key_info.key.key_der));
+    let client_certs = vec![CertificateDer::from(key_info.cert_der)];
+    let client_key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(key_info.key_der));
 
     let verifier = Arc::new(FingerprintVerifier::new(fingerprint)?);
 

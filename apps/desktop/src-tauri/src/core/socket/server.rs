@@ -12,10 +12,11 @@ use tokio::time;
 use tokio_rustls::TlsAcceptor;
 use uuid::Uuid;
 
-use crate::core::device::get_device_info_with_key;
+use crate::core::device::DeviceManager;
 use crate::core::socket::stream::SocketStream;
 use crate::core::socket::sys::register_system_handlers;
 use crate::core::socket::tls::FingerprintVerifier;
+use crate::state::GlobalState;
 
 use super::binary::BinaryWriter;
 use super::connection::Connection;
@@ -103,11 +104,11 @@ impl SocketServer {
     }
 
     fn create_tls_acceptor(fingerprint: String) -> SocketResult<TlsAcceptor> {
-        let key_info = get_device_info_with_key()
-            .map_err(|e| SocketError::config(format!("Failed to get device key: {}", e)))?;
+        let device_manager = GlobalState::get::<DeviceManager>();
+        let key_info = device_manager.key().context("Failed to get device key")?;
 
-        let cert_der = CertificateDer::from(key_info.key.cert_der);
-        let key_der = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(key_info.key.key_der));
+        let cert_der = CertificateDer::from(key_info.cert_der);
+        let key_der = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(key_info.key_der));
 
         let verifier = Arc::new(FingerprintVerifier::new(fingerprint)?);
 

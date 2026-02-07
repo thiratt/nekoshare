@@ -24,7 +24,7 @@ impl Default for KeyConfig {
     }
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct KeyDer {
     pub cert_der: Vec<u8>,
     pub key_der: Vec<u8>,

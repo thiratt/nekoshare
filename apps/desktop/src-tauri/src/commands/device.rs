@@ -1,19 +1,34 @@
-use crate::core::device::{info::DeviceInfo, CommandError, DeviceInfoWithKey, KeyDer};
+use std::sync::Arc;
+use crate::{
+    core::device::{CommandError, DeviceInfoWithFingerprint, DeviceInfoWithKey, DeviceManager, KeyDer}, 
+    state::GlobalState
+};
+
+fn get_manager() -> Arc<DeviceManager> {
+    GlobalState::get::<DeviceManager>()
+}
 
 #[tauri::command]
-pub fn ns_get_device_info() -> DeviceInfo {
-    let device_info_manager = crate::core::device::info::DeviceInfoManager::new();
-    device_info_manager.info()
+pub async fn ns_get_device_info() -> Result<DeviceInfoWithFingerprint, CommandError> {
+    let manager = get_manager();
+    let info = manager.info().map_err(CommandError::from)?;
+
+    Ok(info)
 }
 
 #[tauri::command]
 pub fn ns_get_device_info_with_key() -> Result<DeviceInfoWithKey, CommandError> {
-    crate::core::device::get_device_info_with_key().map_err(CommandError::from)
+    let manager = get_manager();
+        let info = manager.info_with_key().map_err(CommandError::from)?;
+
+    Ok(info)
 }
 
 #[tauri::command]
 pub fn ns_get_key() -> Result<KeyDer, CommandError> {
-    let device_info_with_key =
-        crate::core::device::get_device_info_with_key().map_err(CommandError::from)?;
-    Ok(device_info_with_key.key)
+    let manager = get_manager();
+    
+    let key = manager.key().map_err(CommandError::from)?;
+
+    Ok(key)
 }
