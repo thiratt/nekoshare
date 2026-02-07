@@ -1,5 +1,5 @@
 import { db } from "@/adapters/db";
-import { device } from "@/adapters/db/schemas";
+import { device, user } from "@/adapters/db/schemas";
 import { Logger } from "@/core/logger";
 import { eq, or } from "drizzle-orm";
 import { wsSessionManager } from "../../ws/connection";
@@ -79,14 +79,19 @@ const handleFileOffer: CommandHandler<IConnection> = async (client, reader, requ
 
 		const targetDeviceId = data.toDeviceId;
 		const senderDeviceId = data.fromDeviceId;
-		const finderprint = await db.query.device.findFirst({
+		const senderDevice = await db.query.device.findFirst({
 			where: eq(device.id, senderDeviceId),
-			columns: { fingerprint: true },
+			columns: { id: true, fingerprint: true, name: true, userId: true },
 		});
 
-		if (!finderprint) {
+		if (!senderDevice) {
 			throw new Error(`Sender device ${senderDeviceId} not found in database`);
 		}
+
+		const senderUser = await db.query.user.findFirst({
+			where: eq(user.id, senderDevice.userId),
+			columns: { id: true, name: true },
+		});
 
 		Logger.info("FileTransfer", `FILE_OFFER from ${senderDeviceId} to ${targetDeviceId}`);
 
@@ -112,7 +117,10 @@ const handleFileOffer: CommandHandler<IConnection> = async (client, reader, requ
 			const payload = {
 				transferId: data.transferId,
 				senderDeviceId,
-				senderDeviceFingerprint: finderprint.fingerprint,
+				senderDeviceFingerprint: senderDevice.fingerprint,
+				senderDeviceName: senderDevice.name,
+				senderUserId: senderUser?.id ?? null,
+				senderUserName: senderUser?.name ?? null,
 				files: data.files,
 			};
 			w.writeString(JSON.stringify(payload));
