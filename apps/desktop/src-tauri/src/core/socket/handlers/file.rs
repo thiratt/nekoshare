@@ -11,6 +11,7 @@ use tokio::sync::{Mutex, RwLock};
 
 use crate::core::socket::{BinaryReader, Connection, PacketRouter, PacketType, SocketResult};
 use crate::core::socket::{SocketError, TransferConfig};
+use crate::state::GlobalState;
 
 struct TransferState {
     writer: Mutex<BufWriter<File>>,
@@ -25,33 +26,34 @@ struct TransferState {
 
 type TransferMap = DashMap<(String, String), Arc<TransferState>>;
 
-static ACTIVE_TRANSFERS: std::sync::OnceLock<TransferMap> = std::sync::OnceLock::new();
-static RECEIVE_BASE_DIR: std::sync::OnceLock<RwLock<Option<PathBuf>>> = std::sync::OnceLock::new();
-static EVENT_APP_HANDLE: std::sync::OnceLock<StdRwLock<Option<AppHandle>>> =
-    std::sync::OnceLock::new();
-
 const RECEIVE_PROGRESS_EMIT_STEP: u64 = 256 * 1024;
 
-fn get_transfers() -> &'static TransferMap {
-    ACTIVE_TRANSFERS.get_or_init(DashMap::new)
+pub struct FileTransferService {
+    active_transfers: TransferMap,
+    receive_base_dir: RwLock<Option<PathBuf>>,
+    event_app_handle: StdRwLock<Option<AppHandle>>,
 }
 
-fn get_receive_base_dir() -> &'static RwLock<Option<PathBuf>> {
-    RECEIVE_BASE_DIR.get_or_init(|| RwLock::new(None))
+impl FileTransferService {
+    pub fn new() -> Self {
+        Self {
+            active_transfers: DashMap::new(),
+            receive_base_dir: RwLock::new(None),
+            event_app_handle: StdRwLock::new(None),
+        }
+    }
 }
 
 pub async fn set_receive_base_dir(path: Option<PathBuf>) {
-    *get_receive_base_dir().write().await = path;
-}
-
-fn get_event_app_handle() -> &'static StdRwLock<Option<AppHandle>> {
-    EVENT_APP_HANDLE.get_or_init(|| StdRwLock::new(None))
+    let service = GlobalState::get::<FileTransferService>();
+    *service.receive_base_dir.write().await = path;
 }
 
 pub fn set_transfer_event_app_handle(app: AppHandle) {
-    if let Ok(mut guard) = get_event_app_handle().write() {
+    let service = GlobalState::get::<FileTransferService>();
+    if let Ok(mut guard) = service.event_app_handle.write() {
         *guard = Some(app);
-    }
+    };
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -92,8 +94,8 @@ fn parse_transfer_id(file_id: &str) -> String {
     }
 }
 
-fn emit_transfer_progress(event: TransferProgressEvent) {
-    if let Ok(guard) = get_event_app_handle().read() {
+fn emit_transfer_progress(service: &FileTransferService, event: TransferProgressEvent) {
+    if let Ok(guard) = service.event_app_handle.read() {
         if let Some(app) = guard.as_ref() {
             let _ = app.emit("transfer-progress", event);
         }
@@ -112,6 +114,7 @@ async fn handle_file_offer(
     payload: Vec<u8>,
     _req_id: i32,
 ) -> SocketResult<()> {
+    let service = GlobalState::get::<FileTransferService>();
     let config = TransferConfig::global();
     let metadata: FileMetadata =
         serde_json::from_slice(&payload).map_err(|e| SocketError::parse(e.to_string()))?;
@@ -124,7 +127,8 @@ async fn handle_file_offer(
         .download_dir()
         .ok_or_else(|| SocketError::other("Failed to get download directory"))?;
 
-    let mut base_dir = get_receive_base_dir()
+    let mut base_dir = service
+        .receive_base_dir
         .read()
         .await
         .clone()
@@ -171,9 +175,9 @@ async fn handle_file_offer(
         last_emitted_size: AtomicU64::new(0),
     });
 
-    get_transfers().insert((conn_id, metadata.id.clone()), state);
+    service.active_transfers.insert((conn_id, metadata.id.clone()), state);
 
-    emit_transfer_progress(TransferProgressEvent {
+    emit_transfer_progress(&service, TransferProgressEvent {
         transfer_id,
         file_id: metadata.id,
         file_path: file_path.to_string_lossy().to_string(),
@@ -201,6 +205,7 @@ async fn handle_file_chunk(
     payload: Vec<u8>,
     _req_id: i32,
 ) -> SocketResult<()> {
+    let service = GlobalState::get::<FileTransferService>();
     let config = TransferConfig::global();
 
     let mut reader = BinaryReader::new(&payload);
@@ -212,7 +217,8 @@ async fn handle_file_chunk(
     let conn_id = conn.id().to_string();
 
     let state = {
-        get_transfers()
+        service
+            .active_transfers
             .get(&(conn_id.clone(), file_id.clone()))
             .map(|r| r.value().clone())
     };
@@ -237,7 +243,7 @@ async fn handle_file_chunk(
             } else {
                 ((current_size as f64 / total_size as f64) * 100.0).min(100.0)
             };
-            emit_transfer_progress(TransferProgressEvent {
+            emit_transfer_progress(&service, TransferProgressEvent {
                 transfer_id: state.transfer_id.clone(),
                 file_id: state.file_id.clone(),
                 file_path: state.file_path.to_string_lossy().to_string(),
@@ -265,7 +271,7 @@ async fn handle_file_chunk(
             }
 
             log::info!("Transfer complete: {:?}", state.file_path);
-            emit_transfer_progress(TransferProgressEvent {
+            emit_transfer_progress(&service, TransferProgressEvent {
                 transfer_id: state.transfer_id.clone(),
                 file_id: state.file_id.clone(),
                 file_path: state.file_path.to_string_lossy().to_string(),
@@ -285,7 +291,7 @@ async fn handle_file_chunk(
                 timestamp_ms: now_timestamp_ms(),
             });
 
-            get_transfers().remove(&(conn_id, file_id));
+            service.active_transfers.remove(&(conn_id, file_id));
         }
     } else {
         log::debug!("Received chunk for unknown transfer: {}", file_id);
@@ -299,6 +305,7 @@ async fn handle_file_finish(
     payload: Vec<u8>,
     _req_id: i32,
 ) -> SocketResult<()> {
+    let service = GlobalState::get::<FileTransferService>();
     let config = TransferConfig::global();
     let mut reader = BinaryReader::new(&payload);
     let file_id = reader
@@ -307,7 +314,7 @@ async fn handle_file_finish(
 
     let conn_id = conn.id().to_string();
 
-    if let Some((_, state)) = get_transfers().remove(&(conn_id, file_id)) {
+    if let Some((_, state)) = service.active_transfers.remove(&(conn_id, file_id)) {
         let mut writer = state.writer.lock().await;
         writer.flush().await?;
 
@@ -322,7 +329,7 @@ async fn handle_file_finish(
         } else {
             ((received_size as f64 / state.expected_size as f64) * 100.0).min(100.0)
         };
-        emit_transfer_progress(TransferProgressEvent {
+        emit_transfer_progress(&service, TransferProgressEvent {
             transfer_id: state.transfer_id.clone(),
             file_id: state.file_id.clone(),
             file_path: state.file_path.to_string_lossy().to_string(),

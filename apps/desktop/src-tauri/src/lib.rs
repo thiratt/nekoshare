@@ -14,6 +14,7 @@ use commands::socket::SocketState;
 use core::socket::{ConnectionEvent, SocketManager};
 
 use crate::core::device::DeviceManager;
+use crate::core::socket::handlers::file::FileTransferService;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -52,6 +53,7 @@ pub fn run() {
 fn setup_app(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     GlobalState::new()
         .register(DeviceManager::new().expect("Failed to initialize DeviceManager"))
+        .register(FileTransferService::new())
         .init();
 
     let (event_tx, mut event_rx) = mpsc::channel::<ConnectionEvent>(256);
