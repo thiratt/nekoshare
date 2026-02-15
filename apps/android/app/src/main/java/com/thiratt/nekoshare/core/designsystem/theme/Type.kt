@@ -1,4 +1,4 @@
-package com.thiratt.nekoshare.ui.theme
+package com.thiratt.nekoshare.core.designsystem.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
