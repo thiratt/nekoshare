@@ -14,12 +14,26 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun rememberNekoBottomSheetState(
+    skipPartiallyExpanded: Boolean = true,
+    confirmValueChange: (SheetValue) -> Boolean = { true }
+): SheetState {
+    return rememberModalBottomSheetState(
+        skipPartiallyExpanded = skipPartiallyExpanded,
+        confirmValueChange = confirmValueChange
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
