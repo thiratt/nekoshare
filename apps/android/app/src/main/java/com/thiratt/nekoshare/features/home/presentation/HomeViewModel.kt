@@ -1,8 +1,11 @@
 package com.thiratt.nekoshare.features.home.presentation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.SupervisorAccount
 import androidx.compose.material.icons.rounded.Devices
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.SupervisorAccount
 import androidx.lifecycle.ViewModel
 import com.thiratt.nekoshare.core.designsystem.model.NekoNavigationBarItem
@@ -18,9 +21,9 @@ class HomeViewModel : ViewModel() {
 
     init {
         val items = listOf(
-            NekoNavigationBarItem("Home", Icons.Default.Home),
-            NekoNavigationBarItem("Friends", Icons.Rounded.SupervisorAccount),
-            NekoNavigationBarItem("Devices", Icons.Rounded.Devices)
+            NekoNavigationBarItem("Home", Icons.Outlined.Home, Icons.Rounded.Home),
+            NekoNavigationBarItem("Friends", Icons.Outlined.SupervisorAccount, Icons.Rounded.SupervisorAccount),
+            NekoNavigationBarItem("Devices", Icons.Outlined.Devices, Icons.Rounded.Devices)
         )
         _uiState.update { it.copy(bottomNavItems = items) }
     }

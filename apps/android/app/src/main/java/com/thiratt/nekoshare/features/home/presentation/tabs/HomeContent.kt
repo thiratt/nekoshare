@@ -48,11 +48,11 @@ fun HomeContent(
                 .padding(top = 8.dp)
         ) {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Adaptive(minSize = 160.dp),
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
-                    bottom = contentPadding + 80.dp
+                    bottom = contentPadding + 100.dp
                 ),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),

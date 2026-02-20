@@ -11,6 +11,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -39,7 +40,6 @@ import com.thiratt.nekoshare.core.designsystem.components.NekoNavigationBar
 import com.thiratt.nekoshare.core.designsystem.model.NekoNavigationBarItem
 import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.home.model.DeviceItem
-import com.thiratt.nekoshare.features.home.presentation.components.HomeFloatingActionButton
 import com.thiratt.nekoshare.features.home.presentation.components.HomeTopAppBar
 import com.thiratt.nekoshare.features.home.presentation.components.ShareActionSheet
 import com.thiratt.nekoshare.features.home.presentation.tabs.DevicesContent
@@ -133,65 +133,68 @@ fun HomeScreen(
                 onSettingsClick = onSettingsClick
             )
         },
-        bottomBar = {
-            NekoNavigationBar(
-                items = uiState.bottomNavItems,
-                selectedItem = uiState.selectedIndex,
-                onItemClick = onBottomNavSelected
-            )
-        },
-        floatingActionButton = {
-            HomeFloatingActionButton(
-                selectedIndex = uiState.selectedIndex,
-                onShareClick = onShareClick,
-                onAddFriends = onAddFriends
-            )
-        },
+//        floatingActionButton = {
+//            HomeFloatingActionButton(
+//                selectedIndex = uiState.selectedIndex,
+//                onShareClick = onShareClick,
+//                onAddFriends = onAddFriends
+//            )
+//        },
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            if (isSearchActive && searchQuery.isNotEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Searching for: $searchQuery")
-                }
-            } else {
-                AnimatedContent(
-                    targetState = uiState.selectedIndex,
-                    transitionSpec = {
-                        if (targetState > initialState) {
-                            (slideInHorizontally(
-                                animationSpec = tweenSpec,
-                                initialOffsetX = { it / 2 }) + fadeIn(fadeSpec)) togetherWith
-                                    (slideOutHorizontally(
-                                        animationSpec = tweenSpec,
-                                        targetOffsetX = { -it / 2 }) + fadeOut(fadeSpec))
-                        } else {
-                            (slideInHorizontally { width -> -width } + fadeIn(tween(300))) togetherWith
-                                    (slideOutHorizontally { width -> width } + fadeOut(tween(300)))
-                        }
-                    },
-                    label = "BottomNavAnimation"
-                ) { targetIndex ->
-                    when (targetIndex) {
-                        0 -> HomeContent(onTransferItemClick)
-                        1 -> FriendsContent(onManageFriends)
-                        2 -> DevicesContent()
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = innerPadding.calculateTopPadding())
+            ) {
+                if (isSearchActive && searchQuery.isNotEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Searching for: $searchQuery")
                     }
+                } else {
+                    AnimatedContent(
+                        targetState = uiState.selectedIndex,
+                        transitionSpec = {
+                            if (targetState > initialState) {
+                                (slideInHorizontally(
+                                    animationSpec = tweenSpec,
+                                    initialOffsetX = { it / 2 }) + fadeIn(fadeSpec)) togetherWith
+                                        (slideOutHorizontally(
+                                            animationSpec = tweenSpec,
+                                            targetOffsetX = { -it / 2 }) + fadeOut(fadeSpec))
+                            } else {
+                                (slideInHorizontally { width -> -width } + fadeIn(tween(300))) togetherWith
+                                        (slideOutHorizontally { width -> width } + fadeOut(tween(300)))
+                            }
+                        },
+                        label = "BottomNavAnimation"
+                    ) { targetIndex ->
+                        when (targetIndex) {
+                            0 -> HomeContent(onTransferItemClick)
+                            1 -> FriendsContent(onManageFriends)
+                            2 -> DevicesContent()
+                        }
+                    }
+                }
+
+                if (uiState.isShareSheetOpen) {
+                    ShareActionSheet(
+                        onDismissRequest = onDismissShareSheet,
+                        onDeviceSelected = onDeviceSelected,
+                        onFileSelect = { /* Open File Picker */ },
+                        onPhotoSelect = { /* Open Gallery */ }
+                    )
                 }
             }
 
-            if (uiState.isShareSheetOpen) {
-                ShareActionSheet(
-                    onDismissRequest = onDismissShareSheet,
-                    onDeviceSelected = onDeviceSelected,
-                    onFileSelect = { /* Open File Picker */ },
-                    onPhotoSelect = { /* Open Gallery */ }
-                )
-            }
+            NekoNavigationBar(
+                items = uiState.bottomNavItems,
+                selectedItem = uiState.selectedIndex,
+                onItemClick = onBottomNavSelected,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }
@@ -207,7 +210,7 @@ fun HomeScreenPreview() {
                     NekoNavigationBarItem("Friends", Icons.Rounded.SupervisorAccount),
                     NekoNavigationBarItem("Devices", Icons.Rounded.Devices)
                 ),
-                selectedIndex = 1
+                selectedIndex = 0
             ),
             onSettingsClick = {},
             onShareClick = {},
