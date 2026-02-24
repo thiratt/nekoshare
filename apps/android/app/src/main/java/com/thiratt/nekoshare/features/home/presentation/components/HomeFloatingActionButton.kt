@@ -1,8 +1,11 @@
 package com.thiratt.nekoshare.features.home.presentation.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -22,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 
@@ -34,49 +38,55 @@ fun HomeFloatingActionButton(
 ) {
     AnimatedContent(
         targetState = selectedIndex,
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.BottomEnd,
         modifier = modifier,
-        transitionSpec = {
-            val tweenSpec = tween<Float>(durationMillis = 300)
-            val tweenOffset = tween<IntOffset>(durationMillis = 300)
-
-            if (targetState == 2) {
-                EnterTransition.None togetherWith
-                        (slideOutVertically(tweenOffset) { height -> height } + fadeOut(tweenSpec))
-            }
-            else if (initialState == 2) {
-                (slideInVertically(tweenOffset) { height -> height } + fadeIn(tweenSpec)) togetherWith
-                        ExitTransition.None
-            }
-            else {
-                if (targetState > initialState) {
-                    (slideInHorizontally(tweenOffset) { it / 2 } + fadeIn(tweenSpec)) togetherWith
-                            (slideOutHorizontally(tweenOffset) { -it / 2 } + fadeOut(tweenSpec))
-                } else {
-                    (slideInHorizontally(tweenOffset) { -it / 2 } + fadeIn(tweenSpec)) togetherWith
-                            (slideOutHorizontally(tweenOffset) { it / 2 } + fadeOut(tweenSpec))
-                }
-            }
-        },
+        transitionSpec = { getFabTransitionSpec() },
         label = "FabAnimation"
     ) { index ->
-        if (index == 2) {
-            Spacer(Modifier.size(56.dp))
-        } else {
-            val isFriendsTab = index == 1
-            ExtendedFloatingActionButton(
-                text = { Text(if (isFriendsTab) "เพิ่มเพื่อน" else "แชร์") },
-                onClick = {
-                    if (isFriendsTab) onAddFriends() else onShareClick()
-                },
-                icon = {
-                    Icon(
-                        if (isFriendsTab) Icons.Rounded.PersonAdd else Icons.Outlined.Share,
-                        null
-                    )
-                },
-                expanded = true
-            )
+        when (index) {
+            0 -> FabItem("แชร์", Icons.Outlined.Share, onShareClick)
+            1 -> FabItem("เพิ่มเพื่อน", Icons.Rounded.PersonAdd, onAddFriends)
+            2 -> Spacer(Modifier.size(0.dp))
         }
     }
+}
+
+@Composable
+private fun FabItem(
+    text: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    ExtendedFloatingActionButton(
+        text = { Text(text) },
+        icon = { Icon(icon, contentDescription = text) },
+        onClick = onClick,
+        expanded = true
+    )
+}
+
+private fun AnimatedContentTransitionScope<Int>.getFabTransitionSpec(): ContentTransform {
+    val tweenSpec = tween<Float>(durationMillis = 300)
+    val tweenOffset = tween<IntOffset>(durationMillis = 300)
+
+    val transition = when {
+        targetState == 2 -> {
+            EnterTransition.None togetherWith
+                    (slideOutVertically(tweenOffset) { it } + fadeOut(tweenSpec))
+        }
+        initialState == 2 -> {
+            (slideInVertically(tweenOffset) { it } + fadeIn(tweenSpec)) togetherWith
+                    ExitTransition.None
+        }
+        targetState > initialState -> {
+            (slideInHorizontally(tweenOffset) { it / 2 } + fadeIn(tweenSpec)) togetherWith
+                    (slideOutHorizontally(tweenOffset) { -it / 2 } + fadeOut(tweenSpec))
+        }
+        else -> {
+            (slideInHorizontally(tweenOffset) { -it / 2 } + fadeIn(tweenSpec)) togetherWith
+                    (slideOutHorizontally(tweenOffset) { it / 2 } + fadeOut(tweenSpec))
+        }
+    }
+
+    return transition.using(SizeTransform(clip = false))
 }

@@ -2,7 +2,7 @@ package com.thiratt.nekoshare.features.home.presentation
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -35,11 +35,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.thiratt.nekoshare.core.designsystem.components.NekoNavigationBar
 import com.thiratt.nekoshare.core.designsystem.model.NekoNavigationBarItem
 import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.home.model.DeviceItem
+import com.thiratt.nekoshare.features.home.presentation.components.HomeFloatingActionButton
 import com.thiratt.nekoshare.features.home.presentation.components.HomeTopAppBar
 import com.thiratt.nekoshare.features.home.presentation.components.ShareActionSheet
 import com.thiratt.nekoshare.features.home.presentation.tabs.DevicesContent
@@ -94,11 +96,9 @@ fun HomeScreen(
 ) {
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
-
-    val tweenSpec: FiniteAnimationSpec<IntOffset> = tween(durationMillis = 300)
-    val fadeSpec = tween<Float>(durationMillis = 300)
 
     BackHandler(enabled = isSearchActive) {
         isSearchActive = false
@@ -107,15 +107,13 @@ fun HomeScreen(
     }
 
     LaunchedEffect(isSearchActive) {
-        if (isSearchActive) {
-            focusRequester.requestFocus()
-        }
+        if (isSearchActive) focusRequester.requestFocus()
     }
 
     Scaffold(
         topBar = {
-            val currentTitle = uiState.bottomNavItems.getOrNull(uiState.selectedIndex)?.name ?: "NekoShare"
-
+            val currentTitle =
+                uiState.bottomNavItems.getOrNull(uiState.selectedIndex)?.name ?: "NekoShare"
             HomeTopAppBar(
                 isSearchActive = isSearchActive,
                 searchQuery = searchQuery,
@@ -133,13 +131,15 @@ fun HomeScreen(
                 onSettingsClick = onSettingsClick
             )
         },
-//        floatingActionButton = {
-//            HomeFloatingActionButton(
-//                selectedIndex = uiState.selectedIndex,
-//                onShareClick = onShareClick,
-//                onAddFriends = onAddFriends
-//            )
-//        },
+        floatingActionButton = {
+            Box(modifier = Modifier.padding(bottom = 90.dp)) {
+                HomeFloatingActionButton(
+                    selectedIndex = uiState.selectedIndex,
+                    onShareClick = onShareClick,
+                    onAddFriends = onAddFriends
+                )
+            }
+        },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0)
     ) { innerPadding ->
@@ -150,43 +150,23 @@ fun HomeScreen(
                     .padding(top = innerPadding.calculateTopPadding())
             ) {
                 if (isSearchActive && searchQuery.isNotEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("กำลังค้นหา: $searchQuery")
-                    }
+                    HomeSearchResults(searchQuery)
                 } else {
-                    AnimatedContent(
-                        targetState = uiState.selectedIndex,
-                        transitionSpec = {
-                            if (targetState > initialState) {
-                                (slideInHorizontally(
-                                    animationSpec = tweenSpec,
-                                    initialOffsetX = { it / 2 }) + fadeIn(fadeSpec)) togetherWith
-                                        (slideOutHorizontally(
-                                            animationSpec = tweenSpec,
-                                            targetOffsetX = { -it / 2 }) + fadeOut(fadeSpec))
-                            } else {
-                                (slideInHorizontally { width -> -width } + fadeIn(tween(300))) togetherWith
-                                        (slideOutHorizontally { width -> width } + fadeOut(tween(300)))
-                            }
-                        },
-                        label = "BottomNavAnimation"
-                    ) { targetIndex ->
-                        when (targetIndex) {
-                            0 -> HomeContent(onTransferItemClick)
-                            1 -> FriendsContent(onManageFriends)
-                            2 -> DevicesContent()
-                        }
-                    }
-                }
-
-                if (uiState.isShareSheetOpen) {
-                    ShareActionSheet(
-                        onDismissRequest = onDismissShareSheet,
-                        onDeviceSelected = onDeviceSelected,
-                        onFileSelect = { /* Open File Picker */ },
-                        onPhotoSelect = { /* Open Gallery */ }
+                    HomeTabsContent(
+                        selectedIndex = uiState.selectedIndex,
+                        onTransferItemClick = onTransferItemClick,
+                        onManageFriends = onManageFriends
                     )
                 }
+            }
+
+            if (uiState.isShareSheetOpen) {
+                ShareActionSheet(
+                    onDismissRequest = onDismissShareSheet,
+                    onDeviceSelected = onDeviceSelected,
+                    onFileSelect = { /* Open File Picker */ },
+                    onPhotoSelect = { /* Open Gallery */ }
+                )
             }
 
             NekoNavigationBar(
@@ -199,10 +179,49 @@ fun HomeScreen(
     }
 }
 
+@Composable
+private fun HomeSearchResults(query: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("กำลังค้นหา: $query", color = MaterialTheme.colorScheme.onBackground)
+    }
+}
+
+@Composable
+private fun HomeTabsContent(
+    selectedIndex: Int,
+    onTransferItemClick: (String) -> Unit,
+    onManageFriends: () -> Unit
+) {
+    AnimatedContent(
+        targetState = selectedIndex,
+        transitionSpec = { getTabTransitionSpec() },
+        label = "BottomNavAnimation"
+    ) { targetIndex ->
+        when (targetIndex) {
+            0 -> HomeContent(onTransferItemClick)
+            1 -> FriendsContent(onManageFriends)
+            2 -> DevicesContent()
+        }
+    }
+}
+
+private fun AnimatedContentTransitionScope<Int>.getTabTransitionSpec() = run {
+    val tweenSpec = tween<Float>(durationMillis = 300)
+    val tweenOffset = tween<IntOffset>(durationMillis = 300)
+
+    if (targetState > initialState) {
+        (slideInHorizontally(animationSpec = tweenOffset) { it / 2 } + fadeIn(tweenSpec)) togetherWith
+                (slideOutHorizontally(animationSpec = tweenOffset) { -it / 2 } + fadeOut(tweenSpec))
+    } else {
+        (slideInHorizontally(animationSpec = tweenOffset) { -it / 2 } + fadeIn(tweenSpec)) togetherWith
+                (slideOutHorizontally(animationSpec = tweenOffset) { it / 2 } + fadeOut(tweenSpec))
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
-    NekoShareTheme {
+    NekoShareTheme(true) {
         HomeScreen(
             uiState = HomeUiState(
                 bottomNavItems = listOf(
