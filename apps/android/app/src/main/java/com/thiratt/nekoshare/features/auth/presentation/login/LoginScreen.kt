@@ -94,7 +94,7 @@ fun LoginScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "ย้อนกลับ"
                         )
                     }
                 },
@@ -133,14 +133,14 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Welcome back",
+                text = "ยินดีต้อนรับกลับ",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Please enter your details to sign in.",
+                text = "กรุณากรอกข้อมูลเพื่อเข้าสู่ระบบ",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -149,7 +149,7 @@ fun LoginScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 NekoTextField(
-                    label = "Email Address",
+                    label = "อีเมล",
                     value = email,
                     onValueChange = { email = it },
                     placeholder = "hello@example.com",
@@ -164,7 +164,7 @@ fun LoginScreen(
 
                 Column {
                     NekoTextField(
-                        label = "Password",
+                        label = "รหัสผ่าน",
                         value = password,
                         onValueChange = { password = it },
                         placeholder = "••••••••",
@@ -190,7 +190,7 @@ fun LoginScreen(
                         horizontalArrangement = Arrangement.End
                     ) {
                         Text(
-                            text = "Forgot password?",
+                            text = "ลืมรหัสผ่าน?",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold,
@@ -206,7 +206,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             NekoButton(
-                text = "Sign in",
+                text = "เข้าสู่ระบบ",
                 onClick = onLoginClick,
                 fullWidth = true,
                 enabled = email.isNotEmpty() && password.isNotEmpty()
@@ -220,7 +220,7 @@ fun LoginScreen(
             ) {
                 HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
                 Text(
-                    text = "Or continue with",
+                    text = "หรือเข้าสู่ระบบด้วย",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp)
@@ -242,7 +242,7 @@ fun LoginScreen(
 
             Row {
                 Text(
-                    "Don’t have an account?",
+                    "ยังไม่มีบัญชีใช่ไหม?",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -250,7 +250,7 @@ fun LoginScreen(
                         .padding(vertical = 4.dp)
                 )
                 Text(
-                    "Sign up",
+                    "สมัครสมาชิก",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,

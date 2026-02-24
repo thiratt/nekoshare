@@ -77,26 +77,26 @@ fun NotificationsScreen(
 ) {
     val notifications = remember {
         listOf(
-            NotificationModel("1", "File Received", "Received 'Project_Final.pdf' from Kenneth", "2 min ago", NotificationType.TransferSuccess, true),
-            NotificationModel("2", "Friend Request", "Sarah wants to be your friend", "1 hour ago", NotificationType.Social, true),
-            NotificationModel("3", "Transfer Failed", "Failed to send 'Movie.mp4' to iPad Air", "3 hours ago", NotificationType.TransferFail, false),
-            NotificationModel("4", "System Update", "NekoShare v2.0 is available now!", "Yesterday", NotificationType.System, false),
-            NotificationModel("5", "File Sent", "Successfully sent 5 photos to Mike", "Yesterday", NotificationType.TransferSuccess, false),
+            NotificationModel("1", "ได้รับไฟล์", "ได้รับ 'Project_Final.pdf' จาก Kenneth", "2 นาทีที่แล้ว", NotificationType.TransferSuccess, true),
+            NotificationModel("2", "คำขอเป็นเพื่อน", "Sarah ต้องการเป็นเพื่อนกับคุณ", "1 ชั่วโมงที่แล้ว", NotificationType.Social, true),
+            NotificationModel("3", "โอนส่งล้มเหลว", "ส่ง 'Movie.mp4' ไปยัง iPad Air ไม่สำเร็จ", "3 ชั่วโมงที่แล้ว", NotificationType.TransferFail, false),
+            NotificationModel("4", "อัปเดตระบบ", "NekoShare v2.0 พร้อมให้ใช้งานแล้ว!", "เมื่อวาน", NotificationType.System, false),
+            NotificationModel("5", "ส่งไฟล์แล้ว", "ส่งรูป 5 รูปไปยัง Mike สำเร็จ", "เมื่อวาน", NotificationType.TransferSuccess, false),
         )
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Notifications") },
+                title = { Text("การแจ้งเตือน") },
                 navigationIcon = {
                     IconButton(onBackClick) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "ย้อนกลับ")
                     }
                 },
                 actions = {
                     IconButton(onClick = { /* ViewModel.markAllRead() */ }) {
-                        Icon(Icons.Rounded.DoneAll, "Mark all as read")
+                        Icon(Icons.Rounded.DoneAll, "ทำเครื่องหมายว่าอ่านทั้งหมด")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -246,13 +246,13 @@ fun EmptyNotificationState(modifier: Modifier = Modifier) {
         }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "No notifications yet",
+            text = "ยังไม่มีการแจ้งเตือน",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text = "Your recent activity will appear here",
+            text = "กิจกรรมล่าสุดของคุณจะแสดงที่นี่",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

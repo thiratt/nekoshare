@@ -47,7 +47,7 @@ fun FilePreviewPage(file: File) {
                     .data(mockImageUrl)
                     .crossfade(true)
                     .build(),
-                contentDescription = "Preview",
+                contentDescription = "ตัวอย่าง",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit
             )
@@ -70,7 +70,7 @@ fun FilePreviewPage(file: File) {
                     )
                 }
                 Spacer(modifier = Modifier.height(24.dp))
-                Text("Preview not available", style = MaterialTheme.typography.titleMedium)
+                Text("ไม่สามารถแสดงตัวอย่างได้", style = MaterialTheme.typography.titleMedium)
             }
         }
     }

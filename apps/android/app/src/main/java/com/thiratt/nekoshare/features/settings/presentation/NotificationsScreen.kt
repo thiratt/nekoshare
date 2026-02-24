@@ -50,7 +50,7 @@ fun NotificationsScreen(
     var vibrationEnabled by remember { mutableStateOf(true) }
 
     Scaffold(
-        topBar = { SettingsTopAppBar("Notifications", onBackClick) },
+        topBar = { SettingsTopAppBar("การแจ้งเตือน", onBackClick) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
@@ -59,48 +59,48 @@ fun NotificationsScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            SettingsGroupTitle("Transfer")
+            SettingsGroupTitle("การโอน")
 
             SettingsSwitchItem(
                 icon = Icons.Rounded.Download,
-                title = "File Received",
-                subtitle = "Get notified when a file is received",
+                title = "ได้รับไฟล์",
+                subtitle = "แจ้งเตือนเมื่อได้รับไฟล์",
                 checked = notifyReceive,
                 onCheckedChange = { notifyReceive = it }
             )
 
             SettingsSwitchItem(
                 icon = Icons.Rounded.Upload,
-                title = "File Sent",
-                subtitle = "Get notified when transfer completes",
+                title = "ส่งไฟล์แล้ว",
+                subtitle = "แจ้งเตือนเมื่อโอนเสร็จ",
                 checked = notifySend,
                 onCheckedChange = { notifySend = it }
             )
 
-            SettingsGroupTitle("Social")
+            SettingsGroupTitle("โซเชียล")
 
             SettingsSwitchItem(
                 icon = Icons.Rounded.PersonAdd,
-                title = "Friend Requests",
-                subtitle = "New friend requests and acceptances",
+                title = "คำขอเป็นเพื่อน",
+                subtitle = "คำขอใหม่และการตอบรับเพื่อน",
                 checked = notifyRequests,
                 onCheckedChange = { notifyRequests = it }
             )
 
-            SettingsGroupTitle("Behavior")
+            SettingsGroupTitle("พฤติกรรม")
 
             SettingsSwitchItem(
                 icon = Icons.Rounded.VolumeUp,
-                title = "Sound",
-                subtitle = "Play sound for notifications",
+                title = "เสียง",
+                subtitle = "เล่นเสียงเมื่อมีการแจ้งเตือน",
                 checked = soundEnabled,
                 onCheckedChange = { soundEnabled = it }
             )
 
             SettingsSwitchItem(
                 icon = Icons.Rounded.Vibration,
-                title = "Vibration",
-                subtitle = "Vibrate for notifications",
+                title = "การสั่น",
+                subtitle = "สั่นเมื่อมีการแจ้งเตือน",
                 checked = vibrationEnabled,
                 onCheckedChange = { vibrationEnabled = it }
             )

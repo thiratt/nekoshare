@@ -89,7 +89,7 @@ fun HomeTopAppBar(
                             Box(contentAlignment = Alignment.CenterStart) {
                                 if (searchQuery.isEmpty()) {
                                     Text(
-                                        "Search...",
+                                        "ค้นหา...",
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                         fontSize = 18.sp
                                     )
@@ -103,13 +103,13 @@ fun HomeTopAppBar(
                     IconButton(onClick = {
                         onSearchActiveChange(false)
                     }) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "ย้อนกลับ")
                     }
                 },
                 actions = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { onSearchQueryChange("") }) {
-                            Icon(Icons.Rounded.Close, "Clear")
+                            Icon(Icons.Rounded.Close, "ล้าง")
                         }
                     }
                 },
@@ -124,10 +124,10 @@ fun HomeTopAppBar(
                 },
                 actions = {
                     IconButton(onClick = { onSearchActiveChange(true) }) {
-                        Icon(Icons.Rounded.Search, "Search")
+                        Icon(Icons.Rounded.Search, "ค้นหา")
                     }
                     IconButton(onClick = onNotificationsClick) {
-                        Icon(Icons.Rounded.Notifications, "Notifications")
+                        Icon(Icons.Rounded.Notifications, "การแจ้งเตือน")
                     }
                     IconButton(onClick = onSettingsClick) {
                         Box(
@@ -139,7 +139,7 @@ fun HomeTopAppBar(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Person,
-                                contentDescription = "Profile",
+                                contentDescription = "โปรไฟล์",
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.size(20.dp)
                             )

@@ -81,8 +81,8 @@ fun ShareActionSheet(
     val scope = rememberCoroutineScope()
 
     val nearbyDevices = listOf(
-        DeviceItem("2", "Kenneth's PC", "NekoShare Desktop", "2.1.0", DeviceType.Windows, DeviceStatus.Online, "192.168.1.5", "Near you", "Now"),
-        DeviceItem("3", "Pixel 8", "NekoShare Android", "1.0.0", DeviceType.Android, DeviceStatus.Offline, "192.168.1.9", "Offline", "10m ago")
+        DeviceItem("2", "Kenneth's PC", "NekoShare Desktop", "2.1.0", DeviceType.Windows, DeviceStatus.Online, "192.168.1.5", "ใกล้คุณ", "ตอนนี้"),
+        DeviceItem("3", "Pixel 8", "NekoShare Android", "1.0.0", DeviceType.Android, DeviceStatus.Offline, "192.168.1.9", "ออฟไลน์", "10 นาทีที่แล้ว")
     )
 
     fun simulateFileSelection() {
@@ -108,12 +108,12 @@ fun ShareActionSheet(
                 .padding(horizontal = 24.dp)
         ) {
             Text(
-                text = "Share Content",
+                text = "แชร์เนื้อหา",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = if (selectedFiles.isEmpty()) "Select what you want to send" else "${selectedFiles.size} items selected",
+                text = if (selectedFiles.isEmpty()) "เลือกสิ่งที่ต้องการส่ง" else "เลือกแล้ว ${selectedFiles.size} รายการ",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -153,8 +153,8 @@ fun ShareActionSheet(
                 ) {
                     BigActionButton(
                         icon = Icons.Rounded.Image,
-                        label = "Photos",
-                        subLabel = "Gallery",
+                        label = "รูปภาพ",
+                        subLabel = "แกลเลอรี",
                         color = Color(0xFF43A047),
                         containerColor = Color(0xFFE8F5E9),
                         onClick = { simulateFileSelection() },
@@ -162,8 +162,8 @@ fun ShareActionSheet(
                     )
                     BigActionButton(
                         icon = Icons.AutoMirrored.Rounded.InsertDriveFile,
-                        label = "Files",
-                        subLabel = "Browse",
+                        label = "ไฟล์",
+                        subLabel = "เรียกดู",
                         color = Color(0xFF1E88E5),
                         containerColor = Color(0xFFE3F2FD),
                         onClick = { simulateFileSelection() },
@@ -176,7 +176,7 @@ fun ShareActionSheet(
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = "Nearby Devices",
+            text = "อุปกรณ์ใกล้เคียง",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 24.dp)
@@ -300,7 +300,7 @@ fun AddMoreDashedButton(onClick: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Rounded.Add, null, tint = color, modifier = Modifier.size(32.dp))
             Spacer(modifier = Modifier.height(4.dp))
-            Text("Add", style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.Bold)
+            Text("เพิ่ม", style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -394,7 +394,11 @@ fun DeviceItem(
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = device.type.name,
+            text = when (device.type) {
+                DeviceType.Windows -> "วินโดวส์"
+                DeviceType.Android -> "แอนดรอยด์"
+                DeviceType.Website -> "เว็บ"
+            },
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1

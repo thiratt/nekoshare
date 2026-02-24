@@ -81,8 +81,8 @@ fun FriendItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(friend.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
             Text(
-                text = if (friend.status == FriendStatus.Friend && friend.isOnline) "Online"
-                else if (friend.status == FriendStatus.Friend) "Last seen ${friend.lastSeen}"
+                text = if (friend.status == FriendStatus.Friend && friend.isOnline) "ออนไลน์"
+                else if (friend.status == FriendStatus.Friend) "เห็นล่าสุด ${friend.lastSeen}"
                 else friend.username,
                 style = MaterialTheme.typography.bodySmall,
                 color = if (friend.isOnline && friend.status == FriendStatus.Friend) Color(0xFF4CAF50)

@@ -11,6 +11,6 @@ data class DeviceItem(
     val type: DeviceType,
     val status: DeviceStatus,
     val ipAddress: String,
-    val location: String = "Unknown",
+    val location: String = "ไม่ทราบ",
     val lastSeen: String
 )

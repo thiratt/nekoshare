@@ -21,9 +21,9 @@ class HomeViewModel : ViewModel() {
 
     init {
         val items = listOf(
-            NekoNavigationBarItem("Home", Icons.Outlined.Home, Icons.Rounded.Home),
-            NekoNavigationBarItem("Friends", Icons.Outlined.SupervisorAccount, Icons.Rounded.SupervisorAccount),
-            NekoNavigationBarItem("Devices", Icons.Outlined.Devices, Icons.Rounded.Devices)
+            NekoNavigationBarItem("หน้าแรก", Icons.Outlined.Home, Icons.Rounded.Home),
+            NekoNavigationBarItem("เพื่อน", Icons.Outlined.SupervisorAccount, Icons.Rounded.SupervisorAccount),
+            NekoNavigationBarItem("อุปกรณ์", Icons.Outlined.Devices, Icons.Rounded.Devices)
         )
         _uiState.update { it.copy(bottomNavItems = items) }
     }

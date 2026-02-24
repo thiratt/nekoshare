@@ -57,10 +57,10 @@ fun AddFriendScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Add Friend") },
+                title = { Text("เพิ่มเพื่อน") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "ย้อนกลับ")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

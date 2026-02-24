@@ -150,8 +150,8 @@ fun SettingsItemPreview() {
     NekoShareTheme {
         SettingsItem(
             icon = Icons.Rounded.Accessibility,
-            title = "Accessibility",
-            subtitle = "Display, interaction & language",
+            title = "การช่วยการเข้าถึง",
+            subtitle = "การแสดงผล การโต้ตอบ และภาษา",
             onClick = {}
         )
     }

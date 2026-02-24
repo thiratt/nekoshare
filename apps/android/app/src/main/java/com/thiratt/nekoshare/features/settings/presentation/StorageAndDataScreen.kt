@@ -57,7 +57,7 @@ fun StorageAndDataScreen(
     onDownloadPathClick: () -> Unit
 ) {
     var useMobileData by remember { mutableStateOf(false) }
-    var autoDeleteHistory by remember { mutableStateOf("Never") }
+    var autoDeleteHistory by remember { mutableStateOf("ไม่ลบ") }
 
     var cacheSize by remember { mutableStateOf("12.5 MB") }
     var showClearCacheDialog by remember { mutableStateOf(false) }
@@ -66,7 +66,7 @@ fun StorageAndDataScreen(
     val snackBarHostState = remember { SnackbarHostState() }
 
     Scaffold(
-        topBar = { SettingsTopAppBar("Storage & Data", onBackClick) },
+        topBar = { SettingsTopAppBar("พื้นที่จัดเก็บและข้อมูล", onBackClick) },
         snackbarHost = { SnackbarHost(snackBarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
@@ -76,39 +76,39 @@ fun StorageAndDataScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            SettingsGroupTitle("Storage Location")
+            SettingsGroupTitle("ตำแหน่งจัดเก็บ")
 
             SettingsActionItem(
                 icon = Icons.Rounded.FolderOpen,
-                title = "Download Path",
+                title = "ตำแหน่งดาวน์โหลด",
                 subtitle = "/storage/emulated/0/Download/NekoShare",
                 onClick = onDownloadPathClick
             )
 
-            SettingsGroupTitle("Network")
+            SettingsGroupTitle("เครือข่าย")
 
             SettingsSwitchItem(
                 icon = Icons.Rounded.CellWifi,
-                title = "Use Mobile Data",
-                subtitle = "Allow file transfer over cellular network",
+                title = "ใช้ข้อมูลมือถือ",
+                subtitle = "อนุญาตการโอนไฟล์ผ่านเครือข่ายมือถือ",
                 checked = useMobileData,
                 onCheckedChange = { useMobileData = it }
             )
 
-            SettingsGroupTitle("Data Management")
+            SettingsGroupTitle("การจัดการข้อมูล")
 
             SettingsActionItem(
                 icon = Icons.Rounded.History,
-                title = "Auto-delete History",
-                subtitle = "Remove transfer logs automatically",
+                title = "ลบประวัติอัตโนมัติ",
+                subtitle = "ลบบันทึกการโอนโดยอัตโนมัติ",
                 value = autoDeleteHistory,
                 onClick = { /* Show Dialog to pick: Never, 30 days, 1 year */ }
             )
 
             SettingsActionItem(
                 icon = Icons.Rounded.CleaningServices,
-                title = "Clear Cache",
-                subtitle = "Free up space ($cacheSize)",
+                title = "ล้างแคช",
+                subtitle = "เพิ่มพื้นที่ว่าง ($cacheSize)",
                 onClick = {
                     if (cacheSize != "0 B") {
                         showClearCacheDialog = true
@@ -122,8 +122,8 @@ fun StorageAndDataScreen(
         AlertDialog(
             onDismissRequest = { showClearCacheDialog = false },
             icon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
-            title = { Text("Clear Cache?") },
-            text = { Text("This will remove temporary files and thumbnails. Your transferred files will not be deleted.") },
+            title = { Text("ล้างแคช?") },
+            text = { Text("การดำเนินการนี้จะลบไฟล์ชั่วคราวและภาพตัวอย่าง โดยไฟล์ที่โอนแล้วจะไม่ถูกลบ") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -131,16 +131,16 @@ fun StorageAndDataScreen(
                         scope.launch {
                             delay(500)
                             cacheSize = "0 B"
-                            snackBarHostState.showSnackbar("Cache cleared successfully")
+                            snackBarHostState.showSnackbar("ล้างแคชเรียบร้อยแล้ว")
                         }
                     }
                 ) {
-                    Text("Clear", color = MaterialTheme.colorScheme.error)
+                    Text("ล้าง", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearCacheDialog = false }) {
-                    Text("Cancel")
+                    Text("ยกเลิก")
                 }
             },
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh

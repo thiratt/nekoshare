@@ -67,12 +67,12 @@ fun AccessibilityScreen(
     var hapticFeedback by remember { mutableStateOf(true) }
     var activeDialog by remember { mutableStateOf<DialogType?>(null) }
 
-    var currentLanguage by remember { mutableStateOf("English") }
-    var currentFontStyle by remember { mutableStateOf("Default") }
-    var currentFontSize by remember { mutableStateOf("Medium") }
+    var currentLanguage by remember { mutableStateOf("ภาษาอังกฤษ") }
+    var currentFontStyle by remember { mutableStateOf("ค่าเริ่มต้น") }
+    var currentFontSize by remember { mutableStateOf("ปานกลาง") }
 
     Scaffold(
-        topBar = { SettingsTopAppBar("Accessibility", onBackClick) },
+        topBar = { SettingsTopAppBar("การช่วยการเข้าถึง", onBackClick) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
@@ -81,50 +81,50 @@ fun AccessibilityScreen(
                 .padding(innerPadding)
                 .verticalScroll(scrollState)
         ) {
-            SettingsGroupTitle("Display & Appearance")
+            SettingsGroupTitle("การแสดงผลและรูปลักษณ์")
 
             SettingsActionItem(
                 icon = Icons.Rounded.Palette,
-                title = "Theme",
+                title = "ธีม",
                 value = getThemeName(currentTheme),
                 onClick = { activeDialog = DialogType.Theme }
             )
 
             SettingsActionItem(
                 icon = Icons.Rounded.Language,
-                title = "Language",
+                title = "ภาษา",
                 value = currentLanguage,
                 onClick = { activeDialog = DialogType.Language }
             )
 
             SettingsActionItem(
                 icon = Icons.Rounded.FontDownload,
-                title = "Font Style",
+                title = "รูปแบบตัวอักษร",
                 value = currentFontStyle,
                 onClick = { activeDialog = DialogType.FontStyle }
             )
 
             SettingsActionItem(
                 icon = Icons.Rounded.FormatSize,
-                title = "Font Size",
+                title = "ขนาดตัวอักษร",
                 value = currentFontSize,
                 onClick = { activeDialog = DialogType.FontSize }
             )
 
-            SettingsGroupTitle("Interaction")
+            SettingsGroupTitle("การโต้ตอบ")
 
             SettingsSwitchItem(
                 icon = Icons.Rounded.Smartphone,
-                title = "Keep Screen On",
-                subtitle = "Prevent screen from sleeping during file transfer",
+                title = "เปิดหน้าจอไว้",
+                subtitle = "ป้องกันหน้าจอดับระหว่างโอนไฟล์",
                 checked = keepScreenOn,
                 onCheckedChange = { keepScreenOn = it }
             )
 
             SettingsSwitchItem(
                 icon = Icons.Rounded.TouchApp,
-                title = "Haptic Feedback",
-                subtitle = "Vibrate on touch interactions",
+                title = "การสั่นตอบสนอง",
+                subtitle = "สั่นเมื่อมีการแตะ",
                 checked = hapticFeedback,
                 onCheckedChange = { hapticFeedback = it }
             )
@@ -132,7 +132,7 @@ fun AccessibilityScreen(
 
         when (activeDialog) {
             DialogType.Theme -> SettingsDialog(
-                title = "Theme",
+                title = "ธีม",
                 options = AppTheme.entries,
                 currentOption = currentTheme,
                 onDismiss = { activeDialog = null },
@@ -142,9 +142,9 @@ fun AccessibilityScreen(
                 },
                 labelProvider = { theme ->
                     when (theme) {
-                        AppTheme.System -> "System Default"
-                        AppTheme.Light -> "Light"
-                        AppTheme.Dark -> "Dark"
+                        AppTheme.System -> "ตามระบบ"
+                        AppTheme.Light -> "สว่าง"
+                        AppTheme.Dark -> "มืด"
                     }
                 },
                 iconProvider = { theme ->
@@ -157,8 +157,8 @@ fun AccessibilityScreen(
             )
 
             DialogType.Language -> SettingsDialog(
-                title = "Language",
-                options = listOf("English", "ไทย", "日本語"),
+                title = "ภาษา",
+                options = listOf("ภาษาอังกฤษ", "ภาษาไทย", "ภาษาญี่ปุ่น"),
                 currentOption = currentLanguage,
                 onDismiss = { activeDialog = null },
                 onOptionSelected = {
@@ -169,8 +169,8 @@ fun AccessibilityScreen(
             )
 
             DialogType.FontStyle -> SettingsDialog(
-                title = "Font Style",
-                options = listOf("Default", "System", "Rounded"),
+                title = "รูปแบบตัวอักษร",
+                options = listOf("ค่าเริ่มต้น", "ระบบ", "โค้งมน"),
                 currentOption = currentFontStyle,
                 onDismiss = { activeDialog = null },
                 onOptionSelected = {
@@ -181,8 +181,8 @@ fun AccessibilityScreen(
             )
 
             DialogType.FontSize -> SettingsDialog(
-                title = "Font Size",
-                options = listOf("Small", "Medium", "Large", "Extra Large"),
+                title = "ขนาดตัวอักษร",
+                options = listOf("เล็ก", "ปานกลาง", "ใหญ่", "ใหญ่มาก"),
                 currentOption = currentFontSize,
                 onDismiss = { activeDialog = null },
                 onOptionSelected = {
@@ -199,9 +199,9 @@ fun AccessibilityScreen(
 
 fun getThemeName(theme: AppTheme): String {
     return when (theme) {
-        AppTheme.Light -> "Light"
-        AppTheme.Dark -> "Dark"
-        AppTheme.System -> "System Default"
+        AppTheme.Light -> "สว่าง"
+        AppTheme.Dark -> "มืด"
+        AppTheme.System -> "ตามระบบ"
     }
 }
 

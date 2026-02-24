@@ -151,7 +151,7 @@ fun HomeScreen(
             ) {
                 if (isSearchActive && searchQuery.isNotEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Searching for: $searchQuery")
+                        Text("กำลังค้นหา: $searchQuery")
                     }
                 } else {
                     AnimatedContent(
@@ -206,9 +206,9 @@ fun HomeScreenPreview() {
         HomeScreen(
             uiState = HomeUiState(
                 bottomNavItems = listOf(
-                    NekoNavigationBarItem("Home", Icons.Default.Home),
-                    NekoNavigationBarItem("Friends", Icons.Rounded.SupervisorAccount),
-                    NekoNavigationBarItem("Devices", Icons.Rounded.Devices)
+                    NekoNavigationBarItem("หน้าแรก", Icons.Default.Home),
+                    NekoNavigationBarItem("เพื่อน", Icons.Rounded.SupervisorAccount),
+                    NekoNavigationBarItem("อุปกรณ์", Icons.Rounded.Devices)
                 ),
                 selectedIndex = 0
             ),

@@ -31,7 +31,7 @@ fun SettingsTopAppBar(
         title = { Text(title) },
         navigationIcon = {
             IconButton(onBackClick) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, "ย้อนกลับ")
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -55,6 +55,6 @@ fun SettingsTopAppBar(
 @Composable
 fun SettingsTopAppBarPreview() {
     NekoShareTheme {
-        SettingsTopAppBar("Home", {})
+        SettingsTopAppBar("หน้าแรก", {})
     }
 }

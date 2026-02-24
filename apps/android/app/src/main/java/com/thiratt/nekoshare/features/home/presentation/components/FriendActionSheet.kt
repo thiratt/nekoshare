@@ -81,17 +81,17 @@ fun FriendActionSheet(
 
         ActionItem(
             icon = Icons.AutoMirrored.Rounded.Send,
-            label = "Send File",
+            label = "ส่งไฟล์",
             onClick = onSendFile
         )
         ActionItem(
             icon = Icons.Rounded.Person,
-            label = "View Profile",
+            label = "ดูโปรไฟล์",
             onClick = onViewProfile
         )
         ActionItem(
             icon = Icons.Rounded.Edit,
-            label = "Edit Name",
+            label = "แก้ไขชื่อ",
             onClick = onEditName
         )
 
@@ -99,12 +99,12 @@ fun FriendActionSheet(
 
         ActionItem(
             icon = Icons.Rounded.Block,
-            label = "Block User",
+            label = "บล็อกผู้ใช้",
             onClick = onBlock
         )
         ActionItem(
             icon = Icons.Rounded.PersonRemove,
-            label = "Remove Friend",
+            label = "ลบเพื่อน",
             isDestructive = true,
             onClick = onRemove
         )

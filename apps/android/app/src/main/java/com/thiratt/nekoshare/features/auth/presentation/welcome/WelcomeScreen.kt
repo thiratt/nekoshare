@@ -75,7 +75,7 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "Seamless Sharing,\nNo Boundaries.",
+                text = "แชร์ได้ลื่นไหล\nไร้ขีดจำกัด",
                 style = MaterialTheme.typography.displaySmall.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp
@@ -87,7 +87,7 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Transfer files across your devices instantly.\nSecure, local, and lightning fast.",
+                text = "โอนไฟล์ระหว่างอุปกรณ์ได้ทันที\nปลอดภัย ภายในเครื่อง และรวดเร็ว",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -100,13 +100,13 @@ fun WelcomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 NekoButton(
-                    text = "Login with email",
+                    text = "เข้าสู่ระบบด้วยอีเมล",
                     onClick = onLoginClick,
                     fullWidth = true
                 )
 
                 NekoButton(
-                    text = "Create an account",
+                    text = "สร้างบัญชี",
                     variant = NekoButtonVariant.Ghost,
                     onClick = onRegisterClick,
                     fullWidth = true

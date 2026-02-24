@@ -89,7 +89,7 @@ fun ForgotPasswordScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "ย้อนกลับ"
                         )
                     }
                 },
@@ -128,14 +128,14 @@ fun ForgotPasswordScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Forgot password?",
+                text = "ลืมรหัสผ่าน?",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "No worries, we'll send you reset instructions.",
+                text = "ไม่ต้องกังวล เราจะส่งวิธีรีเซ็ตรหัสผ่านให้คุณ",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -145,10 +145,10 @@ fun ForgotPasswordScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 NekoTextField(
-                    label = "Email Address",
+                    label = "อีเมล",
                     value = email,
                     onValueChange = { email = it },
-                    placeholder = "Enter your email",
+                    placeholder = "กรอกอีเมลของคุณ",
                     leadingIcon = {
                         Icon(Icons.Rounded.Email, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
@@ -159,7 +159,7 @@ fun ForgotPasswordScreen(
                 )
 
                 NekoButton(
-                    text = "Reset password",
+                    text = "รีเซ็ตรหัสผ่าน",
                     onClick = { onSubmitClick(email) },
                     fullWidth = true,
                     enabled = email.isNotEmpty()
@@ -176,7 +176,7 @@ fun ForgotPasswordScreen(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    "Remember password?",
+                    "จำรหัสผ่านได้แล้ว?",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -184,7 +184,7 @@ fun ForgotPasswordScreen(
                         .padding(vertical = 4.dp)
                 )
                 Text(
-                    "Log in",
+                    "เข้าสู่ระบบ",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,

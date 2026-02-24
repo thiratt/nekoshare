@@ -38,7 +38,7 @@ object TransferRepository {
         ),
         TransferHistoryItem(
             id = "4",
-            senderName = "iPad Air",
+            senderName = "Chrome in Windows",
             targetType = TargetType.Device,
             files = listOf(
                 ReceivedFileDetail("Demo_Clip.mp4", FileType.Video)
@@ -55,7 +55,7 @@ object TransferRepository {
         ),
         TransferHistoryItem(
             id = "6",
-            senderName = "Arch Linux PC",
+            senderName = "PC",
             targetType = TargetType.Device,
             files = listOf(
                 ReceivedFileDetail("nginx.conf", FileType.Document),
@@ -73,7 +73,7 @@ object TransferRepository {
         ),
         TransferHistoryItem(
             id = "8",
-            senderName = "EndeavourOS Laptop",
+            senderName = "Laptop",
             targetType = TargetType.Device,
             files = listOf(
                 ReceivedFileDetail("hashcat_wordlist.txt", FileType.Document),

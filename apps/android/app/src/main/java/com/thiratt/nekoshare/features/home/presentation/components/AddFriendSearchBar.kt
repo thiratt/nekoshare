@@ -35,7 +35,7 @@ fun AddFriendSearchBar(
             value = query,
             onValueChange = onQueryChange,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Name, username or email") },
+            placeholder = { Text("ชื่อ, ชื่อผู้ใช้ หรืออีเมล") },
             leadingIcon = {
                 Icon(
                     Icons.Rounded.Search,
@@ -46,7 +46,7 @@ fun AddFriendSearchBar(
             trailingIcon = {
                 if (query.isNotEmpty()) {
                     IconButton(onClick = { onQueryChange("") }) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                        Icon(Icons.Rounded.Close, contentDescription = "ล้าง")
                     }
                 }
             },

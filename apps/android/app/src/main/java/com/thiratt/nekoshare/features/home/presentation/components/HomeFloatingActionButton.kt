@@ -65,7 +65,7 @@ fun HomeFloatingActionButton(
         } else {
             val isFriendsTab = index == 1
             ExtendedFloatingActionButton(
-                text = { Text(if (isFriendsTab) "Add Friend" else "Share") },
+                text = { Text(if (isFriendsTab) "เพิ่มเพื่อน" else "แชร์") },
                 onClick = {
                     if (isFriendsTab) onAddFriends() else onShareClick()
                 },

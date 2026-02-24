@@ -79,11 +79,11 @@ fun FileDetailSheet(
         }
     }
 
-    val title = if (isMultiple) "Received $fileCount files" else firstFile.name
+    val title = if (isMultiple) "ได้รับไฟล์ $fileCount ไฟล์" else firstFile.name
     val subtitle = if (isMultiple) {
-        "From ${item.senderName}"
+        "จาก ${item.senderName}"
     } else {
-        "${firstFile.size} • from ${item.senderName}"
+        "${firstFile.size} • จาก ${item.senderName}"
     }
 
     NekoModalBottomSheet(sheetState, onDismissRequest) {
@@ -131,37 +131,37 @@ fun FileDetailSheet(
         if (isMultiple) {
             ActionItem(
                 icon = Icons.Rounded.RemoveRedEye,
-                label = "View all files",
+                label = "ดูไฟล์ทั้งหมด",
                 onClick = onView
             )
         } else {
-            ActionItem(icon = Icons.Rounded.RemoveRedEye, label = "View", onClick = onView)
+            ActionItem(icon = Icons.Rounded.RemoveRedEye, label = "ดู", onClick = onView)
             ActionItem(
                 icon = Icons.AutoMirrored.Rounded.OpenInNew,
-                label = "Open with",
+                label = "เปิดด้วย",
                 onClick = onOpen
             )
         }
 
         ActionItem(
             icon = Icons.Rounded.Share,
-            label = if (isMultiple) "Share all" else "Share",
+            label = if (isMultiple) "แชร์ทั้งหมด" else "แชร์",
             onClick = onShare
         )
 
-        ActionItem(icon = Icons.Rounded.Info, label = "Details", onClick = onView)
+        ActionItem(icon = Icons.Rounded.Info, label = "รายละเอียด", onClick = onView)
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         ActionItem(
             icon = Icons.Rounded.History,
-            label = "Delete history",
+            label = "ลบประวัติ",
             onClick = onDeleteHistory
         )
 
         ActionItem(
             icon = Icons.Rounded.DeleteForever,
-            label = "Delete history & items",
+            label = "ลบประวัติและไฟล์",
             isDestructive = true,
             onClick = onDeleteHistoryAndItems
         )

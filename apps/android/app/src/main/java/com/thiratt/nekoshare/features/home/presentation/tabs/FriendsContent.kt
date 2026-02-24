@@ -51,9 +51,9 @@ fun FriendsContent(
             Friend("2", "Chanon", "@chanon", status = FriendStatus.Friend, isOnline = false),
             Friend("3", "Sarah", "@sarah", status = FriendStatus.Incoming),
             Friend("4", "Mike", "@mike", status = FriendStatus.Outgoing),
-            Friend("5", "Spam Bot", "@spam", status = FriendStatus.Blocked),
+            Friend("5", "บอทสแปม", "@spam", status = FriendStatus.Blocked),
             Friend("6", "Jessica", "@jessy", status = FriendStatus.Incoming),
-            Friend("7", "Unknown", "@unknown", status = FriendStatus.Blocked)
+            Friend("7", "ไม่ทราบชื่อ", "@unknown", status = FriendStatus.Blocked)
         )
     }
 
@@ -86,7 +86,7 @@ fun FriendsContent(
                         IconButton(onClick = { selectedFriendForSheet = friend }) {
                             Icon(
                                 imageVector = Icons.Rounded.MoreVert,
-                                contentDescription = "Options",
+                                contentDescription = "ตัวเลือก",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -97,7 +97,7 @@ fun FriendsContent(
             if (onlyFriends.isEmpty()) {
                 item {
                     Text(
-                        text = "No friends found. Check your requests in 'More'.",
+                        text = "ไม่พบเพื่อน ลองตรวจสอบคำขอในเมนูจัดการ",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -135,13 +135,13 @@ private fun FriendsHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Friends ($count)",
+            text = "เพื่อน ($count)",
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Manage",
+            text = "จัดการ",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier

@@ -76,19 +76,19 @@ fun ManageFriendsScreen(
             Friend("2", "Chanon", "@chanon", status = FriendStatus.Friend, isOnline = false),
             Friend("3", "Sarah", "@sarah", status = FriendStatus.Incoming),
             Friend("4", "Mike", "@mike", status = FriendStatus.Outgoing),
-            Friend("5", "Spam Bot", "@spam", status = FriendStatus.Blocked),
+            Friend("5", "บอทสแปม", "@spam", status = FriendStatus.Blocked),
             Friend("6", "Jessica", "@jessy", status = FriendStatus.Incoming),
-            Friend("7", "Unknown", "@unknown", status = FriendStatus.Blocked)
+            Friend("7", "ไม่ทราบชื่อ", "@unknown", status = FriendStatus.Blocked)
         )
     }
 
     data class FriendTab(val title: String, val status: FriendStatus?)
     val tabs = listOf(
-        FriendTab("All", null),
-        FriendTab("Friends", FriendStatus.Friend),
-        FriendTab("Requests", FriendStatus.Incoming),
-        FriendTab("Sent", FriendStatus.Outgoing),
-        FriendTab("Blocked", FriendStatus.Blocked)
+        FriendTab("ทั้งหมด", null),
+        FriendTab("เพื่อน", FriendStatus.Friend),
+        FriendTab("คำขอ", FriendStatus.Incoming),
+        FriendTab("ส่งแล้ว", FriendStatus.Outgoing),
+        FriendTab("ถูกบล็อก", FriendStatus.Blocked)
     )
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -106,10 +106,10 @@ fun ManageFriendsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Manage friends") },
+                title = { Text("จัดการเพื่อน") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "ย้อนกลับ")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
@@ -178,26 +178,26 @@ fun ManageFriendsScreen(
                                         FriendStatus.Incoming -> {
                                             Row {
                                                 IconButton(onClick = {}) {
-                                                    Icon(Icons.Rounded.Check, "Accept", tint = Color(0xFF4CAF50))
+                                                    Icon(Icons.Rounded.Check, "ยอมรับ", tint = Color(0xFF4CAF50))
                                                 }
                                                 IconButton(onClick = {}) {
-                                                    Icon(Icons.Rounded.Close, "Decline", tint = MaterialTheme.colorScheme.error)
+                                                    Icon(Icons.Rounded.Close, "ปฏิเสธ", tint = MaterialTheme.colorScheme.error)
                                                 }
                                             }
                                         }
                                         FriendStatus.Outgoing -> {
                                             IconButton(onClick = { friendToConfirm = friend to "cancel" }) {
-                                                Icon(Icons.Rounded.Close, "Cancel Request")
+                                                Icon(Icons.Rounded.Close, "ยกเลิกคำขอ")
                                             }
                                         }
                                         FriendStatus.Blocked -> {
                                             TextButton(onClick = { friendToConfirm = friend to "unblock" }) {
-                                                Text("Unblock")
+                                                Text("เลิกบล็อก")
                                             }
                                         }
                                         FriendStatus.Friend -> {
                                             IconButton(onClick = { selectedFriendForSheet = friend }) {
-                                                Icon(Icons.Rounded.MoreVert, "Options")
+                                                Icon(Icons.Rounded.MoreVert, "ตัวเลือก")
                                             }
                                         }
                                     }
@@ -219,17 +219,17 @@ fun ManageFriendsScreen(
                                 friendToConfirm = null
                             }
                         ) {
-                            Text(if (action == "unblock") "Unblock" else "Cancel Request")
+                            Text(if (action == "unblock") "เลิกบล็อก" else "ยกเลิกคำขอ")
                         }
                     },
                     dismissButton = {
-                        TextButton(onClick = { friendToConfirm = null }) { Text("Dismiss") }
+                        TextButton(onClick = { friendToConfirm = null }) { Text("ปิด") }
                     },
-                    title = { Text(if (action == "unblock") "Unblock User?" else "Cancel Request?") },
+                    title = { Text(if (action == "unblock") "เลิกบล็อกผู้ใช้?" else "ยกเลิกคำขอเป็นเพื่อน?") },
                     text = {
                         Text(
-                            if (action == "unblock") "Do you want to unblock ${friend.name}?"
-                            else "Are you sure you want to cancel the friend request sent to ${friend.name}?"
+                            if (action == "unblock") "คุณต้องการเลิกบล็อก ${friend.name} ใช่ไหม?"
+                            else "ยืนยันการยกเลิกคำขอเป็นเพื่อนที่ส่งถึง ${friend.name} ใช่ไหม?"
                         )
                     }
                 )
@@ -252,8 +252,8 @@ fun ManageFriendsScreen(
 fun EmptyListPlaceholder(tabTitle: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "No users found", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
-            Text(text = "in $tabTitle list", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), style = MaterialTheme.typography.bodyMedium)
+            Text(text = "ไม่พบผู้ใช้", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
+            Text(text = "ในรายการ $tabTitle", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

@@ -57,7 +57,7 @@ fun AboutScreen(
     val scrollState = rememberScrollState()
 
     Scaffold(
-        topBar = { SettingsTopAppBar("About", onBack) },
+        topBar = { SettingsTopAppBar("เกี่ยวกับ", onBack) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
@@ -78,7 +78,7 @@ fun AboutScreen(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Outlined.Info,
-                        contentDescription = "App Logo",
+                        contentDescription = "โลโก้แอป",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(64.dp)
                     )
@@ -95,7 +95,7 @@ fun AboutScreen(
             )
 
             Text(
-                text = "Version $versionName",
+                text = "เวอร์ชัน $versionName",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -104,8 +104,8 @@ fun AboutScreen(
 
             SettingsActionItem(
                 icon = Icons.Rounded.Code,
-                title = "Source Code",
-                subtitle = "View on GitHub",
+                title = "ซอร์สโค้ด",
+                subtitle = "ดูบน GitHub",
                 onClick = {
                     uriHandler.openUri("https://github.com/thiratt/nekoshare")
                 }
@@ -113,13 +113,13 @@ fun AboutScreen(
 
             SettingsActionItem(
                 icon = Icons.Rounded.Policy,
-                title = "Privacy Policy",
+                title = "นโยบายความเป็นส่วนตัว",
                 onClick = { uriHandler.openUri("https://example.com") }
             )
 
             SettingsActionItem(
                 icon = Icons.Rounded.Description,
-                title = "Open Source Licenses",
+                title = "สัญญาอนุญาตโอเพนซอร์ส",
                 onClick = { }
             )
 
@@ -127,7 +127,7 @@ fun AboutScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "Made with ❤️ by Thiratt",
+                text = "สร้างด้วย ❤️ โดย Thiratt",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

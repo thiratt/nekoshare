@@ -31,8 +31,8 @@ fun AddFriendSearchResults(query: String) {
     val allUsers = listOf(
         "Kenneth" to "@kenneth_dev",
         "El" to "@Eleven",
-        "Admin" to "@admin",
-        "Test User" to "@test"
+        "ผู้ดูแล" to "@admin",
+        "ผู้ใช้ทดสอบ" to "@test"
     )
 
     val results = allUsers.filter {
@@ -80,13 +80,13 @@ fun AddFriendEmptyState() {
         }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "Search for friends",
+            text = "ค้นหาเพื่อน",
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Enter a username or email address to find people you know.",
+            text = "กรอกชื่อผู้ใช้หรืออีเมลเพื่อค้นหาคนที่คุณรู้จัก",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -112,14 +112,14 @@ fun NoResultsState(query: String) {
         )
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "No user found",
+                text = "ไม่พบผู้ใช้",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "We couldn't find anyone matching \"$query\"",
+                text = "ไม่พบผู้ใช้ที่ตรงกับ \"$query\"",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center

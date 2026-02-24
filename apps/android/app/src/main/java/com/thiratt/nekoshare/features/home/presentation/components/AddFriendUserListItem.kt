@@ -70,11 +70,11 @@ fun AddFriendUserListItem(
                 if (isAdded) {
                     Icon(Icons.Rounded.Check, null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Sent")
+                    Text("ส่งแล้ว")
                 } else {
                     Icon(Icons.Rounded.Add, null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add")
+                    Text("เพิ่ม")
                 }
             }
         },

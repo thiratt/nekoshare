@@ -49,11 +49,11 @@ fun TransferringState(
                 title = {
                     Column {
                         Text(
-                            "Sending ${item.files.size} files...",
+                            "กำลังส่ง ${item.files.size} ไฟล์...",
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            "To Kenneth's PC",
+                            "ไปยังคอมพิวเตอร์ของ Kenneth",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -63,7 +63,7 @@ fun TransferringState(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Rounded.ArrowBack,
-                            "Back"
+                            "ย้อนกลับ"
                         )
                     }
                 }
@@ -80,7 +80,7 @@ fun TransferringState(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Sending...", style = MaterialTheme.typography.labelMedium)
+                    Text("กำลังส่ง...", style = MaterialTheme.typography.labelMedium)
                     Text(
                         "${(item.progress * 100).toInt()}%",
                         style = MaterialTheme.typography.labelMedium
@@ -99,7 +99,7 @@ fun TransferringState(
                     onClick = { /* Cancel */ },
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 ) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.error)
+                    Text("ยกเลิก", color = MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -141,7 +141,7 @@ fun TransferringFileItem(file: File) {
         Column {
             Text(file.name, style = MaterialTheme.typography.bodyMedium)
             Text(
-                "Waiting...",
+                "รอส่ง...",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

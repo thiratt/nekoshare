@@ -35,9 +35,9 @@ sealed interface SettingsPrivacyAndSecurityNavEvent {
 }
 
 enum class DeviceVisibility(val label: String, val description: String) {
-    Everyone("Everyone", "Visible to all nearby devices"),
-    Contacts("Contacts Only", "Visible only to saved contacts"),
-    Hidden("Hidden", "No one can see you")
+    Everyone("ทุกคน", "มองเห็นได้สำหรับอุปกรณ์ใกล้เคียงทั้งหมด"),
+    Contacts("เฉพาะรายชื่อ", "มองเห็นได้เฉพาะรายชื่อที่บันทึกไว้"),
+    Hidden("ซ่อน", "ไม่มีใครมองเห็นคุณ")
 }
 
 @Composable
@@ -62,7 +62,7 @@ fun PrivacyAndSecurityScreen(
     var shareUsageData by remember { mutableStateOf(true) }
 
     Scaffold(
-        topBar = { SettingsTopAppBar("Privacy & Security", onBackClick) },
+        topBar = { SettingsTopAppBar("ความเป็นส่วนตัวและความปลอดภัย", onBackClick) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
@@ -71,39 +71,39 @@ fun PrivacyAndSecurityScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            SettingsGroupTitle("Discovery")
+            SettingsGroupTitle("การค้นหา")
 
             SettingsActionItem(
                 icon = Icons.Rounded.Visibility,
-                title = "Device Visibility",
+                title = "การมองเห็นอุปกรณ์",
                 subtitle = visibility.description,
                 value = visibility.label,
                 onClick = { showVisibilityDialog = true }
             )
 
-            SettingsGroupTitle("Connection")
+            SettingsGroupTitle("การเชื่อมต่อ")
 
             SettingsSwitchItem(
                 icon = Icons.Rounded.VerifiedUser,
-                title = "Auto-accept Trusted",
-                subtitle = "Receive files from trusted devices automatically",
+                title = "รับอัตโนมัติจากอุปกรณ์ที่เชื่อถือ",
+                subtitle = "รับไฟล์จากอุปกรณ์ที่เชื่อถือโดยอัตโนมัติ",
                 checked = autoAcceptTrusted,
                 onCheckedChange = { autoAcceptTrusted = it }
             )
 
             SettingsActionItem(
                 icon = Icons.Rounded.Devices,
-                title = "Trusted Devices",
-                subtitle = "Manage allowed devices",
+                title = "อุปกรณ์ที่เชื่อถือ",
+                subtitle = "จัดการอุปกรณ์ที่ได้รับอนุญาต",
                 onClick = onTrustDeviceClick
             )
 
-            SettingsGroupTitle("Data")
+            SettingsGroupTitle("ข้อมูล")
 
             SettingsSwitchItem(
                 icon = Icons.Rounded.Analytics,
-                title = "Share Usage Data",
-                subtitle = "Help improve NekoShare by sending anonymous data",
+                title = "แชร์ข้อมูลการใช้งาน",
+                subtitle = "ช่วยพัฒนา NekoShare โดยส่งข้อมูลแบบไม่ระบุตัวตน",
                 checked = shareUsageData,
                 onCheckedChange = { shareUsageData = it }
             )
@@ -112,7 +112,7 @@ fun PrivacyAndSecurityScreen(
 
     if (showVisibilityDialog) {
         SettingsDialog(
-            title = "Who can see you?",
+            title = "ใครมองเห็นคุณได้บ้าง?",
             options = DeviceVisibility.entries,
             currentOption = visibility,
             onDismiss = { showVisibilityDialog = false },

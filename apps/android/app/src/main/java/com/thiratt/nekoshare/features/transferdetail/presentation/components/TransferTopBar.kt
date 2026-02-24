@@ -55,7 +55,7 @@ fun TransferTopBar(
         modifier = modifier,
         title = {
             Column {
-                val titleText = if (layoutMode == LayoutMode.Grid) "All Files" else fileName
+                val titleText = if (layoutMode == LayoutMode.Grid) "ไฟล์ทั้งหมด" else fileName
                 Text(
                     text = titleText,
                     maxLines = 1,
@@ -63,7 +63,7 @@ fun TransferTopBar(
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    text = "From $senderName",
+                    text = "จาก $senderName",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -71,7 +71,7 @@ fun TransferTopBar(
         },
         navigationIcon = {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, "ย้อนกลับ")
             }
         },
         actions = {
@@ -81,12 +81,12 @@ fun TransferTopBar(
                 } else {
                     Icons.Rounded.GridOn
                 }
-                Icon(icon, "Toggle Layout")
+                Icon(icon, "สลับเลย์เอาต์")
             }
 
             Box {
                 IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Rounded.MoreVert, "Options")
+                    Icon(Icons.Rounded.MoreVert, "ตัวเลือก")
                 }
 
                 NekoDropdownMenu(
@@ -96,23 +96,23 @@ fun TransferTopBar(
                     if (layoutMode == LayoutMode.Preview) {
                         if (isImage) {
                             NekoDropdownMenuItem(
-                                text = "Copy Photo",
+                                text = "คัดลอกรูปภาพ",
                                 icon = Icons.Rounded.ContentCopy,
                                 onClick = { /* Copy Logic */ showMenu = false }
                             )
                         }
                         NekoDropdownMenuItem(
-                            text = "Open with",
+                            text = "เปิดด้วย",
                             icon = Icons.AutoMirrored.Rounded.OpenInNew,
                             onClick = { /* Open Logic */ showMenu = false }
                         )
                         NekoDropdownMenuItem(
-                            text = "Share",
+                            text = "แชร์",
                             icon = Icons.Rounded.Share,
                             onClick = { /* Share Logic */ showMenu = false }
                         )
                         NekoDropdownMenuItem(
-                            text = "Details",
+                            text = "รายละเอียด",
                             icon = Icons.Rounded.Info,
                             onClick = { showMenu = false; onShowDetails() }
                         )
@@ -121,7 +121,7 @@ fun TransferTopBar(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         NekoDropdownMenuItem(
-                            text = "Delete File",
+                            text = "ลบไฟล์",
                             icon = Icons.Rounded.Delete,
                             onClick = { showMenu = false; onDelete() },
                             isDestructive = true
@@ -129,7 +129,7 @@ fun TransferTopBar(
 
                     } else {
                         NekoDropdownMenuItem(
-                            text = "Select",
+                            text = "เลือก",
                             icon = Icons.Rounded.CheckCircleOutline,
                             onClick = {
                                 showMenu = false
@@ -138,7 +138,7 @@ fun TransferTopBar(
                         )
 
                         NekoDropdownMenuItem(
-                            text = "Share All",
+                            text = "แชร์ทั้งหมด",
                             icon = Icons.Rounded.Share,
                             onClick = {
                                 showMenu = false
@@ -152,7 +152,7 @@ fun TransferTopBar(
                         )
 
                         NekoDropdownMenuItem(
-                            text = "Delete Transfer",
+                            text = "ลบการโอน",
                             icon = Icons.Rounded.DeleteForever,
                             onClick = {
                                 showMenu = false

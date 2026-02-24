@@ -88,17 +88,17 @@ fun DeviceDetailSheet(
         InfoRow(
             icon = Icons.Outlined.LocationOn,
             title = device.location,
-            subtitle = "Location"
+            subtitle = "ตำแหน่ง"
         )
         InfoRow(
             icon = Icons.Outlined.Dns,
             title = device.ipAddress,
-            subtitle = "IP Address"
+            subtitle = "ที่อยู่ IP"
         )
         InfoRow(
             icon = Icons.Outlined.Schedule,
             title = device.lastSeen,
-            subtitle = if(device.status == DeviceStatus.Current) "Status" else "Last Seen"
+            subtitle = if(device.status == DeviceStatus.Current) "สถานะ" else "เห็นล่าสุด"
         )
 
         Spacer(modifier = Modifier.height(18.dp))
@@ -117,7 +117,7 @@ fun DeviceDetailSheet(
                 .height(50.dp)
         ) {
             Text(
-                text = if (isCurrentDevice) "Close" else "Terminate Session",
+                text = if (isCurrentDevice) "ปิด" else "ลบอุปกรณ์นี้",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -164,7 +164,7 @@ fun InfoRow(
 @Preview(showBackground = true)
 @Composable
 fun DeviceDetailSheetPreview() {
-    val deviceItem = DeviceItem("2", "Kenneth's PC", "NekoShare Desktop", "2.1.0", DeviceType.Windows, DeviceStatus.Online, "10.237.215.68", "Bangkok, Thailand", "Online")
+    val deviceItem = DeviceItem("2", "Kenneth's PC", "NekoShare Desktop", "2.1.0", DeviceType.Windows, DeviceStatus.Online, "10.237.215.68", "Bangkok, Thailand", "ออนไลน์")
     val sheetState = rememberModalBottomSheetState()
 
     NekoShareTheme {

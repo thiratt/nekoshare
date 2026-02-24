@@ -31,13 +31,13 @@ fun FileDetailsContent(file: File) {
             .padding(horizontal = 24.dp)
             .padding(top = 16.dp)
     ) {
-        Text("Details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("รายละเอียด", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(24.dp))
 
-        DetailRow(Icons.Rounded.Description, "Name", file.name)
-        DetailRow(Icons.Rounded.Folder, "Path", file.parent ?: "Unknown")
-        DetailRow(Icons.Rounded.AudioFile, "Type", file.extension.uppercase())
-        DetailRow(Icons.Rounded.Storage, "Size", "${file.length() / 1024} KB")
+        DetailRow(Icons.Rounded.Description, "ชื่อ", file.name)
+        DetailRow(Icons.Rounded.Folder, "ตำแหน่ง", file.parent ?: "ไม่ทราบ")
+        DetailRow(Icons.Rounded.AudioFile, "ประเภท", file.extension.uppercase())
+        DetailRow(Icons.Rounded.Storage, "ขนาด", "${file.length() / 1024} KB")
     }
 }
 

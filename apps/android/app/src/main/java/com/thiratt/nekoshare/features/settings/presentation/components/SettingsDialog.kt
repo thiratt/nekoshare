@@ -124,7 +124,7 @@ fun SelectionDialogItem(
         if (isSelected) {
             Icon(
                 imageVector = Icons.Rounded.Check,
-                contentDescription = "Selected",
+                contentDescription = "เลือกแล้ว",
                 tint = textColor,
                 modifier = Modifier.size(24.dp)
             )
@@ -137,9 +137,9 @@ fun SelectionDialogItem(
 fun SettingsDialogSimplePreview() {
     NekoShareTheme {
         SettingsDialog(
-            title = "Font Size",
-            options = listOf("Small", "Medium", "Large", "Extra Large"),
-            currentOption = "Medium",
+            title = "ขนาดตัวอักษร",
+            options = listOf("เล็ก", "ปานกลาง", "ใหญ่", "ใหญ่มาก"),
+            currentOption = "ปานกลาง",
             onOptionSelected = {},
             onDismiss = {},
             labelProvider = { it }
@@ -154,16 +154,16 @@ enum class MockTheme { Light, Dark, System }
 fun SettingsDialogRichPreview() {
     NekoShareTheme {
         SettingsDialog(
-            title = "Color Mode",
+            title = "โหมดสี",
             options = MockTheme.entries,
             currentOption = MockTheme.Light,
             onOptionSelected = {},
             onDismiss = {},
             labelProvider = { theme ->
                 when (theme) {
-                    MockTheme.Light -> "Light"
-                    MockTheme.Dark -> "Dark"
-                    MockTheme.System -> "System Default"
+                    MockTheme.Light -> "สว่าง"
+                    MockTheme.Dark -> "มืด"
+                    MockTheme.System -> "ตามระบบ"
                 }
             },
             iconProvider = { theme ->

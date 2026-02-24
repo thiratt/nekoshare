@@ -89,7 +89,7 @@ fun SettingsScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { SettingsTopAppBar("Settings", onBackClick) },
+        topBar = { SettingsTopAppBar("ตั้งค่า", onBackClick) },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
@@ -101,44 +101,44 @@ fun SettingsScreen(
         ) {
             ProfileHeaderSection(onEditProfileClick)
 
-            SettingsGroupTitle("General")
+            SettingsGroupTitle("ทั่วไป")
 
             SettingsItem(
                 icon = Icons.Rounded.Accessibility,
-                title = "Accessibility",
-                subtitle = "Display, interaction & language",
+                title = "การช่วยการเข้าถึง",
+                subtitle = "การแสดงผล การโต้ตอบ และภาษา",
                 onClick = onAccessibilityClick
             )
 
             SettingsItem(
                 icon = Icons.Rounded.Notifications,
-                title = "Notifications",
-                subtitle = "Transfers, requests, sound & vibration",
+                title = "การแจ้งเตือน",
+                subtitle = "การโอน คำขอ เสียง และการสั่น",
                 onClick = onNotificationsClick
             )
 
-            SettingsGroupTitle("Privacy & Data")
+            SettingsGroupTitle("ความเป็นส่วนตัวและข้อมูล")
 
             SettingsItem(
                 icon = Icons.Rounded.Security,
-                title = "Privacy & Security",
-                subtitle = "Visibility, security & permissions",
+                title = "ความเป็นส่วนตัวและความปลอดภัย",
+                subtitle = "การมองเห็น ความปลอดภัย และสิทธิ์",
                 onClick = onPrivacyAndSecurityClick
             )
 
             SettingsItem(
                 icon = Icons.Rounded.Storage,
-                title = "Storage & Data",
-                subtitle = "Manage downloads & clear cache",
+                title = "พื้นที่จัดเก็บและข้อมูล",
+                subtitle = "จัดการดาวน์โหลดและล้างแคช",
                 onClick = onStorageAndDataClick
             )
 
-            SettingsGroupTitle("Support")
+            SettingsGroupTitle("สนับสนุน")
 
             SettingsItem(
                 icon = Icons.Rounded.Info,
-                title = "About NekoShare",
-                subtitle = "Version 0.0.1 (Build 2026)",
+                title = "เกี่ยวกับ NekoShare",
+                subtitle = "เวอร์ชัน 0.0.1 (บิลด์ 2026)",
                 onClick = onAboutClick
             )
 
@@ -151,8 +151,8 @@ fun SettingsScreen(
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text(text = "Log out") },
-            text = { Text(text = "Are you sure you want to log out from NekoShare?") },
+            title = { Text(text = "ออกจากระบบ") },
+            text = { Text(text = "คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ NekoShare?") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -161,7 +161,7 @@ fun SettingsScreen(
                     }
                 ) {
                     Text(
-                        "Log out",
+                        "ออกจากระบบ",
                         color = MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Bold
                     )
@@ -169,7 +169,7 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("ยกเลิก", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -197,7 +197,7 @@ fun ProfileHeaderSection(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "AL",
+                text = "TR",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 fontWeight = FontWeight.Bold
@@ -207,12 +207,12 @@ fun ProfileHeaderSection(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Alice N.",
+            text = "Thiratt",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "alice@nekoshare.com",
+            text = "thiratcha7@gmail.com",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -227,7 +227,7 @@ fun ProfileHeaderSection(
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Text(
-                text = "Edit Profile",
+                text = "แก้ไขโปรไฟล์",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold
@@ -274,7 +274,7 @@ fun LogoutButton(onClick: () -> Unit) {
         Spacer(modifier = Modifier.width(16.dp))
 
         Text(
-            text = "Log out",
+            text = "ออกจากระบบ",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.error,
             fontWeight = FontWeight.Bold

@@ -100,7 +100,7 @@ fun SignupScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "ย้อนกลับ"
                         )
                     }
                 },
@@ -124,14 +124,14 @@ fun SignupScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Create Account",
+                text = "สร้างบัญชี",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Sign up now and start sharing files seamlessly.",
+                text = "สมัครตอนนี้และเริ่มแชร์ไฟล์ได้อย่างลื่นไหล",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -141,10 +141,10 @@ fun SignupScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 NekoTextField(
-                    label = "Full Name",
+                    label = "ชื่อที่ใช้แสดง",
                     value = name,
                     onValueChange = { name = it },
-                    placeholder = "e.g. Thiratt",
+                    placeholder = "เช่น Home PC",
                     leadingIcon = {
                         Icon(Icons.Rounded.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
@@ -155,7 +155,7 @@ fun SignupScreen(
                 )
 
                 NekoTextField(
-                    label = "Email Address",
+                    label = "อีเมล",
                     value = email,
                     onValueChange = { email = it },
                     placeholder = "hello@example.com",
@@ -169,10 +169,10 @@ fun SignupScreen(
                 )
 
                 NekoTextField(
-                    label = "Password",
+                    label = "รหัสผ่าน",
                     value = password,
                     onValueChange = { password = it },
-                    placeholder = "Create a password",
+                    placeholder = "ตั้งรหัสผ่าน",
                     leadingIcon = {
                         Icon(Icons.Rounded.Lock, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
@@ -193,16 +193,16 @@ fun SignupScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             val termsText = buildAnnotatedString {
-                append("By signing up, you agree to the ")
+                append("เมื่อสมัครใช้งาน คุณยอมรับ ")
                 withLink(LinkAnnotation.Clickable("terms", linkInteractionListener = { })) {
                     withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
-                        append("Terms of Service")
+                        append("ข้อกำหนดการใช้งาน")
                     }
                 }
-                append(" and ")
+                append(" และ ")
                 withLink(LinkAnnotation.Clickable("privacy", linkInteractionListener = { })) {
                     withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
-                        append("Privacy Policy")
+                        append("นโยบายความเป็นส่วนตัว")
                     }
                 }
                 append(".")
@@ -219,7 +219,7 @@ fun SignupScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             NekoButton(
-                text = "Create Account",
+                text = "สร้างบัญชี",
                 onClick = onCreateAccountClick,
                 fullWidth = true,
                 enabled = name.isNotEmpty() && email.isNotEmpty() && password.isNotEmpty()
@@ -233,7 +233,7 @@ fun SignupScreen(
             ) {
                 HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
                 Text(
-                    text = "Or sign up with",
+                    text = "หรือสมัครด้วย",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp)
@@ -255,7 +255,7 @@ fun SignupScreen(
 
             Row {
                 Text(
-                    "Already have an account?",
+                    "มีบัญชีอยู่แล้ว?",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -263,7 +263,7 @@ fun SignupScreen(
                         .padding(vertical = 4.dp)
                 )
                 Text(
-                    "Login",
+                    "เข้าสู่ระบบ",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,

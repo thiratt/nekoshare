@@ -67,7 +67,7 @@ import com.thiratt.nekoshare.core.navigation.TransferItem as TransferItemRoute
 fun AppNavGraph(
     themeViewModel: ThemeViewModel
 ) {
-    val navigator = rememberSafeNavigator(HomeRoot)
+    val navigator = rememberSafeNavigator(Welcome)
     val backStack = navigator.backStack
 
     val enterTransition = (slideInHorizontally(tween(300)) { it / 2 } + fadeIn(tween(300)))

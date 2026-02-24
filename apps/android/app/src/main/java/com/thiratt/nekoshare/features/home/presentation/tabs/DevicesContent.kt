@@ -64,18 +64,18 @@ fun DevicesContent() {
         status = DeviceStatus.Current,
         ipAddress = "192.168.1.45",
         location = "Bangkok, Thailand",
-        lastSeen = "Online"
+        lastSeen = "ออนไลน์"
     )
 
     val otherDevices = listOf(
-        DeviceItem("2", "Kenneth's PC", "NekoShare Desktop", "2.1.0", DeviceType.Windows, DeviceStatus.Online, "10.237.215.68", "Bangkok, Thailand", "Online"),
-        DeviceItem("3", "iPad Air", "NekoShare iOS", "1.5.2", DeviceType.Website, DeviceStatus.Offline, "10.237.215.217", "Chiang Mai, Thailand", "Last seen 2 hours ago")
+        DeviceItem("2", "Kenneth's PC", "NekoShare Desktop", "2.1.0", DeviceType.Windows, DeviceStatus.Online, "10.237.215.68", "Bangkok, Thailand", "ออนไลน์"),
+        DeviceItem("3", "Chrome 142", "Chrome on Windows", "1.5.2", DeviceType.Website, DeviceStatus.Offline, "10.237.215.217", "Chiang Mai, Thailand", "เห็นล่าสุด 2 ชั่วโมงที่แล้ว")
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             item {
-                SectionHeader("This device")
+                SectionHeader("อุปกรณ์นี้")
                 DeviceListTile(
                     device = currentDevice,
                     onClick = { selectedDevice = currentDevice }
@@ -96,12 +96,12 @@ fun DevicesContent() {
                 ) {
                     Icon(Icons.Rounded.DeleteForever, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(32.dp))
-                    Text("Terminate all other sessions", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Medium)
+                    Text("ลบอุปกรณ์อื่นทั้งหมด", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Medium)
                 }
                 Box(modifier = Modifier.fillMaxWidth().height(12.dp).background(MaterialTheme.colorScheme.secondaryContainer))
             }
 
-            item { SectionHeader("Active sessions") }
+            item { SectionHeader("อุปกรณ์ที่ใช้งานอยู่") }
 
             items(otherDevices) { device ->
                 DeviceListTile(

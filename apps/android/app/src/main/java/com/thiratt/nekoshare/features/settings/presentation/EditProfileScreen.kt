@@ -51,9 +51,9 @@ sealed interface SettingsEditProfileNavEvent {
 fun EditProfileRoute(
     onNavigate: (SettingsEditProfileNavEvent) -> Unit
 ) {
-    var name by remember { mutableStateOf("Chanon N.") }
-    var email by remember { mutableStateOf("chanon@nekoshare.com") }
-    var bio by remember { mutableStateOf("Software Engineer @NekoShare") }
+    var name by remember { mutableStateOf("Thiratt") }
+    var email by remember { mutableStateOf("thiratcha7@gmail.com") }
+    var bio by remember { mutableStateOf("ชอบเขียนโค้ดและแมว 🐱") }
 
     EditProfileScreen(
         name = name,
@@ -82,9 +82,9 @@ fun EditProfileScreen(
     Scaffold(
         topBar = {
             SettingsTopAppBar(
-                title = "Edit Profile",
+                title = "แก้ไขโปรไฟล์",
                 onBackClick = onBackClick,
-                action = SettingsTopBarAction("Save", onSaveClick)
+                action = SettingsTopBarAction("บันทึก", onSaveClick)
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -110,7 +110,7 @@ fun EditProfileScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "CN",
+                        text = "TR",
                         style = MaterialTheme.typography.displaySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.Bold
@@ -128,7 +128,7 @@ fun EditProfileScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.CameraAlt,
-                        contentDescription = "Change photo",
+                        contentDescription = "เปลี่ยนรูปภาพ",
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(18.dp)
                     )
@@ -138,7 +138,7 @@ fun EditProfileScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             ProfileTextField(
-                label = "Full Name",
+                label = "ชื่อที่ใช้แสดง",
                 value = name,
                 onValueChange = onNameChange
             )
@@ -146,7 +146,7 @@ fun EditProfileScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             ProfileTextField(
-                label = "Email",
+                label = "อีเมล",
                 value = email,
                 onValueChange = onEmailChange,
                 keyboardType = KeyboardType.Email
@@ -155,7 +155,7 @@ fun EditProfileScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             ProfileTextField(
-                label = "Bio",
+                label = "ประวัติ",
                 value = bio,
                 onValueChange = onBioChange,
                 singleLine = false,
@@ -207,9 +207,9 @@ fun ProfileTextField(
 fun EditProfilePreview() {
     NekoShareTheme {
         EditProfileScreen(
-            name = "Chanon N.",
-            email = "chanon@nekoshare.com",
-            bio = "Love coding & cats 🐱",
+            name = "Thiratt",
+            email = "thiratcha7@gmail.com",
+            bio = "ชอบเขียนโค้ดและแมว 🐱",
             onNameChange = {},
             onEmailChange = {},
             onBioChange = {},

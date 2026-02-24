@@ -66,7 +66,7 @@ fun TransferHistoryCard(
     }
 
     val titleText = if (fileCount > 1) {
-        "Received $fileCount files"
+        "ได้รับไฟล์ $fileCount ไฟล์"
     } else {
         firstFile.name
     }
@@ -136,7 +136,7 @@ fun TransferHistoryCard(
                     Spacer(modifier = Modifier.height(2.dp))
 
                     Text(
-                        text = "From ${item.senderName}",
+                        text = "จาก ${item.senderName}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -150,7 +150,7 @@ fun TransferHistoryCard(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = "Options",
+                        contentDescription = "ตัวเลือก",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
