@@ -162,7 +162,7 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = 110.dp)
+                    .padding(end = 8.dp, bottom = 90.dp)
             ) {
                 HomeFloatingActionButton(
                     selectedIndex = uiState.selectedIndex,

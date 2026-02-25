@@ -15,6 +15,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Share
@@ -61,7 +62,8 @@ private fun FabItem(
         text = { Text(text) },
         icon = { Icon(icon, contentDescription = text) },
         onClick = onClick,
-        expanded = true
+        expanded = true,
+        modifier = Modifier.padding(12.dp)
     )
 }
 
