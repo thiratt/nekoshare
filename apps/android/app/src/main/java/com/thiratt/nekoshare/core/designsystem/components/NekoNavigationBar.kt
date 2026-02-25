@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -87,7 +86,7 @@ fun NekoNavigationBar(
                 .widthIn(max = 400.dp)
                 .fillMaxWidth()
                 .height(60.dp)
-                .shadow(8.dp, CircleShape)
+                .shadow(4.dp, CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
                 .padding(6.dp)
         ) {
@@ -188,7 +187,6 @@ fun NekoNavItem(
                 tint = iconColor,
                 modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = item.name,
                 style = MaterialTheme.typography.labelSmall,
