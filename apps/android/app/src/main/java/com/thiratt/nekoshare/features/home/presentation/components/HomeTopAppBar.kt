@@ -1,6 +1,7 @@
 package com.thiratt.nekoshare.features.home.presentation.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,14 +29,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -49,12 +55,32 @@ fun HomeTopAppBar(
     searchQuery: String,
     title: String,
     focusRequester: FocusRequester,
+    scrollBehavior: TopAppBarScrollBehavior,
     focusManager: FocusManager = LocalFocusManager.current,
     onSearchQueryChange: (String) -> Unit,
     onSearchActiveChange: (Boolean) -> Unit,
     onNotificationsClick: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
+    val rawFraction = scrollBehavior.state.collapsedFraction
+    val collapsedFraction = if (rawFraction.isNaN()) 0f else rawFraction.coerceIn(0f, 1f)
+    val bgColor = MaterialTheme.colorScheme.background
+
+    val topAlpha = 0.88f - (0.06f * collapsedFraction)
+    val midAlpha = 0.75f - (0.25f * collapsedFraction)
+    val fadeStartPosition = 0.65f - (0.20f * collapsedFraction)
+
+    val topBarBrush = Brush.verticalGradient(
+        0.0f to bgColor.copy(alpha = topAlpha),
+        fadeStartPosition to bgColor.copy(alpha = midAlpha),
+        1.0f to Color.Transparent
+    )
+    val titleScale by animateFloatAsState(
+        targetValue = if (isSearchActive) 0.9f else 1f,
+        animationSpec = tween(durationMillis = 220),
+        label = "TopBarTitleScale"
+    )
+
     AnimatedContent(
         targetState = isSearchActive,
         transitionSpec = {
@@ -70,6 +96,7 @@ fun HomeTopAppBar(
     ) { active ->
         if (active) {
             TopAppBar(
+                modifier = Modifier.background(bgColor),
                 title = {
                     BasicTextField(
                         value = searchQuery,
@@ -90,7 +117,9 @@ fun HomeTopAppBar(
                                 if (searchQuery.isEmpty()) {
                                     Text(
                                         "ค้นหา...",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                            alpha = 0.6f
+                                        ),
                                         fontSize = 18.sp
                                     )
                                 }
@@ -113,14 +142,23 @@ fun HomeTopAppBar(
                         }
                     }
                 },
+                scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = bgColor,
+                    scrolledContainerColor = bgColor
                 )
             )
         } else {
             TopAppBar(
+                modifier = Modifier.background(topBarBrush),
                 title = {
-                    Text(text = title)
+                    Text(
+                        text = title,
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = titleScale
+                            scaleY = titleScale
+                        }
+                    )
                 },
                 actions = {
                     IconButton(onClick = { onSearchActiveChange(true) }) {
@@ -146,8 +184,10 @@ fun HomeTopAppBar(
                         }
                     }
                 },
+                scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.onBackground,
                     actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -155,3 +195,4 @@ fun HomeTopAppBar(
         }
     }
 }
+

@@ -10,8 +10,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -20,14 +18,14 @@ import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.SupervisorAccount
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,7 +40,6 @@ import com.thiratt.nekoshare.core.designsystem.model.NekoNavigationBarItem
 import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.home.model.DeviceItem
 import com.thiratt.nekoshare.features.home.presentation.components.HomeFloatingActionButton
-import com.thiratt.nekoshare.features.home.presentation.components.HomeTopAppBar
 import com.thiratt.nekoshare.features.home.presentation.components.ShareActionSheet
 import com.thiratt.nekoshare.features.home.presentation.tabs.DevicesContent
 import com.thiratt.nekoshare.features.home.presentation.tabs.FriendsContent
@@ -94,71 +91,64 @@ fun HomeScreen(
     onDeviceSelected: (DeviceItem) -> Unit,
     onTransferItemClick: (transferId: String) -> Unit
 ) {
-    var isSearchActive by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
+    var tabSearchStates by remember {
+        mutableStateOf(List(HOME_TAB_COUNT) { TabSearchState() })
+    }
 
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+    val selectedIndex = uiState.selectedIndex.coerceIn(0, tabSearchStates.lastIndex)
+    val currentSearchState = tabSearchStates[selectedIndex]
+    val isSearchActive = currentSearchState.isActive
+    val searchQuery = currentSearchState.query
+
+    fun updateCurrentTabSearchState(
+        update: (TabSearchState) -> TabSearchState
+    ) {
+        tabSearchStates = tabSearchStates.toMutableList().apply {
+            this[selectedIndex] = update(this[selectedIndex])
+        }
+    }
 
     BackHandler(enabled = isSearchActive) {
-        isSearchActive = false
-        searchQuery = ""
+        updateCurrentTabSearchState { TabSearchState() }
         focusManager.clearFocus()
     }
 
-    LaunchedEffect(isSearchActive) {
+    LaunchedEffect(selectedIndex, isSearchActive) {
         if (isSearchActive) focusRequester.requestFocus()
     }
 
-    Scaffold(
-        topBar = {
-            val currentTitle =
-                uiState.bottomNavItems.getOrNull(uiState.selectedIndex)?.name ?: "NekoShare"
-            HomeTopAppBar(
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            HomeTabsContent(
+                selectedIndex = uiState.selectedIndex,
+                onTransferItemClick = onTransferItemClick,
+                onManageFriends = onManageFriends,
                 isSearchActive = isSearchActive,
                 searchQuery = searchQuery,
-                title = currentTitle,
                 focusRequester = focusRequester,
-                onSearchQueryChange = { searchQuery = it },
+                onSearchQueryChange = { query ->
+                    updateCurrentTabSearchState { current ->
+                        current.copy(query = query)
+                    }
+                },
                 onSearchActiveChange = { active ->
-                    isSearchActive = active
+                    updateCurrentTabSearchState { current ->
+                        if (active) current.copy(isActive = true) else TabSearchState()
+                    }
                     if (!active) {
-                        searchQuery = ""
                         focusManager.clearFocus()
                     }
                 },
                 onNotificationsClick = onNotificationsClick,
                 onSettingsClick = onSettingsClick
             )
-        },
-        floatingActionButton = {
-            Box(modifier = Modifier.padding(bottom = 90.dp)) {
-                HomeFloatingActionButton(
-                    selectedIndex = uiState.selectedIndex,
-                    onShareClick = onShareClick,
-                    onAddFriends = onAddFriends
-                )
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0)
-    ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = innerPadding.calculateTopPadding())
-            ) {
-                if (isSearchActive && searchQuery.isNotEmpty()) {
-                    HomeSearchResults(searchQuery)
-                } else {
-                    HomeTabsContent(
-                        selectedIndex = uiState.selectedIndex,
-                        onTransferItemClick = onTransferItemClick,
-                        onManageFriends = onManageFriends
-                    )
-                }
-            }
 
             if (uiState.isShareSheetOpen) {
                 ShareActionSheet(
@@ -166,6 +156,18 @@ fun HomeScreen(
                     onDeviceSelected = onDeviceSelected,
                     onFileSelect = { /* Open File Picker */ },
                     onPhotoSelect = { /* Open Gallery */ }
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = 110.dp)
+            ) {
+                HomeFloatingActionButton(
+                    selectedIndex = uiState.selectedIndex,
+                    onShareClick = onShareClick,
+                    onAddFriends = onAddFriends
                 )
             }
 
@@ -179,28 +181,67 @@ fun HomeScreen(
     }
 }
 
-@Composable
-private fun HomeSearchResults(query: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("กำลังค้นหา: $query", color = MaterialTheme.colorScheme.onBackground)
-    }
-}
+private data class TabSearchState(
+    val isActive: Boolean = false,
+    val query: String = ""
+)
+
+private const val HOME_TAB_COUNT = 3
 
 @Composable
 private fun HomeTabsContent(
     selectedIndex: Int,
     onTransferItemClick: (String) -> Unit,
-    onManageFriends: () -> Unit
+    onManageFriends: () -> Unit,
+    isSearchActive: Boolean,
+    searchQuery: String,
+    focusRequester: FocusRequester,
+    onSearchQueryChange: (String) -> Unit,
+    onSearchActiveChange: (Boolean) -> Unit,
+    onNotificationsClick: () -> Unit,
+    onSettingsClick: () -> Unit
 ) {
+    val saveableStateHolder = rememberSaveableStateHolder()
+
     AnimatedContent(
         targetState = selectedIndex,
         transitionSpec = { getTabTransitionSpec() },
         label = "BottomNavAnimation"
     ) { targetIndex ->
-        when (targetIndex) {
-            0 -> HomeContent(onTransferItemClick)
-            1 -> FriendsContent(onManageFriends)
-            2 -> DevicesContent()
+        saveableStateHolder.SaveableStateProvider(targetIndex) {
+            when (targetIndex) {
+                0 -> HomeContent(
+                    onTransferItemClick = onTransferItemClick,
+                    isSearchActive = isSearchActive,
+                    searchQuery = searchQuery,
+                    focusRequester = focusRequester,
+                    onSearchQueryChange = onSearchQueryChange,
+                    onSearchActiveChange = onSearchActiveChange,
+                    onNotificationsClick = onNotificationsClick,
+                    onSettingsClick = onSettingsClick
+                )
+
+                1 -> FriendsContent(
+                    onManageFriends = onManageFriends,
+                    isSearchActive = isSearchActive,
+                    searchQuery = searchQuery,
+                    focusRequester = focusRequester,
+                    onSearchQueryChange = onSearchQueryChange,
+                    onSearchActiveChange = onSearchActiveChange,
+                    onNotificationsClick = onNotificationsClick,
+                    onSettingsClick = onSettingsClick
+                )
+
+                2 -> DevicesContent(
+                    isSearchActive = isSearchActive,
+                    searchQuery = searchQuery,
+                    focusRequester = focusRequester,
+                    onSearchQueryChange = onSearchQueryChange,
+                    onSearchActiveChange = onSearchActiveChange,
+                    onNotificationsClick = onNotificationsClick,
+                    onSettingsClick = onSettingsClick
+                )
+            }
         }
     }
 }
@@ -221,7 +262,7 @@ private fun AnimatedContentTransitionScope<Int>.getTabTransitionSpec() = run {
 @Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
-    NekoShareTheme(true) {
+    NekoShareTheme {
         HomeScreen(
             uiState = HomeUiState(
                 bottomNavItems = listOf(
