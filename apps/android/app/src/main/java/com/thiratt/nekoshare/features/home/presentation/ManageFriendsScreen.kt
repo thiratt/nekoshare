@@ -30,7 +30,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -45,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.thiratt.nekoshare.core.designsystem.components.rememberNekoBottomSheetState
 import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.home.model.Friend
 import com.thiratt.nekoshare.features.home.model.FriendStatus
@@ -100,7 +100,7 @@ fun ManageFriendsScreen(
     var friendToConfirm by remember { mutableStateOf<Pair<Friend, String>?>(null) }
     var selectedFriendForSheet by remember { mutableStateOf<Friend?>(null) }
 
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberNekoBottomSheetState()
     val scope = rememberCoroutineScope()
 
     Scaffold(

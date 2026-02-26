@@ -31,7 +31,6 @@ import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,6 +56,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import com.thiratt.nekoshare.constants.TransferRepository
+import com.thiratt.nekoshare.core.designsystem.components.rememberNekoBottomSheetState
 import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.home.model.TransferDirection
 import com.thiratt.nekoshare.features.home.model.TransferHistoryItem
@@ -87,7 +87,7 @@ fun HomeContent(
     contentPadding: Dp = 0.dp
 ) {
     var selectedItem by remember { mutableStateOf<TransferHistoryItem?>(null) }
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberNekoBottomSheetState()
     val scope = rememberCoroutineScope()
     val gridState = rememberLazyGridState(
         initialFirstVisibleItemIndex = initialFirstVisibleItemIndex,

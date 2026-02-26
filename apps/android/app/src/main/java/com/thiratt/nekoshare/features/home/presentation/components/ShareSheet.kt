@@ -40,7 +40,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
@@ -59,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.thiratt.nekoshare.core.designsystem.components.NekoModalBottomSheet
+import com.thiratt.nekoshare.core.designsystem.components.rememberNekoBottomSheetState
 import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.home.model.DeviceItem
 import com.thiratt.nekoshare.features.home.model.DeviceStatus
@@ -76,7 +76,7 @@ fun ShareActionSheet(
     onFileSelect: () -> Unit,
     onPhotoSelect: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberNekoBottomSheetState(skipPartiallyExpanded = true)
     val selectedFiles = remember { mutableStateListOf<SelectedFile>() }
     val scope = rememberCoroutineScope()
 

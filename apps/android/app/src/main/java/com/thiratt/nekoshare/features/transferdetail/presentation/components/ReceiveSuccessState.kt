@@ -11,7 +11,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.thiratt.nekoshare.core.designsystem.components.NekoModalBottomSheet
+import com.thiratt.nekoshare.core.designsystem.components.rememberNekoBottomSheetState
 import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.transferdetail.model.FileType
 import com.thiratt.nekoshare.features.transferdetail.model.LayoutMode
@@ -48,7 +48,7 @@ fun ReceiveSuccessState(
 
     val pagerState = rememberPagerState(pageCount = { item.files.size })
     val scope = rememberCoroutineScope()
-    val detailSheetState = rememberModalBottomSheetState()
+    val detailSheetState = rememberNekoBottomSheetState()
 
     var requestedPage by rememberSaveable { mutableStateOf<Int?>(null) }
     var layoutMode by rememberSaveable { mutableStateOf(initialLayoutMode) }

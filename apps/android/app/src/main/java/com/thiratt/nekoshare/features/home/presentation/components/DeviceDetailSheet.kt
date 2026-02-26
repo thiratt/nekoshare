@@ -23,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.thiratt.nekoshare.core.designsystem.components.NekoModalBottomSheet
+import com.thiratt.nekoshare.core.designsystem.components.rememberNekoBottomSheetState
 import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.home.model.DeviceItem
 import com.thiratt.nekoshare.features.home.model.DeviceStatus
@@ -165,7 +165,7 @@ fun InfoRow(
 @Composable
 fun DeviceDetailSheetPreview() {
     val deviceItem = DeviceItem("2", "Kenneth's PC", "NekoShare Desktop", "2.1.0", DeviceType.Windows, DeviceStatus.Online, "10.237.215.68", "Bangkok, Thailand", "ออนไลน์")
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberNekoBottomSheetState()
 
     NekoShareTheme {
         DeviceDetailSheet(
