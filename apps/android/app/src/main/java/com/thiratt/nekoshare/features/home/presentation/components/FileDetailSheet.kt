@@ -48,7 +48,9 @@ import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.home.model.FileType
 import com.thiratt.nekoshare.features.home.model.ReceivedFileDetail
 import com.thiratt.nekoshare.features.home.model.TargetType
+import com.thiratt.nekoshare.features.home.model.TransferDirection
 import com.thiratt.nekoshare.features.home.model.TransferHistoryItem
+import com.thiratt.nekoshare.features.home.model.TransferStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,12 +66,12 @@ fun FileDetailSheet(
 ) {
     val fileCount = item.files.size
     val isMultiple = fileCount > 1
-    val firstFile = item.files.first()
+    val firstFile = item.files.firstOrNull()
 
     val (headerIcon, iconTint) = if (isMultiple) {
         Icons.Rounded.FolderZip to Color(0xFFFFC107)
     } else {
-        when (firstFile.type) {
+        when (firstFile?.type) {
             FileType.Audio -> Icons.Rounded.Audiotrack to Color(0xFF7B1FA2)
             FileType.Archive -> Icons.Rounded.Archive to Color(0xFFF57C00)
             FileType.Document -> Icons.Rounded.Description to Color(0xFF1976D2)
@@ -79,11 +81,11 @@ fun FileDetailSheet(
         }
     }
 
-    val title = if (isMultiple) "ได้รับไฟล์ $fileCount ไฟล์" else firstFile.name
-    val subtitle = if (isMultiple) {
-        "จาก ${item.senderName}"
-    } else {
-        "${firstFile.size} • จาก ${item.senderName}"
+    val title = buildDetailTitle(item, fileCount)
+    val subtitle = when {
+        isMultiple -> buildDetailSubtitle(item)
+        firstFile != null -> "${firstFile.size} • ${buildDetailSubtitle(item)}"
+        else -> buildDetailSubtitle(item)
     }
 
     NekoModalBottomSheet(sheetState, onDismissRequest) {
@@ -179,18 +181,57 @@ fun ActionItem(
         headlineContent = {
             Text(
                 text = label,
-                color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                color = if (isDestructive) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                }
             )
         },
         leadingContent = {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                tint = if (isDestructive) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
         },
         modifier = Modifier.clickable(onClick = onClick)
     )
+}
+
+private fun buildDetailTitle(item: TransferHistoryItem, fileCount: Int): String {
+    val action = when (item.direction) {
+        TransferDirection.Outgoing -> {
+            when (item.status) {
+                TransferStatus.Transferring -> "กำลังส่ง"
+                TransferStatus.Success -> "ส่งไฟล์"
+                TransferStatus.Failed -> "ส่งไม่สำเร็จ"
+            }
+        }
+
+        TransferDirection.Incoming -> {
+            when (item.status) {
+                TransferStatus.Transferring -> "กำลังรับ"
+                TransferStatus.Success -> "ได้รับไฟล์"
+                TransferStatus.Failed -> "รับไม่สำเร็จ"
+            }
+        }
+    }
+
+    return "$action $fileCount ไฟล์"
+}
+
+private fun buildDetailSubtitle(item: TransferHistoryItem): String {
+    val relationText = if (item.direction == TransferDirection.Outgoing) {
+        "ไปยัง"
+    } else {
+        "จาก"
+    }
+    return "$relationText ${item.senderName}"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -213,7 +254,7 @@ fun FileDetailSheetPreview() {
         FileDetailSheet(
             item = groupItem,
             sheetState = sheetState,
-            onDismissRequest = {},
+            onDismissRequest = {}
         )
     }
 }

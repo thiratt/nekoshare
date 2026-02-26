@@ -41,7 +41,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.thiratt.nekoshare.features.home.model.FileType
 import com.thiratt.nekoshare.features.home.model.TargetType
+import com.thiratt.nekoshare.features.home.model.TransferDirection
 import com.thiratt.nekoshare.features.home.model.TransferHistoryItem
+import com.thiratt.nekoshare.features.home.model.TransferStatus
 
 @Composable
 fun TransferHistoryCard(
@@ -50,12 +52,12 @@ fun TransferHistoryCard(
     onMoreClick: () -> Unit
 ) {
     val fileCount = item.files.size
-    val firstFile = item.files.first()
+    val firstFile = item.files.firstOrNull()
 
     val (mainIcon, iconColor) = if (fileCount > 1) {
         Icons.Rounded.FolderZip to Color(0xFFFFC107)
     } else {
-        when (firstFile.type) {
+        when (firstFile?.type) {
             FileType.Audio -> Icons.Rounded.Audiotrack to Color(0xFF7B1FA2)
             FileType.Archive -> Icons.Rounded.Archive to Color(0xFFF57C00)
             FileType.Document -> Icons.Rounded.Description to Color(0xFF1976D2)
@@ -65,11 +67,8 @@ fun TransferHistoryCard(
         }
     }
 
-    val titleText = if (fileCount > 1) {
-        "ได้รับไฟล์ $fileCount ไฟล์"
-    } else {
-        firstFile.name
-    }
+    val titleText = buildTransferTitle(item, fileCount)
+    val subtitleText = buildTransferSubtitle(item)
 
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
@@ -108,7 +107,11 @@ fun TransferHistoryCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (item.targetType == TargetType.Device) Icons.Rounded.Computer else Icons.Rounded.Person,
+                        imageVector = if (item.targetType == TargetType.Device) {
+                            Icons.Rounded.Computer
+                        } else {
+                            Icons.Rounded.Person
+                        },
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -136,7 +139,7 @@ fun TransferHistoryCard(
                     Spacer(modifier = Modifier.height(2.dp))
 
                     Text(
-                        text = "จาก ${item.senderName}",
+                        text = subtitleText,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -157,4 +160,35 @@ fun TransferHistoryCard(
             }
         }
     }
+}
+
+private fun buildTransferTitle(item: TransferHistoryItem, fileCount: Int): String {
+    val action = when (item.direction) {
+        TransferDirection.Outgoing -> {
+            when (item.status) {
+                TransferStatus.Transferring -> "กำลังส่ง"
+                TransferStatus.Success -> "ส่งไฟล์"
+                TransferStatus.Failed -> "ส่งไม่สำเร็จ"
+            }
+        }
+
+        TransferDirection.Incoming -> {
+            when (item.status) {
+                TransferStatus.Transferring -> "กำลังรับ"
+                TransferStatus.Success -> "ได้รับไฟล์"
+                TransferStatus.Failed -> "รับไม่สำเร็จ"
+            }
+        }
+    }
+
+    return "$action $fileCount ไฟล์"
+}
+
+private fun buildTransferSubtitle(item: TransferHistoryItem): String {
+    val relationText = if (item.direction == TransferDirection.Outgoing) {
+        "ไปยัง"
+    } else {
+        "จาก"
+    }
+    return "$relationText ${item.senderName}"
 }
