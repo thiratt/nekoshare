@@ -57,6 +57,7 @@ fun HomeTopAppBar(
     focusRequester: FocusRequester,
     scrollBehavior: TopAppBarScrollBehavior,
     focusManager: FocusManager = LocalFocusManager.current,
+    customBackgroundBrush: Brush? = null,
     onSearchQueryChange: (String) -> Unit,
     onSearchActiveChange: (Boolean) -> Unit,
     onNotificationsClick: () -> Unit,
@@ -70,11 +71,14 @@ fun HomeTopAppBar(
     val midAlpha = 0.75f - (0.25f * collapsedFraction)
     val fadeStartPosition = 0.65f - (0.20f * collapsedFraction)
 
-    val topBarBrush = Brush.verticalGradient(
+    val defaultBrush = Brush.verticalGradient(
         0.0f to bgColor.copy(alpha = topAlpha),
         fadeStartPosition to bgColor.copy(alpha = midAlpha),
         1.0f to Color.Transparent
     )
+
+    val topBarBrush = customBackgroundBrush ?: defaultBrush
+
     val titleScale by animateFloatAsState(
         targetValue = if (isSearchActive) 0.9f else 1f,
         animationSpec = tween(durationMillis = 220),
@@ -195,4 +199,3 @@ fun HomeTopAppBar(
         }
     }
 }
-

@@ -73,7 +73,9 @@ fun HomeRoute(
         onTransferItemClick = { transferId ->
             onNavigate(HomeNavEvent.TransferItem(transferId))
         },
-        onBottomNavSelected = viewModel::onBottomNavSelected
+        onBottomNavSelected = viewModel::onBottomNavSelected,
+        onHomeFilterSelected = viewModel::onHomeFilterSelected,
+        onHomeScrollPositionChanged = viewModel::onHomeScrollPositionChanged
     )
 }
 
@@ -89,7 +91,9 @@ fun HomeScreen(
     onBottomNavSelected: (Int) -> Unit,
     onDismissShareSheet: () -> Unit,
     onDeviceSelected: (DeviceItem) -> Unit,
-    onTransferItemClick: (transferId: String) -> Unit
+    onTransferItemClick: (transferId: String) -> Unit,
+    onHomeFilterSelected: (String) -> Unit,
+    onHomeScrollPositionChanged: (Int, Int) -> Unit
 ) {
     var tabSearchStates by remember {
         mutableStateOf(List(HOME_TAB_COUNT) { TabSearchState() })
@@ -128,6 +132,7 @@ fun HomeScreen(
         ) {
             HomeTabsContent(
                 selectedIndex = uiState.selectedIndex,
+                homeTabState = uiState.homeTabState,
                 onTransferItemClick = onTransferItemClick,
                 onManageFriends = onManageFriends,
                 isSearchActive = isSearchActive,
@@ -147,7 +152,9 @@ fun HomeScreen(
                     }
                 },
                 onNotificationsClick = onNotificationsClick,
-                onSettingsClick = onSettingsClick
+                onSettingsClick = onSettingsClick,
+                onHomeFilterSelected = onHomeFilterSelected,
+                onHomeScrollPositionChanged = onHomeScrollPositionChanged
             )
 
             if (uiState.isShareSheetOpen) {
@@ -191,6 +198,7 @@ private const val HOME_TAB_COUNT = 3
 @Composable
 private fun HomeTabsContent(
     selectedIndex: Int,
+    homeTabState: HomeTabState,
     onTransferItemClick: (String) -> Unit,
     onManageFriends: () -> Unit,
     isSearchActive: Boolean,
@@ -199,7 +207,9 @@ private fun HomeTabsContent(
     onSearchQueryChange: (String) -> Unit,
     onSearchActiveChange: (Boolean) -> Unit,
     onNotificationsClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onHomeFilterSelected: (String) -> Unit,
+    onHomeScrollPositionChanged: (Int, Int) -> Unit
 ) {
     val saveableStateHolder = rememberSaveableStateHolder()
 
@@ -214,11 +224,16 @@ private fun HomeTabsContent(
                     onTransferItemClick = onTransferItemClick,
                     isSearchActive = isSearchActive,
                     searchQuery = searchQuery,
+                    selectedFilter = homeTabState.selectedFilter,
+                    initialFirstVisibleItemIndex = homeTabState.firstVisibleItemIndex,
+                    initialFirstVisibleItemScrollOffset = homeTabState.firstVisibleItemScrollOffset,
                     focusRequester = focusRequester,
                     onSearchQueryChange = onSearchQueryChange,
                     onSearchActiveChange = onSearchActiveChange,
                     onNotificationsClick = onNotificationsClick,
-                    onSettingsClick = onSettingsClick
+                    onSettingsClick = onSettingsClick,
+                    onFilterSelected = onHomeFilterSelected,
+                    onScrollPositionChange = onHomeScrollPositionChanged
                 )
 
                 1 -> FriendsContent(
@@ -280,7 +295,9 @@ fun HomeScreenPreview() {
             onBottomNavSelected = {},
             onDismissShareSheet = {},
             onDeviceSelected = {},
-            onTransferItemClick = {}
+            onTransferItemClick = {},
+            onHomeFilterSelected = {},
+            onHomeScrollPositionChanged = { _, _ -> }
         )
     }
 }

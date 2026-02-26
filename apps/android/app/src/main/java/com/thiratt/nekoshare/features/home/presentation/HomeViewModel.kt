@@ -35,4 +35,36 @@ class HomeViewModel : ViewModel() {
     fun toggleShareSheet(isOpen: Boolean) {
         _uiState.update { it.copy(isShareSheetOpen = isOpen) }
     }
+
+    fun onHomeFilterSelected(filter: String) {
+        _uiState.update { current ->
+            if (current.homeTabState.selectedFilter == filter) {
+                current
+            } else {
+                current.copy(homeTabState = current.homeTabState.copy(selectedFilter = filter))
+            }
+        }
+    }
+
+    fun onHomeScrollPositionChanged(
+        firstVisibleItemIndex: Int,
+        firstVisibleItemScrollOffset: Int
+    ) {
+        _uiState.update { current ->
+            val currentState = current.homeTabState
+            if (
+                currentState.firstVisibleItemIndex == firstVisibleItemIndex &&
+                currentState.firstVisibleItemScrollOffset == firstVisibleItemScrollOffset
+            ) {
+                current
+            } else {
+                current.copy(
+                    homeTabState = currentState.copy(
+                        firstVisibleItemIndex = firstVisibleItemIndex,
+                        firstVisibleItemScrollOffset = firstVisibleItemScrollOffset
+                    )
+                )
+            }
+        }
+    }
 }
