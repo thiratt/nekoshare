@@ -28,16 +28,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.transferdetail.model.FileType
 import com.thiratt.nekoshare.features.transferdetail.model.getFileType
 import java.io.File
 
 @Composable
-fun GridPage(
+fun FileGridPage(
     files: List<File>,
     onItemClick: (Int) -> Unit
 ) {
@@ -48,18 +50,25 @@ fun GridPage(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        itemsIndexed(files) { index, file ->
-            GridItem(file = file, onClick = { onItemClick(index) })
+        itemsIndexed(
+            items = files,
+            key = { _, file -> file.path }
+        ) { index, file ->
+            GridFileItem(
+                file = file,
+                onClick = { onItemClick(index) }
+            )
         }
     }
 }
 
 @Composable
-fun GridItem(file: File, onClick: () -> Unit) {
+private fun GridFileItem(
+    file: File,
+    onClick: () -> Unit
+) {
     val fileType = remember(file) { getFileType(file) }
     val isImage = fileType == FileType.Image
-
-    val mockImageUrl = "https://github.com/thiratt.png"
 
     Box(
         modifier = Modifier
@@ -72,10 +81,10 @@ fun GridItem(file: File, onClick: () -> Unit) {
         if (isImage) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(mockImageUrl)
+                    .data(MOCK_PREVIEW_IMAGE_URL)
                     .crossfade(true)
                     .build(),
-                contentDescription = null,
+                contentDescription = "ตัวอย่างไฟล์",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -117,5 +126,21 @@ fun GridItem(file: File, onClick: () -> Unit) {
                 modifier = Modifier.align(Alignment.CenterStart)
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun FileGridPagePreview() {
+    NekoShareTheme {
+        FileGridPage(
+            files = listOf(
+                File("IMG_2026_0001.jpg"),
+                File("meeting-notes.pdf"),
+                File("build-output.zip"),
+                File("screen-recording.mp4")
+            ),
+            onItemClick = {}
+        )
     }
 }

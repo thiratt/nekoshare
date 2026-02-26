@@ -57,10 +57,11 @@ import com.thiratt.nekoshare.features.settings.presentation.SettingsStorageAndDa
 import com.thiratt.nekoshare.features.settings.presentation.StorageAndDataRoute
 import com.thiratt.nekoshare.features.transferdetail.model.LayoutMode
 import com.thiratt.nekoshare.features.transferdetail.model.TransferDetailNavEvent
+import com.thiratt.nekoshare.features.transferdetail.model.TransferDirection
 import com.thiratt.nekoshare.features.transferdetail.model.TransferItem
 import com.thiratt.nekoshare.features.transferdetail.model.TransferStatus
+import com.thiratt.nekoshare.features.transferdetail.model.toDetailItem
 import com.thiratt.nekoshare.features.transferdetail.presentation.TransferDetailRoute
-import java.io.File
 import com.thiratt.nekoshare.core.navigation.TransferItem as TransferItemRoute
 
 @Composable
@@ -165,22 +166,20 @@ fun homeNav(key: Any, navigator: SafeNavigator): NavEntry<Any>? {
 
             val historyItem = remember(transferId) {
                 TransferRepository.getTransferById(transferId)
-                    ?: TransferRepository.mockTransfers.first()
             }
 
-            val item = remember(historyItem) {
-                TransferItem(
-                    id = historyItem.id,
-                    senderName = historyItem.senderName,
-                    status = TransferStatus.Completed,
-                    files = historyItem.files.map { fileDetail ->
-                        File(fileDetail.name)
-                    }
+            val item = remember(historyItem, transferId) {
+                historyItem?.toDetailItem() ?: TransferItem(
+                    id = transferId,
+                    senderName = "Unknown device",
+                    status = TransferStatus.Failed,
+                    direction = TransferDirection.Sending,
+                    files = emptyList()
                 )
             }
 
             val initialMode =
-                if (historyItem.files.size > 1) LayoutMode.Grid else LayoutMode.Preview
+                if ((historyItem?.files?.size ?: 0) > 1) LayoutMode.Grid else LayoutMode.Preview
 
             TransferDetailRoute(
                 item = item,
