@@ -1,11 +1,11 @@
 import type { ServerType } from "@hono/node-server";
 import type { Server as NetServer } from "net";
 
-import { createApp, shutdownApp } from "./app";
-import { Logger, LogLevel } from "./core/logger";
+import { createApp, shutdownApp } from "@/app/create-app";
 import { env } from "./config/env";
-import { createTCPSocketInstance } from "./core/socket/tcp";
-import { initializeDatabase } from "./adapters/db";
+import { initializeDatabase } from "./infrastructure/db";
+import { Logger, LogLevel } from "./infrastructure/logger";
+import { createTCPSocketInstance } from "./infrastructure/socket/transport/tcp";
 
 let httpServer: ServerType | null = null;
 let socketServer: NetServer | null = null;
@@ -16,7 +16,7 @@ async function startServers(): Promise<void> {
 			Logger.setLevel(LogLevel.DEBUG);
 		}
 
-		Logger.info("Main", "Checking database connection and tables...");
+		Logger.info("Main", "Checking database connection and schema...");
 		await initializeDatabase();
 
 		Logger.info("Main", "Starting HTTP server...");
@@ -25,29 +25,41 @@ async function startServers(): Promise<void> {
 		Logger.info("Main", "Starting TCP socket server...");
 		socketServer = await createTCPSocketInstance();
 	} catch (error) {
-		console.error("Failed to start servers:", error);
+		Logger.error("Main", "Failed to start servers", error);
 		process.exit(1);
 	}
 }
 
+function closeSocketServer(server: NetServer): Promise<void> {
+	return new Promise((resolve, reject) => {
+		server.close((err) => {
+			if (err) {
+				reject(err);
+				return;
+			}
+			resolve();
+		});
+	});
+}
+
 async function shutdown(signal: string): Promise<void> {
-	console.log(`\n${signal} received. Shutting down servers...`);
+	Logger.info("Main", `${signal} received. Shutting down servers...`);
 
 	try {
 		if (httpServer) {
 			await shutdownApp(httpServer);
-			console.log("HTTP server stopped");
+			Logger.info("Main", "HTTP server stopped");
 		}
 
 		if (socketServer) {
-			socketServer.close();
-			console.log("TCP socket server stopped");
+			await closeSocketServer(socketServer);
+			Logger.info("Main", "TCP socket server stopped");
 		}
 
-		console.log("All servers stopped gracefully");
+		Logger.info("Main", "All servers stopped gracefully");
 		process.exit(0);
 	} catch (error) {
-		console.error("Error during shutdown:", error);
+		Logger.error("Main", "Error during shutdown", error);
 		process.exit(1);
 	}
 }

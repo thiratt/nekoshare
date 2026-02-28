@@ -1,0 +1,13 @@
+{
+	"name": "@workspace/contracts",
+	"version": "0.0.0",
+	"type": "module",
+	"private": true,
+	"exports": {
+		".": "./src/index.ts",
+		"./api": "./src/api/index.ts",
+		"./api/*": "./src/api/*.ts",
+		"./ws": "./src/ws/index.ts",
+		"./ws/*": "./src/ws/*.ts"
+	}
+}
