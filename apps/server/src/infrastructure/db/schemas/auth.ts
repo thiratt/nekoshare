@@ -1,7 +1,7 @@
 import { relations } from "drizzle-orm";
-import { mysqlTable, varchar, text, timestamp, boolean, index, mysqlEnum } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, text, timestamp, boolean, mysqlEnum, index } from "drizzle-orm/mysql-core";
 
-const user = mysqlTable("user", {
+export const users = mysqlTable("users", {
 	id: varchar("id", { length: 36 }).primaryKey(),
 	name: varchar("name", { length: 255 }).notNull(),
 	email: varchar("email", { length: 255 }).notNull().unique(),
@@ -12,15 +12,14 @@ const user = mysqlTable("user", {
 		.defaultNow()
 		.$onUpdate(() => /* @__PURE__ */ new Date())
 		.notNull(),
-	lastActiveAt: timestamp("last_active_at", { fsp: 3 }).defaultNow().notNull(),
 	username: varchar("username", { length: 255 }).unique(),
 	displayUsername: text("display_username"),
 	role: mysqlEnum(["admin", "user"]).default("user").notNull(),
-	isBanned: boolean("is_banned").default(false).notNull(),
+	lastActiveAt: timestamp("last_active_at", { fsp: 3 }).defaultNow().notNull(),
 });
 
-const session = mysqlTable(
-	"session",
+export const sessions = mysqlTable(
+	"sessions",
 	{
 		id: varchar("id", { length: 36 }).primaryKey(),
 		expiresAt: timestamp("expires_at", { fsp: 3 }).notNull(),
@@ -33,37 +32,37 @@ const session = mysqlTable(
 		userAgent: text("user_agent"),
 		userId: varchar("user_id", { length: 36 })
 			.notNull()
-			.references(() => user.id, { onDelete: "cascade" }),
+			.references(() => users.id, { onDelete: "cascade" }),
 	},
-	(table) => [index("session_userId_idx").on(table.userId)],
+	(table) => [index("sessions_userId_idx").on(table.userId)],
 );
 
-const account = mysqlTable(
-	"account",
+export const accounts = mysqlTable(
+	"accounts",
 	{
 		id: varchar("id", { length: 36 }).primaryKey(),
 		accountId: text("account_id").notNull(),
 		providerId: text("provider_id").notNull(),
 		userId: varchar("user_id", { length: 36 })
 			.notNull()
-			.references(() => user.id, { onDelete: "cascade" }),
-		// accessToken: text("access_token"),
-		// refreshToken: text("refresh_token"),
-		// idToken: text("id_token"),
-		// accessTokenExpiresAt: timestamp("access_token_expires_at", { fsp: 3 }),
-		// refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { fsp: 3 }),
-		// scope: text("scope"),
-		password: text("password"),
+			.references(() => users.id, { onDelete: "cascade" }),
+		accessToken: text("access_token"),
+		refreshToken: text("refresh_token"),
+		idToken: text("id_token"),
+		accessTokenExpiresAt: timestamp("access_token_expires_at", { fsp: 3 }),
+		refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { fsp: 3 }),
+		scope: text("scope"),
+		password_hash: text("password_hash"),
 		createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
 		updatedAt: timestamp("updated_at", { fsp: 3 })
 			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
 	},
-	(table) => [index("account_userId_idx").on(table.userId)],
+	(table) => [index("accounts_userId_idx").on(table.userId)],
 );
 
-const verification = mysqlTable(
-	"verification",
+export const verifications = mysqlTable(
+	"verifications",
 	{
 		id: varchar("id", { length: 36 }).primaryKey(),
 		identifier: varchar("identifier", { length: 255 }).notNull(),
@@ -75,21 +74,24 @@ const verification = mysqlTable(
 			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
 	},
-	(table) => [index("verification_identifier_idx").on(table.identifier)],
+	(table) => [index("verifications_identifier_idx").on(table.identifier)],
 );
 
-const sessionRelations = relations(session, ({ one }) => ({
-	user: one(user, {
-		fields: [session.userId],
-		references: [user.id],
+export const usersRelations = relations(users, ({ many }) => ({
+	sessions: many(sessions),
+	accounts: many(accounts),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+	users: one(users, {
+		fields: [sessions.userId],
+		references: [users.id],
 	}),
 }));
 
-const accountRelations = relations(account, ({ one }) => ({
-	user: one(user, {
-		fields: [account.userId],
-		references: [user.id],
+export const accountsRelations = relations(accounts, ({ one }) => ({
+	users: one(users, {
+		fields: [accounts.userId],
+		references: [users.id],
 	}),
 }));
-
-export { user, session, account, verification, sessionRelations, accountRelations };

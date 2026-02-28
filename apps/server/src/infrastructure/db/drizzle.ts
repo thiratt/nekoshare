@@ -1,10 +1,11 @@
-import { drizzle } from "drizzle-orm/mysql2";
 import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
+
 import { env } from "@/config/env";
-import * as schema from "@/adapters/db/schemas";
-import { Logger } from "@/core/logger";
-import { execSync } from "child_process";
+import { Logger } from "@/infrastructure/logger";
+
+import * as schema from "./schemas";
 
 const poolConnection = mysql.createPool({
 	host: env.DB_HOST,
@@ -14,7 +15,7 @@ const poolConnection = mysql.createPool({
 	port: env.DB_PORT,
 });
 
-const db = drizzle(poolConnection, { schema: schema, mode: "default" });
+const db = drizzle(poolConnection, { schema, mode: "default" });
 
 async function checkDatabaseConnection(): Promise<boolean> {
 	try {
@@ -35,36 +36,29 @@ async function getExistingTables(): Promise<string[]> {
 async function ensureTablesExist(): Promise<void> {
 	const existingTables = await getExistingTables();
 	const requiredTables = [
-		"user",
-		"session",
-		"account",
-		"verification",
-		"user_preference",
-		"device",
-		"friend",
-		"flash_share",
-		"transfer_history",
-		"notification",
+		"users",
+		"sessions",
+		"accounts",
+		"verifications",
+		"user_settings",
+		"devices",
+		"friends",
+		"public_share",
+		"public_share_files",
+		"transfer_metrics",
+		"notifications",
 	];
 
-	if (existingTables.length === requiredTables.length) {
+	const missingTables = requiredTables.filter((tableName) => !existingTables.includes(tableName));
+	if (missingTables.length === 0) {
 		Logger.info("Database", "All required tables exist");
 		return;
 	}
 
-	Logger.info("Database", "Creating missing tables...");
-
-	try {
-		const output = execSync("pnpm drizzle-kit push --force", {
-			encoding: "utf-8",
-			stdio: ["pipe", "pipe", "pipe"],
-		});
-		Logger.debug("Database", `Database push output:\n${output}`);
-		Logger.info("Database", "All tables created successfully");
-	} catch (error) {
-		Logger.error("Database", "Failed to create tables", error);
-		throw error;
-	}
+	const commandHint = "pnpm -C apps/server drizzle-kit push";
+	throw new Error(
+		`Missing required database tables: ${missingTables.join(", ")}. Run '${commandHint}' before starting the server.`,
+	);
 }
 
 async function initializeDatabase(): Promise<void> {
