@@ -24,8 +24,6 @@ function toRegistrationPayload(
     id: deviceInfo.id,
     name: deviceInfo.name,
     platform: deviceInfo.platform,
-    battery: deviceInfo.battery,
-    ip: deviceInfo.ip,
     fingerprint: deviceInfo.fingerprint,
   };
 }

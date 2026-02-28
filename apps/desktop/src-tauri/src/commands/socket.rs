@@ -585,13 +585,14 @@ pub async fn socket_server_start(
     }
 
     let device_manager = GlobalState::get::<DeviceManager>();
-    let ip = device_manager
+    let address = device_manager
         .info()
         .map_err(|e| {
             SocketCommandError::ServerError(format!("Failed to get device info: {:#}", e))
         })?
         .device_info
-        .ip;
+        .ip
+        .ipv4;
 
     let port = manager
         .start_server(sender_fingerprint)
@@ -600,7 +601,7 @@ pub async fn socket_server_start(
 
     Ok(ServerStartResponse {
         port,
-        address: ip.ipv4,
+        address,
         message: format!("Server listening on port {}", port),
     })
 }

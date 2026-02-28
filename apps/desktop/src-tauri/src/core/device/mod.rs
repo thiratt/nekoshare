@@ -35,7 +35,7 @@ impl DeviceManager {
 
         let device_info = device_info_manager.info();
         let key_der = key_manager
-            .get_or_create(device_info.ip.ipv4.clone())
+            .get_or_create(device_info.id.clone())
             .context("Failed to get or create TLS certificates")?;
 
         Ok(Self {

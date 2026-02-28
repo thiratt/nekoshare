@@ -212,7 +212,7 @@ function RouteComponent() {
         "socket_server_has_active_connection",
       );
 
-      let address = currentDevice.ip.ipv4;
+      let address = "0.0.0.0";
       let port = 0;
       let reuse = false;
 
@@ -270,7 +270,6 @@ function RouteComponent() {
         receiverDeviceId,
         receiverFingerprint,
       } = message.data;
-
       await invoke("socket_client_connect_to", {
         deviceId: user.deviceId,
         receiverId: receiverDeviceId,
@@ -323,27 +322,9 @@ function RouteComponent() {
 
   useSocketInterval(async () => {
     try {
-      if (!currentDevice) {
-        console.error("No current device info available for heartbeat");
-        return;
-      }
-
-      const payload = {
-        battery: {
-          supported: currentDevice.battery.supported,
-          charging: currentDevice.battery.charging,
-          percent: Math.round(currentDevice.battery.percent),
-        },
-        ip: {
-          ipv4: currentDevice.ip.ipv4,
-          ipv6: currentDevice.ip.ipv6 ?? null,
-        },
-      };
-      send(PacketType.SYSTEM_HEARTBEAT, (w) =>
-        w.writeString(JSON.stringify(payload)),
-      );
+      send(PacketType.SYSTEM_HEARTBEAT);
     } catch (error) {
-      console.error("Failed to send heartbeat with device info:", error);
+      console.error("Failed to send heartbeat:", error);
       send(PacketType.SYSTEM_HEARTBEAT);
     }
   }, 7000);

@@ -9,8 +9,6 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card";
 
-import { DesktopTitlebar } from "./navbar";
-
 export function ErrorComponent({
   error,
   reset,
@@ -22,7 +20,9 @@ export function ErrorComponent({
 
   return (
     <div className="bg-background flex h-screen w-full flex-col">
-      <DesktopTitlebar />
+      <div className="flex h-11 items-center border-b-2 bg-primary px-3 dark:bg-background">
+        <h1 className="font-semibold text-background dark:text-foreground">Nekoshare Desktop</h1>
+      </div>
       <div className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="flex flex-col items-center pb-2 text-center">
