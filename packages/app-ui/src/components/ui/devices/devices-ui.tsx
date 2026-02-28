@@ -32,8 +32,7 @@ export function DevicesUI() {
 		return devices.filter(
 			(device) =>
 				device.name.toLowerCase().includes(normalizedQuery) ||
-				device.os.toLowerCase().includes(normalizedQuery) ||
-				device.ip.toLowerCase().includes(normalizedQuery)
+				device.os.toLowerCase().includes(normalizedQuery)
 		);
 	}, [devices, deferredQuery]);
 

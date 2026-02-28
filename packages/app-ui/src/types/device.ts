@@ -1,74 +1,41 @@
-export const OS_TYPES = ["windows", "android", "web", "other"] as const;
-export type Os = (typeof OS_TYPES)[number];
+import type {
+	Device as SharedDevice,
+	DeviceListResponse as SharedDeviceListResponse,
+	DeviceRegistrationPayload as SharedDeviceRegistrationPayload,
+	DeviceRegistrationResponse as SharedDeviceRegistrationResponse,
+	Os,
+	Platform as SharedPlatform,
+} from "@workspace/contracts/api";
+
+export const OS_TYPES = ["windows", "android", "web", "other"] as const satisfies readonly Os[];
+export type { Os };
 
 export const DEVICE_STATUSES = ["online", "offline"] as const;
 export type DeviceStatus = (typeof DEVICE_STATUSES)[number];
 
-export interface ApiPlatform {
-	os: Os;
-	version: string;
-	long_version: string;
-}
+export type ApiPlatform = SharedPlatform;
 
-export interface ApiIp {
-	ipv4: string;
-	ipv6?: string;
-	is_tailscale: boolean;
-}
+export type ApiDevice = SharedDevice;
 
-export interface ApiBatteryInfo {
-	supported: boolean;
-	charging: boolean;
-	percent: number;
-}
+export type ApiDeviceListResponse = SharedDeviceListResponse;
 
-export interface ApiDevice {
-	id: string;
-	deviceIdentifier: string;
-	name: string;
-	platform: ApiPlatform;
-	ip: ApiIp;
-	battery: ApiBatteryInfo;
-	lastActiveAt: Date;
-}
+export type ApiDeviceRegistrationPayload = SharedDeviceRegistrationPayload;
 
-export interface ApiDeviceListResponse {
-	devices: ApiDevice[];
-	total: number;
-}
-
-export interface ApiDeviceRegistrationPayload {
-	id: string;
-	name: string;
-	platform: ApiPlatform;
-	ip: ApiIp;
-	battery: ApiBatteryInfo;
-	fingerprint?: string;
-}
-
-export interface ApiDeviceRegistrationResponse {
-	device: ApiDevice;
-	isNew: boolean;
-}
+export type ApiDeviceRegistrationResponse = SharedDeviceRegistrationResponse;
 
 export interface LocalDeviceInfo {
 	id: string;
 	name: string;
 	platform: ApiPlatform;
-	ip: ApiIp;
-	battery: ApiBatteryInfo;
 	fingerprint?: string;
 }
 
 export interface UiDevice {
 	id: string;
-	deviceIdentifier?: string;
+	fingerprint?: string;
 	name: string;
 	platform: Os;
 	os: string;
-	ip: string;
-	isTailscale: boolean;
-	battery: ApiBatteryInfo;
 	isCurrent: boolean;
 	status: DeviceStatus;
 	lastSeen: string;

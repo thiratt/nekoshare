@@ -1,16 +1,6 @@
-import { memo, useMemo } from "react";
+﻿import { memo, useMemo } from "react";
 
-import {
-	LuBatteryCharging,
-	LuBatteryFull,
-	LuBatteryLow,
-	LuBatteryMedium,
-	LuCircle,
-	LuCopy,
-	LuSettings,
-	LuTrash2,
-	LuUserCheck,
-} from "react-icons/lu";
+import { LuCircle, LuCopy, LuSettings, LuTrash2, LuUserCheck } from "react-icons/lu";
 
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
@@ -19,7 +9,7 @@ import { cn } from "@workspace/ui/lib/utils";
 
 import type { DeviceStatus, Os, UiDevice } from "@workspace/app-ui/types/device";
 
-import { BATTERY_THRESHOLDS, capitalize, PLATFORM_ICONS, STATUS_CONFIG } from "./constants";
+import { capitalize, PLATFORM_ICONS, STATUS_CONFIG } from "./constants";
 
 interface DeviceIconProps {
 	platform: Os;
@@ -28,11 +18,6 @@ interface DeviceIconProps {
 
 interface DeviceStatusBadgeProps {
 	status: DeviceStatus;
-}
-
-interface DeviceBatteryIconProps {
-	charging: boolean;
-	percent: number;
 }
 
 interface DeviceCardProps {
@@ -56,15 +41,6 @@ export const DeviceStatusBadge = memo(function DeviceStatusBadge({ status }: Dev
 	);
 });
 
-export const DeviceBatteryIcon = memo(function DeviceBatteryIcon({ charging, percent }: DeviceBatteryIconProps) {
-	const className = "w-4 h-4";
-
-	if (charging) return <LuBatteryCharging className={className} />;
-	if (percent <= BATTERY_THRESHOLDS.LOW) return <LuBatteryLow className={className} />;
-	if (percent <= BATTERY_THRESHOLDS.MEDIUM) return <LuBatteryMedium className={className} />;
-	return <LuBatteryFull className={className} />;
-});
-
 export const DeviceCard = memo(function DeviceCard({ device, onManage, onDelete }: DeviceCardProps) {
 	const platformLabel = useMemo(() => capitalize(device.platform), [device.platform]);
 
@@ -82,42 +58,23 @@ export const DeviceCard = memo(function DeviceCard({ device, onManage, onDelete 
 							{device.isCurrent ? (
 								<Badge className="bg-amber-500 text-white dark:bg-amber-600" variant="secondary">
 									<LuUserCheck className="fill-current" />
-									เครื่องนี้
+									Current
 								</Badge>
 							) : (
 								<DeviceStatusBadge status={device.status} />
 							)}
-							{device.isTailscale && (
-								<Badge variant="secondary" className="bg-blue-500 text-white dark:bg-blue-600">
-									Tailscale
-								</Badge>
-							)}
 						</div>
 					</div>
 				</div>
-				{device.battery.supported && (
-					<div className="space-y-1">
-						<div className="flex items-center gap-1 text-muted-foreground justify-end">
-							<DeviceBatteryIcon charging={device.battery.charging} percent={device.battery.percent} />
-							<span>{device.battery.percent}%</span>
-						</div>
-					</div>
-				)}
 			</CardHeader>
 			<CardContent>
 				<div className="space-y-1 text-sm text-muted-foreground">
 					<div className="flex justify-between">
-						<span>ใช้งานล่าสุดเมื่อ</span>
+						<span>Last active</span>
 						<span>{device.lastSeen}</span>
 					</div>
 					<div className="flex justify-between">
-						<span>IP Address</span>
-						<span className="truncate ml-2 max-w-32" title={device.ip}>
-							{device.ip}
-						</span>
-					</div>
-					<div className="flex justify-between">
-						<span>ระบบปฏิบัติการ</span>
+						<span>Operating system</span>
 						<span className="truncate ml-2" title={device.os}>
 							{device.os}
 						</span>
@@ -128,12 +85,12 @@ export const DeviceCard = memo(function DeviceCard({ device, onManage, onDelete 
 				<div className="pt-2 border-t flex gap-2 w-full">
 					<Button className="flex-1" variant="outline" size="sm" onClick={() => onManage(device.id)}>
 						<LuSettings />
-						แก้ไข
+						Edit
 					</Button>
 					{!device.isCurrent && (
 						<Button variant="destructive" size="sm" onClick={() => onDelete(device.id)}>
 							<LuTrash2 />
-							ลบ
+							Delete
 						</Button>
 					)}
 				</div>
@@ -147,12 +104,12 @@ export const EmptyState = memo(function EmptyState() {
 		<div
 			className={cn(
 				"h-[calc(100vh-14rem)] flex flex-col items-center justify-center",
-				"border-2 border-dashed rounded-lg text-muted-foreground space-y-4"
+				"border-2 border-dashed rounded-lg text-muted-foreground space-y-4",
 			)}
 		>
 			<LuCopy className="w-8 h-8 mb-2" />
-			<p>ไม่พบอุปกรณ์</p>
-			<p className="text-xs text-center max-w-xs">เพิ่มอุปกรณ์ใหม่โดยการเข้าสู่ระบบจากอุปกรณ์อื่น</p>
+			<p>No devices found</p>
+			<p className="text-xs text-center max-w-xs">Sign in from another device to add it to this list.</p>
 		</div>
 	);
 });

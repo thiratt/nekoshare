@@ -1,43 +1,22 @@
-export type FriendStatus = "none" | "outgoing" | "incoming" | "friend" | "blocked";
+import type {
+	FriendActionResponse as SharedFriendActionResponse,
+	FriendItem as SharedFriendItem,
+	FriendListResponse as SharedFriendListResponse,
+	FriendStatus as SharedFriendStatus,
+	UserSearchResponse as SharedUserSearchResponse,
+	UserSearchResult as SharedUserSearchResult,
+} from "@workspace/contracts/api";
 
-export interface FriendItem {
-	id: string;
-	friendId: string;
-	name: string;
-	email: string;
-	avatarUrl?: string;
-	status: FriendStatus;
-	sharedCount: number;
-	lastActive: string;
-	createdAt: string;
-	isOnline?: boolean;
-}
-
-export interface FriendListResponse {
+export type FriendStatus = SharedFriendStatus;
+export type FriendItem = Omit<SharedFriendItem, "isOnline"> & { isOnline?: boolean };
+export type FriendListResponse = Omit<SharedFriendListResponse, "friends" | "incoming" | "outgoing"> & {
 	friends: FriendItem[];
 	incoming: FriendItem[];
 	outgoing: FriendItem[];
-	total: { friends: number; incoming: number; outgoing: number };
-}
-
-export interface UserSearchResult {
-	id: string;
-	name: string;
-	email: string;
-	avatarUrl?: string;
-	friendStatus: FriendStatus;
-}
-
-export interface UserSearchResponse {
-	users: UserSearchResult[];
-	total: number;
-}
-
-export interface FriendActionResponse {
-	success: boolean;
-	friendId: string;
-	status: FriendStatus;
-}
+};
+export type UserSearchResult = SharedUserSearchResult;
+export type UserSearchResponse = SharedUserSearchResponse;
+export type FriendActionResponse = SharedFriendActionResponse;
 
 // Legacy types for backward compatibility during migration
 export type FriendProps = FriendItem;

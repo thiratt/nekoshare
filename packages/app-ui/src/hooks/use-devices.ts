@@ -13,8 +13,8 @@ import { PacketType } from "@workspace/app-ui/lib/nk-socket/index";
 import type { UiDevice } from "@workspace/app-ui/types/device";
 import type { UseDevicesReturn } from "@workspace/app-ui/types/hooks";
 
-import { SocketDevicePresencePayload } from "../lib/nk-socket/payload";
 import { usePacketRouter } from "./usePacketRouter";
+import type { SocketDevicePresencePayload } from "../lib/nk-socket/payload";
 
 export const DeviceErrorCode = {
 	CANNOT_DELETE_CURRENT: "CANNOT_DELETE_CURRENT",
@@ -32,10 +32,20 @@ interface DevicesState {
 	error: string | null;
 }
 
-function isCurrentDevice(device: UiDevice, currentDeviceId: string | undefined): boolean {
-	if (!currentDeviceId) return false;
+function isCurrentDevice(
+	device: UiDevice,
+	currentDevice: { id?: string; fingerprint?: string } | undefined,
+): boolean {
+	if (!currentDevice) {
+		return false;
+	}
 
-	return device.id === currentDeviceId || device.deviceIdentifier === currentDeviceId;
+	return (
+		device.id === currentDevice.id ||
+		(!!device.fingerprint &&
+			!!currentDevice.fingerprint &&
+			device.fingerprint === currentDevice.fingerprint)
+	);
 }
 
 function sortDevices(devices: UiDevice[]): UiDevice[] {
@@ -50,31 +60,22 @@ function sortDevices(devices: UiDevice[]): UiDevice[] {
 	});
 }
 
-function findDeviceInMap(
-	deviceMap: Map<string, UiDevice>,
-	deviceId: string,
-	deviceIdentifier?: string,
-): UiDevice | undefined {
-	const byId = deviceMap.get(deviceId);
-	if (byId) return byId;
-
-	if (deviceIdentifier) {
-		for (const device of deviceMap.values()) {
-			if (device.deviceIdentifier === deviceIdentifier) {
-				return device;
-			}
-		}
-	}
-
-	return undefined;
+function findDeviceInMap(deviceMap: Map<string, UiDevice>, deviceId: string): UiDevice | undefined {
+	return deviceMap.get(deviceId);
 }
 
 export function useDevices(): UseDevicesReturn {
 	const { currentDevice: localDeviceInfo } = useNekoShare();
 	const { send } = useNekoSocket();
 
-	const currentDeviceIdRef = useRef<string | undefined>(localDeviceInfo?.id);
-	currentDeviceIdRef.current = localDeviceInfo?.id;
+	const currentDeviceRef = useRef<{ id?: string; fingerprint?: string } | undefined>({
+		id: localDeviceInfo?.id,
+		fingerprint: localDeviceInfo?.fingerprint,
+	});
+	currentDeviceRef.current = {
+		id: localDeviceInfo?.id,
+		fingerprint: localDeviceInfo?.fingerprint,
+	};
 
 	const [state, setState] = useState<DevicesState>({
 		deviceMap: new Map(),
@@ -123,7 +124,7 @@ export function useDevices(): UseDevicesReturn {
 		[PacketType.DEVICE_ADDED]: (result) => {
 			if (result.status === "success") {
 				const addedDevice = result.data;
-				const newDevice = transformApiDevice(addedDevice, currentDeviceIdRef.current);
+				const newDevice = transformApiDevice(addedDevice, currentDeviceRef.current);
 
 				setState((prev) => {
 					if (prev.deviceMap.has(newDevice.id)) {
@@ -143,7 +144,7 @@ export function useDevices(): UseDevicesReturn {
 			if (result.status === "success") {
 				const payload = result.data as SocketDevicePresencePayload;
 				setState((prev) => {
-					const device = findDeviceInMap(prev.deviceMap, payload.deviceId, payload.deviceIdentifier);
+					const device = findDeviceInMap(prev.deviceMap, payload.deviceId);
 
 					if (device && device.status !== "online") {
 						const newMap = new Map(prev.deviceMap);
@@ -161,7 +162,7 @@ export function useDevices(): UseDevicesReturn {
 			if (result.status === "success") {
 				const payload = result.data as SocketDevicePresencePayload;
 				setState((prev) => {
-					const device = findDeviceInMap(prev.deviceMap, payload.deviceId, payload.deviceIdentifier);
+					const device = findDeviceInMap(prev.deviceMap, payload.deviceId);
 
 					if (device && device.status !== "offline") {
 						const newMap = new Map(prev.deviceMap);
@@ -181,11 +182,14 @@ export function useDevices(): UseDevicesReturn {
 
 		const enrichedDevices = deviceArray.map((device) => ({
 			...device,
-			isCurrent: isCurrentDevice(device, localDeviceInfo?.id),
+			isCurrent: isCurrentDevice(device, {
+				id: localDeviceInfo?.id,
+				fingerprint: localDeviceInfo?.fingerprint,
+			}),
 		}));
 
 		return sortDevices(enrichedDevices);
-	}, [localDeviceInfo?.id, state.deviceMap]);
+	}, [localDeviceInfo?.fingerprint, localDeviceInfo?.id, state.deviceMap]);
 
 	const loadDevices = useCallback(
 		async (signal?: AbortSignal) => {
@@ -210,7 +214,10 @@ export function useDevices(): UseDevicesReturn {
 
 			const deviceMap = new Map<string, UiDevice>();
 			for (const apiDevice of result.data.devices) {
-				const uiDevice = transformApiDevice(apiDevice, localDeviceInfo?.id);
+				const uiDevice = transformApiDevice(apiDevice, {
+					id: localDeviceInfo?.id,
+					fingerprint: localDeviceInfo?.fingerprint,
+				});
 				deviceMap.set(uiDevice.id, uiDevice);
 			}
 
@@ -220,7 +227,7 @@ export function useDevices(): UseDevicesReturn {
 				error: null,
 			});
 		},
-		[localDeviceInfo?.id],
+		[localDeviceInfo?.fingerprint, localDeviceInfo?.id],
 	);
 
 	useEffect(() => {
@@ -274,7 +281,13 @@ export function useDevices(): UseDevicesReturn {
 		async (id: string): Promise<void> => {
 			const device = state.deviceMap.get(id);
 
-			if (device && isCurrentDevice(device, localDeviceInfo?.id)) {
+			if (
+				device &&
+				isCurrentDevice(device, {
+					id: localDeviceInfo?.id,
+					fingerprint: localDeviceInfo?.fingerprint,
+				})
+			) {
 				throw new AppError(
 					"Cannot delete the device you are currently using. Please log out from another device if you want to remove this one.",
 					"INTERNAL" as const,
@@ -283,7 +296,7 @@ export function useDevices(): UseDevicesReturn {
 				);
 			}
 
-			if (localDeviceInfo?.fingerprint && device?.deviceIdentifier === localDeviceInfo.fingerprint) {
+			if (localDeviceInfo?.fingerprint && device?.fingerprint === localDeviceInfo.fingerprint) {
 				throw new AppError(
 					"Cannot delete the device you are currently using.",
 					"INTERNAL" as const,

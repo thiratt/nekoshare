@@ -5,7 +5,8 @@ import { PacketType } from "@workspace/app-ui/lib/nk-socket/protocol";
 import { xfetchApi } from "@workspace/app-ui/lib/xfetch";
 import type { FriendItem, FriendListResponse, UserSearchResult } from "@workspace/app-ui/types/friends";
 
-import {
+import { usePacketRouter } from "./usePacketRouter";
+import type {
 	FriendPresencePayload,
 	FriendRemovedPayload,
 	FriendRequestAcceptedPayload,
@@ -13,7 +14,6 @@ import {
 	FriendRequestReceivedPayload,
 	FriendRequestRejectedPayload,
 } from "../lib/nk-socket/payload";
-import { usePacketRouter } from "./usePacketRouter";
 
 const FRIENDS_API_ENDPOINTS = {
 	LIST: "/friends",
@@ -45,7 +45,6 @@ function createFriendItem(
 		email: user.email,
 		avatarUrl: user.avatarUrl,
 		status,
-		sharedCount: 0,
 		lastActive: nowIso(),
 		createdAt,
 	};

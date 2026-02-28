@@ -24,6 +24,7 @@ const TIME_UNITS = {
 } as const;
 
 const ONLINE_THRESHOLD_MS = 1 * TIME_UNITS.MINUTE_MS;
+const KNOWN_PLATFORMS = new Set(["windows", "android", "web", "other"]);
 
 function formatLastSeen(date: Date | string | null | undefined): string {
 	if (!date) {
@@ -71,6 +72,21 @@ function capitalizeFirst(str: string): string {
 	return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+function normalizePlatform(input: unknown): UiDevice["platform"] {
+	if (typeof input === "string" && KNOWN_PLATFORMS.has(input)) {
+		return input as UiDevice["platform"];
+	}
+
+	if (typeof input === "object" && input !== null && "os" in input) {
+		const os = (input as { os?: unknown }).os;
+		if (typeof os === "string" && KNOWN_PLATFORMS.has(os)) {
+			return os as UiDevice["platform"];
+		}
+	}
+
+	return "other";
+}
+
 function isDeviceOnline(lastActiveAt: Date | string | null | undefined): boolean {
 	if (!lastActiveAt) return false;
 
@@ -82,47 +98,46 @@ function isDeviceOnline(lastActiveAt: Date | string | null | undefined): boolean
 	}
 }
 
-export function transformApiDevice(apiDevice: ApiDevice, currentDeviceId?: string): UiDevice {
-	const isCurrent = apiDevice.deviceIdentifier === currentDeviceId || apiDevice.id === currentDeviceId;
+export function transformApiDevice(
+	apiDevice: ApiDevice,
+	currentDevice?: { id?: string; fingerprint?: string },
+): UiDevice {
+	const isCurrent =
+		!!currentDevice &&
+		(apiDevice.id === currentDevice.id ||
+			(!!apiDevice.fingerprint && !!currentDevice.fingerprint && apiDevice.fingerprint === currentDevice.fingerprint));
 
-	const osDisplay = `${capitalizeFirst(apiDevice.platform.os)} ${apiDevice.platform.version}`;
-
-	const ipDisplay = apiDevice.ip.ipv6 ? `${apiDevice.ip.ipv4} / ${apiDevice.ip.ipv6}` : apiDevice.ip.ipv4;
+	const platform = normalizePlatform(apiDevice.platform);
+	const osDisplay = capitalizeFirst(platform);
 
 	const isOnline = isDeviceOnline(apiDevice.lastActiveAt);
 	const status: UiDevice["status"] = isCurrent || isOnline ? "online" : "offline";
 
 	return {
 		id: apiDevice.id,
-		deviceIdentifier: apiDevice.deviceIdentifier,
+		fingerprint: apiDevice.fingerprint,
 		name: apiDevice.name,
 		isCurrent,
-		platform: apiDevice.platform.os,
+		platform,
 		os: osDisplay,
-		ip: ipDisplay,
-		isTailscale: apiDevice.ip.is_tailscale,
 		status,
 		lastSeen: isCurrent ? "Now" : formatLastSeen(apiDevice.lastActiveAt),
-		battery: apiDevice.battery,
 	};
 }
 
 export function transformLocalDevice(localDevice: LocalDeviceInfo): UiDevice {
-	const osDisplay = `${capitalizeFirst(localDevice.platform.os)} ${localDevice.platform.version}`;
-
-	const ipDisplay = localDevice.ip.ipv6 ? `${localDevice.ip.ipv4} / ${localDevice.ip.ipv6}` : localDevice.ip.ipv4;
+	const platform = normalizePlatform(localDevice.platform);
+	const osDisplay = capitalizeFirst(platform);
 
 	return {
 		id: localDevice.id,
+		fingerprint: localDevice.fingerprint,
 		name: localDevice.name,
 		isCurrent: true,
-		platform: localDevice.platform.os,
+		platform,
 		os: osDisplay,
-		ip: ipDisplay,
-		isTailscale: localDevice.ip.is_tailscale,
 		status: "online",
 		lastSeen: "Now",
-		battery: localDevice.battery,
 	};
 }
 

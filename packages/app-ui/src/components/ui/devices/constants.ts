@@ -27,9 +27,5 @@ export const STATUS_CONFIG: Record<
 	},
 } as const;
 
-export const BATTERY_THRESHOLDS = {
-	LOW: 20,
-	MEDIUM: 50,
-} as const;
-
-export const capitalize = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1);
+export const capitalize = (str?: string): string =>
+	str && str.length > 0 ? str.charAt(0).toUpperCase() + str.slice(1) : "Unknown";

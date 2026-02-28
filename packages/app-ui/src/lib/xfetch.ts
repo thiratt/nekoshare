@@ -11,21 +11,7 @@ import {
 	success,
 	toAppError,
 } from "./errors";
-
-export interface ApiResponseSuccess<T> {
-	success: true;
-	data: T;
-	message?: string;
-}
-
-export interface ApiResponseError {
-	success: false;
-	message: string;
-	code?: string;
-	requestId?: string;
-}
-
-export type ApiResponse<T> = ApiResponseSuccess<T> | ApiResponseError;
+import type { ApiErrorResponse, ApiResponse } from "@workspace/contracts/api";
 
 export interface XFetchOptions extends Omit<RequestInit, "body"> {
 	body?: RequestInit["body"] | Record<string, unknown> | object;
@@ -185,7 +171,7 @@ async function xfetchJson<T>(input: ValidUrlInput, options: XFetchOptions = {}):
 			let requestId: string | undefined;
 
 			try {
-				const errorData = (await response.json()) as ApiResponseError;
+				const errorData = (await response.json()) as ApiErrorResponse;
 				if (errorData.message) {
 					errorMessage = errorData.message;
 				}

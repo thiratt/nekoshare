@@ -91,10 +91,12 @@ const NekoShareProvider = <TRouter extends Router>({
 				return;
 			}
 
-			const { id, deviceIdentifier, terminatedBy } = result.data;
+			const { id, fingerprint, terminatedBy } = result.data;
 
 			const isCurrentDeviceRemoved =
-				currentDevice && (id === currentDevice.id || deviceIdentifier === currentDevice.id);
+				!!currentDevice &&
+				(id === currentDevice.id ||
+					(!!fingerprint && !!currentDevice.fingerprint && fingerprint === currentDevice.fingerprint));
 
 			if (isCurrentDeviceRemoved) {
 				console.log("[NekoShareProvider] Current device was removed, showing termination dialog");
