@@ -54,7 +54,7 @@ export function LoginCard({ data, linkComponent, onGoogle, onSubmit }: LoginCard
 								<ExtendLink
 									className="underline-offset-3 text-sm"
 									linkComponent={linkComponent}
-									href="/auth/reset-pwd"
+									href="/reset-pwd"
 									tabIndex={-1}
 								>
 									ลืมรหัสผ่าน?
