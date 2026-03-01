@@ -7,6 +7,7 @@ import { ThemeProvider } from "@workspace/app-ui/providers/theme-provider";
 import { ErrorComponent } from "@/components/error";
 import { NSDesktopProvider } from "@/context/NSDesktopContext";
 import { getDeviceInfo } from "@/lib/device";
+import { clearMasterKeyForCurrentSession } from "@/lib/security/master-key-sync";
 
 export const Route = createRootRoute({
   component: RouteComponent,
@@ -38,7 +39,11 @@ function RouteComponent() {
 
   return (
     <ThemeProvider>
-      <NekoShareProvider router={router} currentDevice={deviceInfo}>
+      <NekoShareProvider
+        router={router}
+        currentDevice={deviceInfo}
+        onBeforeSignOut={clearMasterKeyForCurrentSession}
+      >
         <NSDesktopProvider initialMaximized={isMaximized}>
           <Outlet />
         </NSDesktopProvider>

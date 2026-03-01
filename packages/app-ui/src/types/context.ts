@@ -53,6 +53,7 @@ export interface NekoShareProviderProps<TRouter extends Router = Router> {
 	router: TRouter;
 	children: React.ReactNode;
 	currentDevice: LocalDeviceInfo | undefined;
+	onBeforeSignOut?: () => Promise<void> | void;
 }
 
 export interface UseNekoShareReturn {
@@ -65,4 +66,5 @@ export interface UseNekoShareReturn {
 	readonly setNotificationStatus: (status: NotificationStatus) => void;
 	readonly toggleNotification: () => void;
 	readonly setGlobalLoading: (loading: boolean) => void;
+	readonly runBeforeSignOut: () => Promise<void>;
 }

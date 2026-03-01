@@ -17,7 +17,7 @@ import { CATEGORY_MAP, CONTENT_COMPONENTS, SETTING_CATEGORIES } from "./constant
 import { LogoutDialog } from "./dialogs";
 
 export function SettingsUI() {
-	const { router, setMode, setGlobalLoading } = useNekoShare();
+	const { router, setMode, setGlobalLoading, runBeforeSignOut } = useNekoShare();
 	const [activeCategory, setActiveCategory] = useState<SettingCategory>("account");
 	const [confirmLogout, setConfirmLogout] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -56,6 +56,12 @@ export function SettingsUI() {
 		setGlobalLoading(true);
 
 		try {
+			try {
+				await runBeforeSignOut();
+			} catch (cleanupError) {
+				console.error("Failed to run logout cleanup:", cleanupError);
+			}
+
 			// if (currentDevice) {
 			// 	await deleteDevice(currentDevice.id);
 			// }
@@ -76,7 +82,7 @@ export function SettingsUI() {
 		} catch (error) {
 			console.error("Failed to delete device on logout:", error);
 		}
-	}, [router, setMode, setGlobalLoading]);
+	}, [router, runBeforeSignOut, setMode, setGlobalLoading]);
 
 	useEffect(() => {
 		if (!isEscapeEnabled) return;

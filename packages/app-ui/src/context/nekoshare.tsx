@@ -18,6 +18,7 @@ import { authClient, invalidateSessionCache } from "../lib/auth";
 interface NekoShareContextValue {
 	readonly router: Router;
 	readonly currentDevice: LocalDeviceInfo | undefined;
+	readonly onBeforeSignOut?: () => Promise<void> | void;
 }
 
 const NekoShareContext = createContext<NekoShareContextValue | null>(null);
@@ -71,12 +72,14 @@ interface NekoShareProviderProps<TRouter extends Router = Router> {
 	router: TRouter;
 	children: ReactNode;
 	currentDevice: LocalDeviceInfo | undefined;
+	onBeforeSignOut?: () => Promise<void> | void;
 }
 
 const NekoShareProvider = <TRouter extends Router>({
 	router,
 	children,
 	currentDevice,
+	onBeforeSignOut,
 }: NekoShareProviderProps<TRouter>): React.ReactElement => {
 	const [sessionTerminated, setSessionTerminated] = useState<SessionTerminatedState>(INITIAL_SESSION_STATE);
 	const [mounted, setMounted] = useState(false);
@@ -109,8 +112,25 @@ const NekoShareProvider = <TRouter extends Router>({
 		},
 	});
 
+	const runBeforeSignOut = useCallback(async (): Promise<void> => {
+		if (!onBeforeSignOut) {
+			return;
+		}
+
+		await onBeforeSignOut();
+	}, [onBeforeSignOut]);
+
 	const handleSessionTerminationComplete = useCallback(async (): Promise<void> => {
 		try {
+			try {
+				await runBeforeSignOut();
+			} catch (cleanupError) {
+				console.error(
+					"[NekoShareProvider] Failed to run sign-out cleanup:",
+					cleanupError instanceof Error ? cleanupError.message : cleanupError,
+				);
+			}
+
 			socketClient.setAutoReconnect(false);
 			socketClient.disconnect();
 
@@ -133,14 +153,15 @@ const NekoShareProvider = <TRouter extends Router>({
 			setSessionTerminated(INITIAL_SESSION_STATE);
 			router.navigate({ to: "/login" });
 		}
-	}, [router]);
+	}, [router, runBeforeSignOut]);
 
 	const contextValue = useMemo<NekoShareContextValue>(
 		() => ({
 			router,
 			currentDevice,
+			onBeforeSignOut,
 		}),
-		[router, currentDevice],
+		[router, currentDevice, onBeforeSignOut],
 	);
 
 	const isHomeMode = mode === "home";
@@ -246,6 +267,13 @@ const useNekoShare = (): UseNekoShareReturn => {
 		setNotificationStatus,
 		toggleNotification,
 		setGlobalLoading,
+		runBeforeSignOut: async () => {
+			if (!context.onBeforeSignOut) {
+				return;
+			}
+
+			await context.onBeforeSignOut();
+		},
 	};
 };
 

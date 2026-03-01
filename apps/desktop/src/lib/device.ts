@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { xfetch } from "@workspace/app-ui/lib/xfetch";
 import type {
   ApiDeviceRegistrationPayload,
+  ApiDeviceRegistrationResponse,
   LocalDeviceInfo,
 } from "@workspace/app-ui/types/device";
 
@@ -28,7 +29,13 @@ function toRegistrationPayload(
   };
 }
 
-export async function registerDevice(): Promise<void> {
+type ApiEnvelope<T> = {
+  success: boolean;
+  data?: T;
+  message?: string;
+};
+
+export async function registerDevice(): Promise<ApiDeviceRegistrationResponse> {
   const deviceInfo = await getDeviceInfo();
 
   const payload = toRegistrationPayload(deviceInfo);
@@ -45,4 +52,11 @@ export async function registerDevice(): Promise<void> {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || "Failed to register device");
   }
+
+  const result = (await response.json()) as ApiEnvelope<ApiDeviceRegistrationResponse>;
+  if (!result.success || !result.data) {
+    throw new Error(result.message || "Failed to parse register device response");
+  }
+
+  return result.data;
 }

@@ -1,7 +1,6 @@
 import { safeJsonParse } from "../json";
 import { BinaryReader } from "./binary-utils";
 import type { Result } from "../errors";
-import { PacketType } from "@workspace/contracts/ws";
 import type {
 	AckPayload,
 	ErrorPayload,
@@ -23,6 +22,8 @@ import type {
 	SocketDeviceRemovedPayload,
 	SocketDeviceUpdatedPayload,
 } from "./payload";
+
+import { PacketType } from "@workspace/contracts/ws";
 export type {
 	AckPayload,
 	ErrorPayload,

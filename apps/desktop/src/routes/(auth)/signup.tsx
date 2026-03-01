@@ -8,6 +8,7 @@ import type { TSignupSchema } from "@workspace/app-ui/types/schema";
 
 import { authClient, invalidateSessionCache } from "@/lib/auth";
 import { registerDevice } from "@/lib/device";
+import { syncMasterKeyForDevice } from "@/lib/security/master-key-sync";
 
 export const Route = createFileRoute("/(auth)/signup")({
   component: RouteComponent,
@@ -35,7 +36,8 @@ function RouteComponent() {
 
     try {
       setGlobalLoading(true);
-      await registerDevice();
+      const registration = await registerDevice();
+      await syncMasterKeyForDevice(registration.device.id);
       await router.navigate({ to: "/home", replace: true });
     } catch (error) {
       console.error("Failed to register device:", error);

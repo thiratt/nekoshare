@@ -8,6 +8,7 @@ import { authClient, invalidateSessionCache } from "@workspace/app-ui/lib/auth";
 import type { TLoginSchema } from "@workspace/app-ui/types/schema";
 
 import { registerDevice } from "@/lib/device";
+import { syncMasterKeyForDevice } from "@/lib/security/master-key-sync";
 
 export const Route = createFileRoute("/(auth)/login")({
   component: RouteComponent,
@@ -55,7 +56,8 @@ function RouteComponent() {
 
       invalidateSessionCache();
       setGlobalLoading(true);
-      await registerDevice();
+      const registration = await registerDevice();
+      await syncMasterKeyForDevice(registration.device.id);
       await router.navigate({ to: "/home" });
     } catch {
       toast.error(
