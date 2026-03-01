@@ -31,6 +31,7 @@ function Input({
 	eyeStyle?: string;
 }) {
 	const [isVisible, setIsVisible] = useState(false);
+	const isPasswordType = type === "password";
 
 	const id = useId();
 
@@ -38,14 +39,20 @@ function Input({
 		<div className="relative w-full">
 			<BaseInput
 				id={id}
-				type={type === "password" ? (isVisible ? "text" : "password") : type}
-				className={cn("w-full pr-8", className)}
+				type={isPasswordType ? (isVisible ? "text" : "password") : type}
+				className={cn(
+					"w-full",
+					isPasswordType && "pr-10 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden",
+					className,
+				)}
 				{...props}
 			/>
-			{type === "password" && (
+			{isPasswordType && (
 				<Button
+					type="button"
 					variant="ghost"
 					size="icon-sm"
+					tabIndex={-1}
 					onClick={() => setIsVisible((prevState) => !prevState)}
 					className={cn(
 						"text-muted-foreground focus-visible:ring-ring/50 absolute top-1/2 -translate-y-1/2 right-1 rounded-l-none hover:bg-transparent",
