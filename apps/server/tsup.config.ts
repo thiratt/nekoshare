@@ -4,6 +4,7 @@ export default defineConfig((options) => ({
 	...options,
 	entry: ["src/index.ts"],
 	format: ["esm"],
-    clean: true,
-    minify: true,
+	clean: true,
+	minify: true,
+	noExternal: ["@workspace/contracts"],
 }));

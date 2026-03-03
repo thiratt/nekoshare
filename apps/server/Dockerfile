@@ -1,21 +1,30 @@
-FROM node:24.11.1-alpine AS base
-WORKDIR /app
-COPY package*.json ./
+FROM node:24.11.1-bookworm-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+WORKDIR /workspace
 
-FROM base AS builder
-RUN npm install
-COPY . .
-RUN npm run build
+FROM base AS deps
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/server/package.json apps/server/package.json
+COPY packages/contracts/package.json packages/contracts/package.json
+RUN pnpm install --frozen-lockfile --filter server...
 
-FROM base AS prod-deps
-RUN npm install --omit=dev && npm cache clean --force
+FROM deps AS build
+COPY apps/server apps/server
+COPY packages/contracts packages/contracts
+RUN pnpm -C apps/server build
 
-FROM node:24.11.1-alpine AS runner
+FROM build AS prod-deps
+RUN pnpm --filter server deploy --prod --legacy /prod/server
+
+FROM node:24.11.1-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY --from=builder /app/dist ./dist
-COPY --from=prod-deps /app/node_modules ./node_modules
-COPY package.json .
+COPY --from=prod-deps /prod/server/node_modules ./node_modules
+COPY --from=prod-deps /prod/server/package.json ./package.json
+COPY --from=build /workspace/apps/server/dist ./dist
 
+EXPOSE 7780 7781
 CMD ["node", "dist/index.js"]
