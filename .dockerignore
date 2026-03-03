@@ -1,0 +1,16 @@
+.git
+.github
+.vscode
+.turbo
+node_modules
+**/node_modules
+dist
+**/dist
+target
+**/target
+coverage
+**/coverage
+docker/.env
+docker/.env.dev
+docs
+~
