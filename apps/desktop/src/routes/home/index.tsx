@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
@@ -20,6 +20,7 @@ export const Route = createFileRoute("/home/")({
 const tauriInvoke = invoke as HomeProps["invoke"];
 
 function RouteComponent() {
+  const navigate = useNavigate();
   const { files, status, refresh } = useWorkspace();
   const transferRecords = useTransferRecords();
   const removeTransferByPath = useTransferStore((state) => state.removeByPath);
@@ -133,7 +134,8 @@ function RouteComponent() {
   return (
     <HomeUI
       onItemClick={(id) => {
-        console.log("Clicked item with id:", id);
+        console.log("Open transfer detail for item id:", id);
+        navigate({ to: "/home/transfer-detail" });
       }}
       onItemReveal={async (id) => {
         const file = mergedData.find((f) => generateStableId(f.path) === id);
