@@ -16,9 +16,32 @@ services:
             timeout: 10s
             retries: 5
 
+    migrate:
+        build:
+            context: ..
+            dockerfile: apps/server/Dockerfile
+            target: build
+        container_name: nekoshare-migrate
+        command: pnpm -C apps/server dz:p
+        restart: "no"
+        environment:
+            - DB_HOST=database
+            - DB_USER=${MYSQL_USER}
+            - DB_PASSWORD=${MYSQL_PASSWORD}
+            - DB_NAME=${MYSQL_DATABASE}
+            - DB_PORT=3306
+            - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+            - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+        networks:
+            - nekoshare-net
+        depends_on:
+            database:
+                condition: service_healthy
+
     backend:
         build:
-            context: ../apps/server
+            context: ..
+            dockerfile: apps/server/Dockerfile
         container_name: nekoshare-backend
         environment:
             - DB_HOST=database
@@ -33,7 +56,10 @@ services:
         networks:
             - nekoshare-net
         depends_on:
-            - database
+            database:
+                condition: service_healthy
+            migrate:
+                condition: service_completed_successfully
 
     nginx:
         build:
