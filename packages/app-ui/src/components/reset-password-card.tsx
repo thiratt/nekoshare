@@ -59,25 +59,23 @@ export function ResetPasswordCard({ data, linkComponent, onSubmit }: ResetPasswo
 		<div className="space-y-4 w-full max-w-sm md:max-w-4xl">
 			<CardTransition className="shadow-xl" tag="auth-card">
 				<CardHeader>
-					<CardTitle className="text-2xl font-semibold">Forgot password</CardTitle>
-					<CardDescription>
-						Enter your email and we will send you a link to reset your password.
-					</CardDescription>
+					<CardTitle className="text-2xl font-semibold">ลืมรหัสผ่าน?</CardTitle>
+					<CardDescription>ไม่ต้องกังวล! เราจะส่งวิธีรีเซ็ตรหัสผ่านให้คุณ</CardDescription>
 				</CardHeader>
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="contents">
 						<CardContent className="space-y-4">
 							<div className="flex flex-col gap-4">
-								{renderField("email", "Email", "email")}
+								{renderField("email", "อีเมล", "email")}
 
 								<Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-									{form.formState.isSubmitting ? <LuLoader className="animate-spin" /> : "Send reset link"}
+									{form.formState.isSubmitting ? <LuLoader className="animate-spin" /> : "ถัดไป"}
 								</Button>
 
 								<div className="flex gap-1 justify-center items-center text-sm">
-									Remember your password?
+									จำรหัสผ่านได้แล้ว?
 									<ExtendLink linkComponent={linkComponent} href="/login">
-										Back to login
+										กลับไปหน้าเข้าสู่ระบบ
 									</ExtendLink>
 								</div>
 							</div>
