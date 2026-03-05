@@ -13,6 +13,7 @@ use core::socket::{ConnectionEvent, SocketManager};
 
 use crate::core::device::DeviceManager;
 use crate::core::socket::handlers::file::FileTransferService;
+use crate::core::transfer_history::TransferHistoryService;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -34,6 +35,9 @@ pub fn run() {
             // Search
             commands::search::search_items,
             commands::search::search_items_paginated,
+            // Transfer History
+            commands::transfer_history::transfer_history_list,
+            commands::transfer_history::transfer_history_delete,
             // Socket Client
             commands::socket::socket_client_connect_to,
             commands::socket::socket_client_disconnect_from,
@@ -49,9 +53,12 @@ pub fn run() {
 }
 
 fn setup_app(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
+    let transfer_history_service = TransferHistoryService::new()?;
+
     GlobalState::new()
         .register(DeviceManager::new().expect("Failed to initialize DeviceManager"))
         .register(FileTransferService::new())
+        .register(transfer_history_service)
         .init();
 
     let (event_tx, mut event_rx) = mpsc::channel::<ConnectionEvent>(256);
