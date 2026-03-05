@@ -13,6 +13,9 @@ const env = {
 
 	PORT: 7780,
 	TCP_SOCKET_PORT: 7781,
+	REDIS_HOST: process.env.REDIS_HOST || "localhost",
+	REDIS_PORT: Number(process.env.REDIS_PORT || 6379),
+	REDIS_PASSWORD: requireEnvVar("REDIS_PASSWORD"),
 
 	// MAIL_SERVER_KEY: requireEnvVar("MAIL_SERVER_KEY"),
 
