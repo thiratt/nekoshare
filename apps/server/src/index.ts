@@ -5,6 +5,10 @@ import { createApp, shutdownApp } from "@/app/create-app";
 import { env } from "./config/env";
 import { initializeDatabase } from "./infrastructure/db";
 import { Logger, LogLevel } from "./infrastructure/logger";
+import { closeRedis, initializeRedis } from "./infrastructure/redis";
+import { shutdownWsPubSub } from "./infrastructure/socket/events/ws-pubsub";
+import { shutdownUserPresenceTracking } from "./infrastructure/socket/presence";
+import { initializePacketRelay, shutdownConnectionRouting, shutdownPacketRelay } from "./infrastructure/socket/routing";
 import { createTCPSocketInstance } from "./infrastructure/socket/transport/tcp";
 
 let httpServer: ServerType | null = null;
@@ -18,6 +22,10 @@ async function startServers(): Promise<void> {
 
 		Logger.info("Main", "Checking database connection and schema...");
 		await initializeDatabase();
+
+		Logger.info("Main", "Connecting to Redis...");
+		await initializeRedis();
+		await initializePacketRelay();
 
 		Logger.info("Main", "Starting HTTP server...");
 		httpServer = await createApp();
@@ -55,6 +63,12 @@ async function shutdown(signal: string): Promise<void> {
 			await closeSocketServer(socketServer);
 			Logger.info("Main", "TCP socket server stopped");
 		}
+
+		shutdownUserPresenceTracking();
+		await shutdownConnectionRouting();
+		await shutdownWsPubSub();
+		await shutdownPacketRelay();
+		await closeRedis();
 
 		Logger.info("Main", "All servers stopped gracefully");
 		process.exit(0);

@@ -5,6 +5,7 @@ import { BinaryReader } from "@/infrastructure/socket/protocol/binary-reader";
 import { BinaryWriter } from "@/infrastructure/socket/protocol/binary-writer";
 import { HEADER_SIZE, MAX_FRAME_SIZE } from "@/infrastructure/socket/protocol/frame";
 import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
+import { registerConnectionRoute, unregisterConnectionRoute } from "@/infrastructure/socket/routing/connection-routing";
 import type { TransportType } from "./types";
 
 interface BaseSessionManager {
@@ -51,6 +52,9 @@ export abstract class BaseConnection {
 		this._user = data.user;
 		this._session = data.session;
 		Logger.debug(this.transportType, `Set authenticated for client ${this.id}, user ID: ${this._user.id}`);
+		void registerConnectionRoute(this).catch((error) => {
+			Logger.warn(this.transportType, `Failed to register connection route for ${this.id}`, error);
+		});
 	}
 
 	public sendPacket(type: PacketType, requestId: number): void;
@@ -133,6 +137,9 @@ export abstract class BaseConnection {
 	}
 
 	public close() {
+		void unregisterConnectionRoute(this.id).catch((error) => {
+			Logger.warn(this.transportType, `Failed to unregister connection route for ${this.id}`, error);
+		});
 		this.sessionManager.removeSession(this.id);
 	}
 
