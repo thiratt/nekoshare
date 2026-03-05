@@ -7,6 +7,7 @@ import {
 	emailAndPasswordOptions,
 	loggerOptions,
 	pluginsOptions,
+	sessionOptions,
 	socialProvidersOptions,
 	trustedOriginsOptions,
 } from "./config";
@@ -19,6 +20,7 @@ export const auth = betterAuth({
 	databaseHooks: databaseHookOptions,
 	emailAndPassword: emailAndPasswordOptions,
 	socialProviders: socialProvidersOptions,
+	session: sessionOptions,
 	plugins: pluginsOptions,
 	trustedOrigins: trustedOriginsOptions,
 	logger: loggerOptions,

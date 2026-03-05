@@ -37,7 +37,8 @@ export interface FriendsRepositoryPort {
 }
 
 export interface FriendsEventsPort {
-	isUserOnline(userId: string): boolean;
+	isUserOnline(userId: string): Promise<boolean>;
+	invalidateFriendGraphCache(userIds: string[]): Promise<void>;
 	emitRequestReceived(
 		targetUserId: string,
 		payload: { friendId: string; user: FriendUserPayload; createdAt: string },
@@ -67,6 +68,25 @@ export class FriendsService {
 		private readonly events: FriendsEventsPort,
 	) {}
 
+	private async invalidateFriendGraphCache(userIds: Array<string | null | undefined>): Promise<void> {
+		const normalized = Array.from(
+			new Set(
+				userIds
+					.map((userId) => userId?.trim())
+					.filter((userId): userId is string => Boolean(userId)),
+			),
+		);
+		if (normalized.length === 0) {
+			return;
+		}
+
+		try {
+			await this.events.invalidateFriendGraphCache(normalized);
+		} catch {
+			// ignore cache invalidation failures
+		}
+	}
+
 	async list(currentUserId: string): Promise<FriendListResponse> {
 		const relations = await this.repository.listRelationsByUser(currentUserId);
 
@@ -82,9 +102,17 @@ export class FriendsService {
 		const friendUserIds = relations
 			.map((record) => getOtherUserId(record, currentUserId))
 			.filter((id): id is string => !!id);
+		const uniqueFriendUserIds = Array.from(new Set(friendUserIds));
 
 		const friendUsers = await this.repository.findUsersByIds(friendUserIds);
 		const userMap = new Map(friendUsers.map((user) => [user.id, user]));
+		const onlineEntries = await Promise.all(
+			uniqueFriendUserIds.map(async (friendUserId) => {
+				const isOnline = await this.events.isUserOnline(friendUserId);
+				return [friendUserId, isOnline] as const;
+			}),
+		);
+		const onlineMap = new Map<string, boolean>(onlineEntries);
 
 		const friends: FriendListResponse["friends"] = [];
 		const incoming: FriendListResponse["incoming"] = [];
@@ -100,7 +128,7 @@ export class FriendsService {
 				relation,
 				currentUserId,
 				userMap.get(otherUserId),
-				this.events.isUserOnline(otherUserId),
+				onlineMap.get(otherUserId) ?? false,
 			);
 			if (!item) {
 				continue;
@@ -159,6 +187,7 @@ export class FriendsService {
 			if (existingRelation.status === "pending") {
 				if (existingRelation.requestedByUserId === targetUser.id) {
 					await this.repository.markRelationAccepted(existingRelation.id);
+					await this.invalidateFriendGraphCache([currentUser.id, targetUser.id]);
 
 					this.events.emitRequestAccepted(targetUser.id, {
 						friendId: existingRelation.id,
@@ -190,6 +219,7 @@ export class FriendsService {
 			requestedByUserId: currentUser.id,
 			createdAt,
 		});
+		await this.invalidateFriendGraphCache([currentUser.id, targetUser.id]);
 
 		this.events.emitRequestReceived(targetUser.id, {
 			friendId: relationId,
@@ -220,6 +250,7 @@ export class FriendsService {
 		}
 
 		await this.repository.markRelationAccepted(friendId);
+		await this.invalidateFriendGraphCache([currentUser.id, existingRelation.requestedByUserId]);
 		this.events.emitRequestAccepted(existingRelation.requestedByUserId, {
 			friendId,
 			user: toFriendUserPayload(currentUser),
@@ -242,6 +273,7 @@ export class FriendsService {
 		}
 
 		await this.repository.deleteRelation(friendId);
+		await this.invalidateFriendGraphCache([currentUser.id, existingRelation.requestedByUserId]);
 		this.events.emitRequestRejected(existingRelation.requestedByUserId, { friendId });
 
 		return {
@@ -262,6 +294,7 @@ export class FriendsService {
 
 		const otherUserId = getOtherUserId(existingRelation, currentUser.id);
 		await this.repository.deleteRelation(friendId);
+		await this.invalidateFriendGraphCache([currentUser.id, otherUserId]);
 
 		if (otherUserId) {
 			this.events.emitRequestCancelled(otherUserId, { friendId });
@@ -282,6 +315,7 @@ export class FriendsService {
 		await this.repository.deleteRelation(friendId);
 
 		const otherUserId = getOtherUserId(existingRelation, currentUser.id);
+		await this.invalidateFriendGraphCache([currentUser.id, otherUserId]);
 		if (otherUserId) {
 			this.events.emitFriendRemoved(otherUserId, { friendId });
 		}

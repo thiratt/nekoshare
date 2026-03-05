@@ -9,6 +9,7 @@ export {
 	broadcastUserOffline,
 	broadcastUserOnline,
 	getUserFriendIds,
+	invalidateUsersFriendGraphCache,
 } from "./friend.service";
 export type {
 	DevicePresencePayload,

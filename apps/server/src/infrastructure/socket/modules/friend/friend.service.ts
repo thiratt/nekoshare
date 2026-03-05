@@ -1,7 +1,8 @@
 import { Logger } from "@/infrastructure/logger";
-import { PacketType } from "@workspace/contracts/ws";
+import { getRedisClient } from "@/infrastructure/redis";
+import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 
-import { getUserSessions, sendJsonToSessions } from "./friend.gateway";
+import { sendJsonToSessions } from "./friend.gateway";
 import { friendRepository } from "./friend.repository";
 import type {
 	DevicePresencePayload,
@@ -11,29 +12,92 @@ import type {
 	FriendRequestPayload,
 } from "./friend.types";
 
-export async function getUserFriendIds(userId: string): Promise<string[]> {
-	const links = await friendRepository.listAcceptedFriendLinks(userId);
-	return links.map((entry) => (entry.userLowId === userId ? entry.userHighId : entry.userLowId));
+const FRIEND_IDS_CACHE_TTL_SECONDS = 5 * 60;
+const FRIEND_IDS_CACHE_KEY_PREFIX = "friend:accepted:ids:";
+const FRIEND_IDS_CACHE_META_KEY_PREFIX = "friend:accepted:meta:";
+
+function getFriendIdsCacheKey(userId: string): string {
+	return `${FRIEND_IDS_CACHE_KEY_PREFIX}${userId}`;
 }
 
-export function broadcastFriendRequestReceived(targetUserId: string, payload: FriendRequestPayload): void {
-	const sessions = getUserSessions(targetUserId);
-	if (sessions.length === 0) {
-		Logger.debug("WebSocket", `No active sessions for user ${targetUserId} to receive friend request`);
+function getFriendIdsMetaKey(userId: string): string {
+	return `${FRIEND_IDS_CACHE_META_KEY_PREFIX}${userId}`;
+}
+
+async function readCachedUserFriendIds(userId: string): Promise<string[] | undefined> {
+	try {
+		const redis = getRedisClient();
+		const metaExists = await redis.exists(getFriendIdsMetaKey(userId));
+		if (metaExists === 0) {
+			return undefined;
+		}
+
+		return redis.sMembers(getFriendIdsCacheKey(userId));
+	} catch (error) {
+		Logger.warn("WebSocket", `Failed to read friend graph cache for user ${userId}`, error);
+		return undefined;
+	}
+}
+
+async function cacheUserFriendIds(userId: string, friendIds: string[]): Promise<void> {
+	try {
+		const redis = getRedisClient();
+		const cacheKey = getFriendIdsCacheKey(userId);
+		const metaKey = getFriendIdsMetaKey(userId);
+		const tx = redis
+			.multi()
+			.del(cacheKey)
+			.set(metaKey, "1", { EX: FRIEND_IDS_CACHE_TTL_SECONDS });
+
+		if (friendIds.length > 0) {
+			tx.sAdd(cacheKey, friendIds).expire(cacheKey, FRIEND_IDS_CACHE_TTL_SECONDS);
+		}
+
+		await tx.exec();
+	} catch (error) {
+		Logger.warn("WebSocket", `Failed to write friend graph cache for user ${userId}`, error);
+	}
+}
+
+export async function invalidateUsersFriendGraphCache(userIds: string[]): Promise<void> {
+	const normalizedUserIds = Array.from(
+		new Set(
+			userIds
+				.map((id) => id?.trim())
+				.filter((id): id is string => Boolean(id)),
+		),
+	);
+	if (normalizedUserIds.length === 0) {
 		return;
 	}
 
+	const keys = normalizedUserIds.flatMap((userId) => [getFriendIdsCacheKey(userId), getFriendIdsMetaKey(userId)]);
+
+	try {
+		await getRedisClient().del(keys);
+	} catch (error) {
+		Logger.warn("WebSocket", "Failed to invalidate friend graph cache", error);
+	}
+}
+
+export async function getUserFriendIds(userId: string): Promise<string[]> {
+	const cachedFriendIds = await readCachedUserFriendIds(userId);
+	if (cachedFriendIds !== undefined) {
+		return cachedFriendIds;
+	}
+
+	const links = await friendRepository.listAcceptedFriendLinks(userId);
+	const friendIds = links.map((entry) => (entry.userLowId === userId ? entry.userHighId : entry.userLowId));
+	await cacheUserFriendIds(userId, friendIds);
+	return friendIds;
+}
+
+export function broadcastFriendRequestReceived(targetUserId: string, payload: FriendRequestPayload): void {
 	const sent = sendJsonToSessions(targetUserId, PacketType.FRIEND_REQUEST_RECEIVED, JSON.stringify(payload));
 	Logger.debug("WebSocket", `Broadcasted FRIEND_REQUEST_RECEIVED to ${sent} sessions for user ${targetUserId}`);
 }
 
 export function broadcastFriendRequestAccepted(targetUserId: string, payload: FriendAcceptedPayload): void {
-	const sessions = getUserSessions(targetUserId);
-	if (sessions.length === 0) {
-		Logger.debug("WebSocket", `No active sessions for user ${targetUserId} to receive friend accepted`);
-		return;
-	}
-
 	const sent = sendJsonToSessions(targetUserId, PacketType.FRIEND_REQUEST_ACCEPTED, JSON.stringify(payload));
 	Logger.debug("WebSocket", `Broadcasted FRIEND_REQUEST_ACCEPTED to ${sent} sessions for user ${targetUserId}`);
 }

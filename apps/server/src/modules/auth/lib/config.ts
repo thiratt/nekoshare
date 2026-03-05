@@ -7,9 +7,42 @@ import { userPreference } from "@/infrastructure/db/schemas";
 import { env } from "@/config/env";
 import { hashPassword, verifyPassword } from "./password-hash";
 import { Logger } from "@/infrastructure/logger";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { getRedisClient } from "@/infrastructure/redis";
+import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 
 const RESERVED_USERNAMES = ["admin", "dev", "system", "root", "nekoshare"] as const;
+const SESSION_DEVICE_CACHE_TTL_SECONDS = 60;
+const SESSION_DEVICE_CACHE_KEY_PREFIX = "auth:session:device:";
+const SESSION_DEVICE_CACHE_NULL_MARKER = "__none__";
+
+function getSessionDeviceCacheKey(sessionId: string): string {
+	return `${SESSION_DEVICE_CACHE_KEY_PREFIX}${sessionId}`;
+}
+
+async function readCachedDeviceIdBySessionId(sessionId: string): Promise<string | null | undefined> {
+	try {
+		const cachedValue = await getRedisClient().get(getSessionDeviceCacheKey(sessionId));
+		if (cachedValue === null) {
+			return undefined;
+		}
+
+		return cachedValue === SESSION_DEVICE_CACHE_NULL_MARKER ? null : cachedValue;
+	} catch (error) {
+		Logger.warn("Auth", `Failed to read session-device cache for session ${sessionId}`, error);
+		return undefined;
+	}
+}
+
+async function cacheDeviceIdBySessionId(sessionId: string, deviceId: string | null): Promise<void> {
+	try {
+		const cacheValue = deviceId ?? SESSION_DEVICE_CACHE_NULL_MARKER;
+		await getRedisClient().set(getSessionDeviceCacheKey(sessionId), cacheValue, {
+			EX: SESSION_DEVICE_CACHE_TTL_SECONDS,
+		});
+	} catch (error) {
+		Logger.warn("Auth", `Failed to write session-device cache for session ${sessionId}`, error);
+	}
+}
 
 const databaseOptions: BetterAuthOptions["database"] = drizzleAdapter(db, {
 	provider: "mysql",
@@ -52,14 +85,31 @@ const socialProvidersOptions: BetterAuthOptions["socialProviders"] = {
 
 const pluginsOptions = [
 	bearer(),
-	customSession(async ({ user, session }, ctx) => {
-		const userDeviceId = await db.query.device.findFirst({
+	customSession(async ({ user, session }) => {
+		const cachedDeviceId = await readCachedDeviceIdBySessionId(session.id);
+		if (cachedDeviceId !== undefined) {
+			return {
+				user: {
+					...user,
+					deviceId: cachedDeviceId,
+				},
+				session: {
+					...session,
+				},
+			};
+		}
+
+		const userDevice = await db.query.device.findFirst({
 			where: (devices) => eq(devices.currentSessionId, session.id),
+			columns: { id: true },
 		});
+		const deviceId = userDevice?.id ?? null;
+		await cacheDeviceIdBySessionId(session.id, deviceId);
+
 		return {
 			user: {
 				...user,
-				deviceId: userDeviceId ? userDeviceId.id : null,
+				deviceId,
 			},
 			session: {
 				...session,
@@ -97,12 +147,12 @@ const advancedOptions: BetterAuthOptions["advanced"] = {
 	},
 };
 
-// const sessionOptions: BetterAuthOptions["session"] = {
-// 	cookieCache: {
-// 		enabled: true,
-// 		maxAge: 5 * 60,
-// 	},
-// };
+const sessionOptions: BetterAuthOptions["session"] = {
+	cookieCache: {
+		enabled: true,
+		maxAge: 5 * 60,
+	},
+};
 
 export {
 	db, // for convenience
@@ -114,5 +164,5 @@ export {
 	trustedOriginsOptions,
 	loggerOptions,
 	advancedOptions,
-	// sessionOptions,
+	sessionOptions,
 };
