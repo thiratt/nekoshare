@@ -488,13 +488,21 @@ export function useUserSearch(): UseUserSearchReturn {
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
+		const normalizedQuery = query.trim();
+		if (normalizedQuery.length === 0) {
+			setResults([]);
+			setLoading(false);
+			setError(null);
+			return;
+		}
+
 		const controller = new AbortController();
 
 		const timeoutId = setTimeout(async () => {
 			setLoading(true);
 			setError(null);
 
-			const result = await xfetchApi<{ users: UserSearchResult[] }>(FRIENDS_API_ENDPOINTS.SEARCH(query), {
+			const result = await xfetchApi<{ users: UserSearchResult[] }>(FRIENDS_API_ENDPOINTS.SEARCH(normalizedQuery), {
 				method: "GET",
 				signal: controller.signal,
 				operation: "Search users",
