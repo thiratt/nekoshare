@@ -87,7 +87,7 @@ export function registerPeerHandlers<T extends IConnection>(router: PacketRouter
 				throw new Error("Invalid payload: requestId is required");
 			}
 
-			handlePeerConnectionConfirm(client, transportType, requestId, data);
+			await handlePeerConnectionConfirm(client, transportType, requestId, data);
 		} catch (error) {
 			const msg = (error as Error).message;
 			Logger.error(transportType, `Connection confirm failed: ${msg}`);

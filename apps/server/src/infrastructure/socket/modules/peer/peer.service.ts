@@ -14,8 +14,14 @@ import type {
 } from "@workspace/contracts/ws";
 
 import type { IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
+import { sendJsonPacketToConnectionTarget } from "@/infrastructure/socket/routing";
 import * as PeerState from "./peer.state";
-import { getConnection, getConnectionIp, findConnectionByDeviceSession, sendJsonPacket } from "./peer.gateway";
+import {
+	findConnectionTargetByDeviceId,
+	findConnectionTargetByDeviceSession,
+	getConnectionIp,
+	sendJsonPacket,
+} from "./peer.gateway";
 import { peerRepository } from "./peer.repository";
 
 export async function handlePeerConnectRequest(
@@ -48,7 +54,7 @@ export async function handlePeerConnectRequest(
 		throw new Error("Cannot connect to yourself");
 	}
 
-	const result = PeerState.attemptConnection({
+	const result = await PeerState.attemptConnection({
 		sourceDeviceId: sourceDevice.id,
 		targetDeviceId: targetDevice.id,
 		requestId: requestId.toString(),
@@ -78,9 +84,9 @@ export async function handlePeerConnectRequest(
 		return;
 	}
 
-	const targetConnection = findConnectionByDeviceSession(targetDevice.currentSessionId);
-	if (!targetConnection) {
-		PeerState.markDisconnected(sourceDevice.id, targetDevice.id, PeerState.StateChangeReason.DEVICE_OFFLINE);
+	const targetConnectionTarget = await findConnectionTargetByDeviceId(targetDevice.id);
+	if (!targetConnectionTarget) {
+		await PeerState.markDisconnected(sourceDevice.id, targetDevice.id, PeerState.StateChangeReason.DEVICE_OFFLINE);
 
 		const response: PeerConnectResponsePayload = {
 			success: false,
@@ -103,7 +109,26 @@ export async function handlePeerConnectRequest(
 		sourceIp: getConnectionIp(client),
 		fingerprint: sourceDevice.fingerprint || "",
 	};
-	sendJsonPacket(targetConnection, PacketType.PEER_INCOMING_REQUEST, incomingRequest);
+	const targetDelivered = await sendJsonPacketToConnectionTarget(
+		targetConnectionTarget,
+		PacketType.PEER_INCOMING_REQUEST,
+		JSON.stringify(incomingRequest),
+	);
+	if (!targetDelivered) {
+		await PeerState.markDisconnected(sourceDevice.id, targetDevice.id, PeerState.StateChangeReason.DEVICE_OFFLINE);
+
+		sendJsonPacket(
+			client,
+			PacketType.PEER_CONNECT_RESPONSE,
+			{
+				success: false,
+				status: "failed",
+				message: "Target device is unreachable",
+			},
+			requestId,
+		);
+		return;
+	}
 
 	const response: PeerConnectResponsePayload = {
 		success: true,
@@ -124,7 +149,7 @@ export async function handlePeerSocketReady(
 		throw new Error("Invalid port number");
 	}
 
-	const conn = PeerState.getConnectionByRequestId(payload.requestId);
+	const conn = await PeerState.getConnectionByRequestId(payload.requestId);
 	if (!conn) {
 		throw new Error("No pending request found for this ID");
 	}
@@ -148,15 +173,15 @@ export async function handlePeerSocketReady(
 		throw new Error("Device not part of this connection");
 	}
 
-	const updatedConn = PeerState.markTargetAccepted(payload.requestId, client.id, payload.port);
+	const updatedConn = await PeerState.markTargetAccepted(payload.requestId, client.id, payload.port);
 	if (!updatedConn) {
 		throw new Error("Failed to update connection state");
 	}
 
-	const sourceConnection = getConnection(updatedConn.sourceConnectionId, updatedConn.sourceTransport);
-	if (!sourceConnection) {
-		Logger.warn(transportType, `Source connection ${updatedConn.sourceConnectionId} no longer available`);
-		PeerState.markDisconnected(
+	const sourceConnectionTarget = await findConnectionTargetByDeviceId(updatedConn.initiator);
+	if (!sourceConnectionTarget) {
+		Logger.warn(transportType, `Source device ${updatedConn.initiator} no longer available`);
+		await PeerState.markDisconnected(
 			updatedConn.deviceA,
 			updatedConn.deviceB,
 			PeerState.StateChangeReason.DEVICE_OFFLINE,
@@ -178,7 +203,19 @@ export async function handlePeerSocketReady(
 		deviceName: targetDevice.deviceName,
 		fingerprint: targetDevice.fingerprint || "",
 	};
-	sendJsonPacket(sourceConnection, PacketType.PEER_CONNECTION_INFO, connectionInfo);
+	const sourceDelivered = await sendJsonPacketToConnectionTarget(
+		sourceConnectionTarget,
+		PacketType.PEER_CONNECTION_INFO,
+		JSON.stringify(connectionInfo),
+	);
+	if (!sourceDelivered) {
+		await PeerState.markDisconnected(
+			updatedConn.deviceA,
+			updatedConn.deviceB,
+			PeerState.StateChangeReason.DEVICE_OFFLINE,
+		);
+		throw new Error("Source device is unreachable");
+	}
 
 	const response: PeerSocketReadyResponsePayload = {
 		success: true,
@@ -187,13 +224,13 @@ export async function handlePeerSocketReady(
 	sendJsonPacket(client, PacketType.PEER_SOCKET_READY, response, requestId);
 }
 
-export function handlePeerConnectionConfirm(
+export async function handlePeerConnectionConfirm(
 	client: IConnection,
 	transportType: TransportType,
 	requestId: number,
 	requestPayload: PeerConnectionConfirmPayload,
-): void {
-	const success = PeerState.markConnected(requestPayload.requestId);
+): Promise<void> {
+	const success = await PeerState.markConnected(requestPayload.requestId);
 	if (!success) {
 		throw new Error("Connection not found or already in different state");
 	}
@@ -228,7 +265,7 @@ export async function handlePeerDisconnect(
 		throw new Error("Source device not found");
 	}
 
-	const success = PeerState.markDisconnected(
+	const success = await PeerState.markDisconnected(
 		sourceDevice.id,
 		payload.targetDeviceId,
 		PeerState.StateChangeReason.EXPLICIT_DISCONNECT,
@@ -238,14 +275,20 @@ export async function handlePeerDisconnect(
 	}
 
 	const targetDevice = await peerRepository.findById(payload.targetDeviceId);
-	if (targetDevice?.currentSessionId) {
-		const targetConnection = findConnectionByDeviceSession(targetDevice.currentSessionId);
+	if (targetDevice) {
+		const targetConnection =
+			(await findConnectionTargetByDeviceId(targetDevice.id)) ||
+			(await findConnectionTargetByDeviceSession(targetDevice.currentSessionId));
 		if (targetConnection) {
 			const notification: PeerDisconnectedPayload = {
 				deviceId: sourceDevice.id,
 				reason: payload.reason || "Peer disconnected",
 			};
-			sendJsonPacket(targetConnection, PacketType.PEER_DISCONNECTED, notification);
+			await sendJsonPacketToConnectionTarget(
+				targetConnection,
+				PacketType.PEER_DISCONNECTED,
+				JSON.stringify(notification),
+			);
 		}
 	}
 
@@ -256,21 +299,21 @@ export async function handlePeerDisconnect(
 	sendJsonPacket(client, PacketType.ACK, response, requestId);
 }
 
-export function handleDeviceSocketDisconnect(deviceId: string): void {
-	const count = PeerState.handleDeviceDisconnect(deviceId);
+export async function handleDeviceSocketDisconnect(deviceId: string): Promise<void> {
+	const count = await PeerState.handleDeviceDisconnect(deviceId);
 	if (count > 0) {
 		Logger.info("PEER", `Cleaned up ${count} connections for disconnected device ${deviceId}`);
 	}
 }
 
-export function getPeerConnectionStats() {
+export async function getPeerConnectionStats() {
 	return PeerState.getStats();
 }
 
-export function getDeviceConnections(deviceId: string) {
+export async function getDeviceConnections(deviceId: string) {
 	return PeerState.getActiveConnectionsForDevice(deviceId);
 }
 
-export function hasActiveConnection(deviceA: string, deviceB: string): boolean {
+export async function hasActiveConnection(deviceA: string, deviceB: string): Promise<boolean> {
 	return PeerState.hasActiveConnection(deviceA, deviceB);
 }

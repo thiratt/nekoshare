@@ -1,9 +1,8 @@
-import { wsSessionManager } from "@/infrastructure/socket/transport/ws/connection";
-import { tcpSessionManager } from "@/infrastructure/socket/transport/tcp/connection";
+import type { ConnectionTarget } from "@/infrastructure/socket/routing";
+import { resolveConnectionTargetByDeviceId, resolveConnectionTargetBySessionId } from "@/infrastructure/socket/routing";
 import { PacketType } from "@workspace/contracts/ws";
 
 import type { IConnection } from "@/infrastructure/socket/runtime/types";
-import type { PeerTransport } from "./peer.types";
 
 export function getConnectionIp(conn: IConnection): string {
 	const wsAddress = (conn as { remoteAddress?: string | null }).remoteAddress;
@@ -19,32 +18,14 @@ export function getConnectionIp(conn: IConnection): string {
 	return "0.0.0.0";
 }
 
-export function findConnectionByDeviceSession(deviceSessionId: string | null): IConnection | undefined {
-	if (!deviceSessionId) {
-		return undefined;
-	}
-
-	for (const session of wsSessionManager.getAllSessions()) {
-		if (session.session?.id === deviceSessionId) {
-			return session;
-		}
-	}
-
-	for (const session of tcpSessionManager.getAllSessions()) {
-		if (session.session?.id === deviceSessionId) {
-			return session;
-		}
-	}
-
-	return undefined;
+export async function findConnectionTargetByDeviceSession(
+	deviceSessionId: string | null,
+): Promise<ConnectionTarget | undefined> {
+	return resolveConnectionTargetBySessionId(deviceSessionId);
 }
 
-export function getConnection(connectionId: string, transport: PeerTransport): IConnection | undefined {
-	if (transport === "WebSocket") {
-		return wsSessionManager.getSession(connectionId);
-	}
-
-	return tcpSessionManager.getSession(connectionId);
+export async function findConnectionTargetByDeviceId(deviceId: string | null): Promise<ConnectionTarget | undefined> {
+	return resolveConnectionTargetByDeviceId(deviceId);
 }
 
 export function sendJsonPacket<T extends IConnection>(

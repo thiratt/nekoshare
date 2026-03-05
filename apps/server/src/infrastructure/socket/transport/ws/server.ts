@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { device } from "@/infrastructure/db/schemas";
 import { db } from "@/infrastructure/db";
 import { Logger } from "@/infrastructure/logger";
+import { initializeWsPubSub } from "@/infrastructure/socket/events/ws-pubsub";
 import { handleDeviceSocketDisconnect } from "@/infrastructure/socket/modules/peer";
 import {
 	broadcastDeviceOffline,
@@ -12,6 +13,7 @@ import {
 	broadcastUserOnline,
 	getUserFriendIds,
 } from "@/infrastructure/socket/modules/friend";
+import { registerUserPresenceSession, unregisterUserPresenceSession } from "@/infrastructure/socket/presence";
 import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 import { generateConnectionId } from "@/infrastructure/socket/runtime/connection-id";
 import type { User } from "@/modules/auth/lib";
@@ -31,6 +33,7 @@ function getForwardedClientIp(forwardedHeader: string | undefined): string | und
 
 export async function createWebSocketInstance(app: ReturnType<typeof createRouter>, path: string = "/ws") {
 	bootstrapWsTransport();
+	await initializeWsPubSub();
 
 	const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 
@@ -38,6 +41,7 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 		path,
 		upgradeWebSocket((c) => {
 			let connection: WSConnection | undefined;
+			let presenceRegistered = false;
 
 			const getRemoteIp = (): string | undefined => {
 				const forwardedIp = getForwardedClientIp(c.req.header("x-forwarded-for"));
@@ -75,12 +79,12 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 							user: currentUser,
 						});
 
-						const wasOffline = !wsSessionManager.isUserOnline(currentUser.id);
-
 						wsSessionManager.addSession(connection);
+						const becameOnline = await registerUserPresenceSession(currentUser.id);
+						presenceRegistered = true;
 						connection.sendPacket(PacketType.SYSTEM_HANDSHAKE, 0);
 
-						if (wasOffline) {
+						if (becameOnline) {
 							getUserFriendIds(currentUser.id)
 								.then((friendIds) => {
 									if (friendIds.length > 0) {
@@ -157,7 +161,12 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 									return;
 								}
 
-								handleDeviceSocketDisconnect(deviceInfo.id);
+								void handleDeviceSocketDisconnect(deviceInfo.id).catch((err) => {
+									Logger.warn(
+										"WebSocket",
+										`Failed to cleanup peer state for device ${deviceInfo.id}: ${err?.message || err}`,
+									);
+								});
 
 								if (userId) {
 									broadcastDeviceOffline(userId, deviceInfo.id);
@@ -167,19 +176,9 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 
 						connection.close();
 
-						if (userId && !wsSessionManager.isUserOnline(userId)) {
-							getUserFriendIds(userId)
-								.then((friendIds) => {
-									if (friendIds.length > 0) {
-										broadcastUserOffline(userId, friendIds);
-									}
-								})
-								.catch((err) => {
-									Logger.warn(
-										"WebSocket",
-										`Failed to broadcast offline state for user ${userId}: ${err?.message || err}`,
-									);
-								});
+						if (userId && presenceRegistered) {
+							presenceRegistered = false;
+							registerPresenceOfflineFlow(userId);
 						}
 					}
 					Logger.info("WebSocket", `WebSocket connection closed (code: ${evt.code}).`);
@@ -190,4 +189,22 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 
 	Logger.info("WebSocket", `WebSocket server initialized at path: ${path}`);
 	return injectWebSocket;
+}
+
+function registerPresenceOfflineFlow(userId: string): void {
+	unregisterUserPresenceSession(userId)
+		.then((becameOffline) => {
+			if (!becameOffline) {
+				return;
+			}
+
+			return getUserFriendIds(userId).then((friendIds) => {
+				if (friendIds.length > 0) {
+					broadcastUserOffline(userId, friendIds);
+				}
+			});
+		})
+		.catch((err) => {
+			Logger.warn("WebSocket", `Failed to broadcast offline state for user ${userId}: ${err?.message || err}`);
+		});
 }

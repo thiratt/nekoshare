@@ -2,7 +2,8 @@ import { Logger } from "@/infrastructure/logger";
 import { PacketType } from "@workspace/contracts/ws";
 
 import type { IConnection } from "@/infrastructure/socket/runtime/types";
-import { findConnectionBySessionId } from "./transfer.gateway";
+import { sendJsonPacketToConnectionTarget, type ConnectionTarget } from "@/infrastructure/socket/routing";
+import { findConnectionTargetByDeviceId as findConnectionByDeviceIdRoute, findConnectionTargetBySessionId } from "./transfer.gateway";
 import { transferRepository } from "./transfer.repository";
 import type { FileAcceptPacketInput, FileOfferPacketInput, FileRejectPacketInput } from "./transfer.types";
 import {
@@ -24,7 +25,13 @@ function sendJsonPacket(client: IConnection, packetType: PacketType, payload: ob
 	);
 }
 
-async function findConnectionByDeviceId(targetDeviceId: string): Promise<IConnection | undefined> {
+async function findConnectionByDeviceId(targetDeviceId: string): Promise<ConnectionTarget | undefined> {
+	const routedConnection = await findConnectionByDeviceIdRoute(targetDeviceId);
+	if (routedConnection) {
+		Logger.debug("FileTransfer", `Resolved device ${targetDeviceId} via routing index`);
+		return routedConnection;
+	}
+
 	const targetDevice = await transferRepository.findDeviceSessionById(targetDeviceId);
 
 	Logger.debug(
@@ -37,10 +44,10 @@ async function findConnectionByDeviceId(targetDeviceId: string): Promise<IConnec
 		return undefined;
 	}
 
-	const conn = findConnectionBySessionId(targetDevice.currentSessionId);
+	const conn = await findConnectionTargetBySessionId(targetDevice.currentSessionId);
 	Logger.debug(
 		"FileTransfer",
-		`Found connection for sessionId ${targetDevice.currentSessionId}: ${conn ? "yes" : "no"}`,
+		`Found connection target for sessionId ${targetDevice.currentSessionId}: ${conn ? conn.kind : "no"}`,
 	);
 	return conn;
 }
@@ -88,8 +95,8 @@ export async function processFileOffer(
 
 	const senderUser = await transferRepository.findUserSummary(senderDevice.userId);
 
-	const targetConnection = await findConnectionByDeviceId(targetDeviceId);
-	if (!targetConnection) {
+	const targetConnectionTarget = await findConnectionByDeviceId(targetDeviceId);
+	if (!targetConnectionTarget) {
 		Logger.warn("FileTransfer", `Target device ${targetDeviceId} not connected`);
 		sendJsonPacket(
 			client,
@@ -104,22 +111,40 @@ export async function processFileOffer(
 		return;
 	}
 
-	const registrationResult = registerTransferOffer(transferId, senderDeviceId, targetDeviceId);
+	const registrationResult = await registerTransferOffer(transferId, senderDeviceId, targetDeviceId);
 	if (!registrationResult.ok) {
 		throw new Error(registrationResult.reason);
 	}
 
 	Logger.info("FileTransfer", `FILE_OFFER from ${senderDeviceId} to ${targetDeviceId}`);
-
-	sendJsonPacket(targetConnection, PacketType.FILE_OFFER, {
-		transferId,
-		senderDeviceId,
-		senderDeviceFingerprint: senderDevice.fingerprint,
-		senderDeviceName: senderDevice.deviceName,
-		senderUserId: senderUser?.id ?? null,
-		senderUserName: senderUser?.name ?? null,
-		files: payload.files,
-	});
+	const delivered = await sendJsonPacketToConnectionTarget(
+		targetConnectionTarget,
+		PacketType.FILE_OFFER,
+		JSON.stringify({
+			transferId,
+			senderDeviceId,
+			senderDeviceFingerprint: senderDevice.fingerprint,
+			senderDeviceName: senderDevice.deviceName,
+			senderUserId: senderUser?.id ?? null,
+			senderUserName: senderUser?.name ?? null,
+			files: payload.files,
+		}),
+	);
+	if (!delivered) {
+		await removeTransferSession(transferId);
+		Logger.warn("FileTransfer", `Failed to relay FILE_OFFER to ${targetDeviceId}`);
+		sendJsonPacket(
+			client,
+			PacketType.FILE_REJECT,
+			{
+				transferId,
+				senderDeviceId,
+				reason: "Target device is unreachable",
+			},
+			requestId,
+		);
+		return;
+	}
 
 	Logger.info("FileTransfer", `FILE_OFFER forwarded to ${targetDeviceId}`);
 }
@@ -140,13 +165,13 @@ export async function processFileAccept(client: IConnection, payload: FileAccept
 		throw new Error("Could not determine receiver device ID from connection");
 	}
 
-	const transferSession = ensureTransferParticipants(transferId, senderDeviceId, receiverDeviceId);
+	const transferSession = await ensureTransferParticipants(transferId, senderDeviceId, receiverDeviceId);
 	if (!transferSession) {
 		throw new Error("FILE_ACCEPT does not match an active transfer session");
 	}
 
-	const senderConnection = await findConnectionByDeviceId(senderDeviceId);
-	if (!senderConnection) {
+	const senderConnectionTarget = await findConnectionByDeviceId(senderDeviceId);
+	if (!senderConnectionTarget) {
 		Logger.warn("FileTransfer", `Sender device ${senderDeviceId} not connected`);
 		return;
 	}
@@ -156,17 +181,24 @@ export async function processFileAccept(client: IConnection, payload: FileAccept
 		throw new Error(`Receiver device ${receiverDeviceId} not found in database`);
 	}
 
-	markTransferAccepted(transferSession.transferId);
+	await markTransferAccepted(transferSession.transferId);
 	Logger.info("FileTransfer", `FILE_ACCEPT from ${receiverDeviceId} to ${senderDeviceId}`);
-
-	sendJsonPacket(senderConnection, PacketType.FILE_ACCEPT, {
-		transferId,
-		senderDeviceId,
-		receiverDeviceId,
-		receiverFingerprint: receiverDevice.fingerprint,
-		address: payload.address,
-		port: payload.port,
-	});
+	const delivered = await sendJsonPacketToConnectionTarget(
+		senderConnectionTarget,
+		PacketType.FILE_ACCEPT,
+		JSON.stringify({
+			transferId,
+			senderDeviceId,
+			receiverDeviceId,
+			receiverFingerprint: receiverDevice.fingerprint,
+			address: payload.address,
+			port: payload.port,
+		}),
+	);
+	if (!delivered) {
+		Logger.warn("FileTransfer", `Failed to relay FILE_ACCEPT to ${senderDeviceId}`);
+		return;
+	}
 
 	Logger.info("FileTransfer", `FILE_ACCEPT forwarded to ${senderDeviceId}`);
 }
@@ -182,7 +214,7 @@ export async function processFileReject(client: IConnection, payload: FileReject
 		throw new Error("Unauthorized rejector device");
 	}
 
-	const fallbackSession = getTransferSessionForFallback(transferId);
+	const fallbackSession = await getTransferSessionForFallback(transferId);
 	const senderDeviceId =
 		payload.senderDeviceId?.trim() || payload.receiverDeviceId?.trim() || fallbackSession?.senderDeviceId;
 
@@ -190,25 +222,32 @@ export async function processFileReject(client: IConnection, payload: FileReject
 		throw new Error("Missing sender device for FILE_REJECT");
 	}
 
-	const transferSession = ensureTransferParticipants(transferId, senderDeviceId, rejectorDeviceId);
+	const transferSession = await ensureTransferParticipants(transferId, senderDeviceId, rejectorDeviceId);
 	if (!transferSession) {
 		throw new Error("FILE_REJECT does not match an active transfer session");
 	}
 
 	Logger.info("FileTransfer", `FILE_REJECT from ${rejectorDeviceId} to ${senderDeviceId}`);
-	removeTransferSession(transferId);
+	await removeTransferSession(transferId);
 
-	const senderConnection = await findConnectionByDeviceId(senderDeviceId);
-	if (!senderConnection) {
+	const senderConnectionTarget = await findConnectionByDeviceId(senderDeviceId);
+	if (!senderConnectionTarget) {
 		Logger.warn("FileTransfer", `Sender device ${senderDeviceId} not connected`);
 		return;
 	}
-
-	sendJsonPacket(senderConnection, PacketType.FILE_REJECT, {
-		transferId,
-		senderDeviceId,
-		reason: payload.reason ?? "Transfer rejected by receiver",
-	});
+	const delivered = await sendJsonPacketToConnectionTarget(
+		senderConnectionTarget,
+		PacketType.FILE_REJECT,
+		JSON.stringify({
+			transferId,
+			senderDeviceId,
+			reason: payload.reason ?? "Transfer rejected by receiver",
+		}),
+	);
+	if (!delivered) {
+		Logger.warn("FileTransfer", `Failed to relay FILE_REJECT to ${senderDeviceId}`);
+		return;
+	}
 
 	Logger.info("FileTransfer", `FILE_REJECT forwarded to ${senderDeviceId}`);
 }
@@ -223,7 +262,7 @@ export async function processFileAck(client: IConnection, targetDeviceId: string
 		throw new Error("Unauthorized ACK sender");
 	}
 
-	const transferSession = resolveTransferForAck(senderDeviceId, targetDeviceId, ackJson);
+	const transferSession = await resolveTransferForAck(senderDeviceId, targetDeviceId, ackJson);
 	if (!transferSession) {
 		throw new Error("FILE_ACK does not match an accepted transfer session");
 	}
@@ -233,14 +272,15 @@ export async function processFileAck(client: IConnection, targetDeviceId: string
 		`FILE_ACK for transfer ${transferSession.transferId} from ${senderDeviceId} to ${targetDeviceId}`,
 	);
 
-	const targetConnection = await findConnectionByDeviceId(targetDeviceId);
-	if (!targetConnection) {
+	const targetConnectionTarget = await findConnectionByDeviceId(targetDeviceId);
+	if (!targetConnectionTarget) {
 		Logger.warn("FileTransfer", `Target device ${targetDeviceId} not connected`);
 		return;
 	}
-
-	targetConnection.sendPacket(PacketType.FILE_ACK, (writer) => {
-		writer.writeString(ackJson);
-	});
+	const delivered = await sendJsonPacketToConnectionTarget(targetConnectionTarget, PacketType.FILE_ACK, ackJson);
+	if (!delivered) {
+		Logger.warn("FileTransfer", `Failed to relay FILE_ACK to ${targetDeviceId}`);
+		return;
+	}
 	Logger.info("FileTransfer", `FILE_ACK forwarded to ${targetDeviceId}`);
 }

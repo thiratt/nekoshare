@@ -95,7 +95,12 @@ export async function createTCPSocketInstance() {
 								return;
 							}
 
-							handleDeviceSocketDisconnect(deviceInfo.id);
+							void handleDeviceSocketDisconnect(deviceInfo.id).catch((err) => {
+								Logger.warn(
+									"TCP",
+									`Failed to cleanup peer state for device ${deviceInfo.id}: ${err?.message || err}`,
+								);
+							});
 						})
 						.catch((err) => {
 							Logger.warn(
