@@ -13,7 +13,7 @@ function RouteComponent() {
 	const { toast } = useToast();
 
 	const onSubmit = async (_data: TResetPasswordSchema) => {
-		toast.info("Forgot password is UI-only for now.");
+		toast.info("ฟีเจอร์ลืมรหัสผ่านยังเป็นหน้า UI เท่านั้นในตอนนี้");
 	};
 
 	return <ResetPasswordCard linkComponent={Link} onSubmit={onSubmit} />;
