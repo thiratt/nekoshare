@@ -2,15 +2,18 @@ export type Status = "success" | "failed" | "processing";
 
 export interface TransferSnapshot {
 	status: Status;
+	direction?: "send" | "receive";
 	progressPercent?: number;
 	fromIsMe?: boolean;
 	fromLabel?: string;
 	deviceLabel?: string | null;
+	statusLabel?: string;
 	error?: string | null;
 	updatedAt?: string;
 }
 
 export interface FileData {
+	stableKey?: string;
 	name: string;
 	path: string;
 	size: number;
@@ -29,6 +32,7 @@ export interface ShareItem {
 	device: string | null;
 	friendName?: string;
 	status: Status;
+	statusLabel?: string;
 	uploadedAt: string;
 	isReaded: boolean;
 	canDownload: boolean;
@@ -39,11 +43,12 @@ export interface ShareItem {
 }
 
 export type InvokeFunction = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
+export type DeleteScope = "history" | "both";
 
 export interface HomeProps {
 	onItemClick: (id: number) => void;
 	onItemReveal: (id: number) => void;
-	onItemRemove: (id: number) => Promise<void>;
+	onItemRemove: (id: number, scope?: DeleteScope) => Promise<void>;
 	onBulkDelete: (ids: number[]) => void;
 	onRefresh?: () => Promise<void> | void;
 	data: FileData[];

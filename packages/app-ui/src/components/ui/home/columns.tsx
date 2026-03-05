@@ -15,6 +15,7 @@ import { FileIcon } from "./icon";
 
 interface StatusBadgeProps {
 	status: ShareItem["status"];
+	statusLabel?: string;
 	progressPercent?: number;
 }
 
@@ -23,13 +24,18 @@ interface UseColumnsProps {
 	onItemDelete: (id: number) => void;
 }
 
-export const StatusBadge = memo(function StatusBadge({ status, progressPercent }: StatusBadgeProps) {
+export const StatusBadge = memo(function StatusBadge({
+	status,
+	statusLabel,
+	progressPercent,
+}: StatusBadgeProps) {
 	const { icon: Icon, color, label } = STATUS_CONFIG[status];
 	const percent =
 		typeof progressPercent === "number" && Number.isFinite(progressPercent)
 			? Math.max(0, Math.min(100, Math.round(progressPercent)))
 			: null;
-	const displayLabel = status === "processing" ? `${percent ?? 0}%` : label;
+	const fallbackLabel = status === "processing" ? `${percent ?? 0}%` : label;
+	const displayLabel = statusLabel ?? fallbackLabel;
 
 	return (
 		<Badge className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${color}`}>
@@ -151,6 +157,7 @@ export function useColumns({ onItemReveal, onItemDelete }: UseColumnsProps): Col
 				cell: ({ row }) => (
 					<StatusBadge
 						status={row.original.status}
+						statusLabel={row.original.statusLabel}
 						progressPercent={row.original.progressPercent}
 					/>
 				),

@@ -44,7 +44,7 @@ import { useToast } from "@workspace/ui/hooks/use-toast";
 import { cn } from "@workspace/ui/lib/utils";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
-import type { HomeProps, ShareItem } from "@workspace/app-ui/types/home";
+import type { DeleteScope, HomeProps, ShareItem } from "@workspace/app-ui/types/home";
 
 import { useColumns } from "./columns";
 import { DeleteBulkDialog, DeleteItemDialog } from "./dialogs";
@@ -270,29 +270,47 @@ export function HomeUI({
 		setDeleteBulkIds(ids);
 	}, [table]);
 
-	const handleConfirmDelete = useCallback(async () => {
+	const handleConfirmDelete = useCallback(async (scope: DeleteScope) => {
 		if (deleteItemId !== null) {
 			const idToDelete = deleteItemId;
 			setDeleteItemId(null);
 
 			setTimeout(async () => {
-				await onItemRemove(idToDelete);
-				toast("ลบรายการเรียบร้อยแล้ว");
+				try {
+					await onItemRemove(idToDelete, scope);
+					if (scope === "both") {
+						toast.success("Deleted history and file successfully");
+						return;
+					}
+					toast.success("Deleted history successfully");
+				} catch (error) {
+					console.error("Failed to delete item:", error);
+					toast.error("Failed to delete item");
+				}
 			}, 200);
 		}
 	}, [deleteItemId, onItemRemove, toast]);
 
-	const handleConfirmBulkDelete = useCallback(async () => {
+	const handleConfirmBulkDelete = useCallback(async (scope: DeleteScope) => {
 		const idsToDelete = [...deleteBulkIds];
 		setDeleteBulkIds([]);
 		setRowSelection({});
 
 		setTimeout(async () => {
 			const idsSet = new Set(idsToDelete);
-			await Promise.all(idsToDelete.map((id) => onItemRemove(id)));
-			setItems((prev) => prev.filter((item) => !idsSet.has(item.id)));
+			try {
+				await Promise.all(idsToDelete.map((id) => onItemRemove(id, scope)));
+				setItems((prev) => prev.filter((item) => !idsSet.has(item.id)));
 
-			toast(`ลบ ${idsToDelete.length} รายการเรียบร้อยแล้ว`);
+				if (scope === "both") {
+					toast.success(`Deleted history and file for ${idsToDelete.length} items`);
+					return;
+				}
+				toast.success(`Deleted history for ${idsToDelete.length} items`);
+			} catch (error) {
+				console.error("Failed to delete multiple items:", error);
+				toast.error("Failed to delete selected items");
+			}
 		}, 200);
 	}, [deleteBulkIds, setItems, toast, onItemRemove]);
 
@@ -440,14 +458,24 @@ export function HomeUI({
 			<DeleteItemDialog
 				open={deleteItemId !== null}
 				onOpenChange={(open) => !open && setDeleteItemId(null)}
-				onConfirm={handleConfirmDelete}
+				onDeleteHistoryOnly={() => {
+					void handleConfirmDelete("history");
+				}}
+				onDeleteBoth={() => {
+					void handleConfirmDelete("both");
+				}}
 			/>
 
 			<DeleteBulkDialog
 				open={deleteBulkIds.length > 0}
 				itemCount={deleteBulkIds.length}
 				onOpenChange={(open) => !open && setDeleteBulkIds([])}
-				onConfirm={handleConfirmBulkDelete}
+				onDeleteHistoryOnly={() => {
+					void handleConfirmBulkDelete("history");
+				}}
+				onDeleteBoth={() => {
+					void handleConfirmBulkDelete("both");
+				}}
 			/>
 		</div>
 	);

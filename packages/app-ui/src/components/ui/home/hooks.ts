@@ -33,6 +33,38 @@ export function generateStableId(path: string): number {
   return Math.abs(hash);
 }
 
+function resolveTransferStatusLabel(
+  direction: "send" | "receive" | undefined,
+  status: Status,
+  progressPercent?: number,
+): string | undefined {
+  if (!direction) {
+    return undefined;
+  }
+
+  const roundedProgress =
+    typeof progressPercent === "number" && Number.isFinite(progressPercent)
+      ? Math.max(0, Math.min(100, Math.round(progressPercent)))
+      : null;
+
+  if (status === "processing") {
+    if (direction === "receive") {
+      return roundedProgress === null
+        ? "กำลังรับ"
+        : `กำลังรับ ${roundedProgress}%`;
+    }
+    return roundedProgress === null
+      ? "กำลังส่ง"
+      : `กำลังส่ง ${roundedProgress}%`;
+  }
+
+  if (status === "success") {
+    return direction === "receive" ? "ได้รับไฟล์" : "ส่งไฟล์";
+  }
+
+  return direction === "receive" ? "รับไม่สำเร็จ" : "ส่งไม่สำเร็จ";
+}
+
 export function useShareData({
   data,
   externalLoading,
@@ -56,14 +88,20 @@ export function useShareData({
           ? uploadedAtDate.toISOString()
           : new Date().toISOString();
       const fromIsMe = file.transfer?.fromIsMe ?? true;
+      const statusLabel = resolveTransferStatusLabel(
+        file.transfer?.direction,
+        transferStatus,
+        progressPercent,
+      );
 
       return {
-        id: generateStableId(file.path),
+        id: generateStableId(file.stableKey ?? file.path),
         name: file.name,
         from: fromIsMe ? "me" : "buddy",
         device: file.transfer?.deviceLabel ?? null,
         friendName: fromIsMe ? undefined : file.transfer?.fromLabel,
         status: transferStatus,
+        statusLabel,
         uploadedAt,
         isReaded: true,
         canDownload: file.isFile,

@@ -1,4 +1,4 @@
-import { memo } from "react";
+﻿import { memo } from "react";
 
 import {
 	AlertDialog,
@@ -15,20 +15,23 @@ import { buttonVariants } from "@workspace/ui/components/button";
 interface DeleteItemDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onConfirm: () => void;
+	onDeleteHistoryOnly: () => void;
+	onDeleteBoth: () => void;
 }
 
 interface DeleteBulkDialogProps {
 	open: boolean;
 	itemCount: number;
 	onOpenChange: (open: boolean) => void;
-	onConfirm: () => void;
+	onDeleteHistoryOnly: () => void;
+	onDeleteBoth: () => void;
 }
 
 export const DeleteItemDialog = memo(function DeleteItemDialog({
 	open,
 	onOpenChange,
-	onConfirm,
+	onDeleteHistoryOnly,
+	onDeleteBoth,
 }: DeleteItemDialogProps) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -36,13 +39,22 @@ export const DeleteItemDialog = memo(function DeleteItemDialog({
 				<AlertDialogHeader>
 					<AlertDialogTitle>ยืนยันการลบ</AlertDialogTitle>
 					<AlertDialogDescription>
-						คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้? การดำเนินการนี้ไม่สามารถย้อนกลับได้.
+						เลือกรูปแบบการลบ: ลบเฉพาะประวัติ หรือ ลบทั้งประวัติและไฟล์
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-					<AlertDialogAction className={buttonVariants({ variant: "destructive" })} onClick={onConfirm}>
-						ลบ
+					<AlertDialogAction
+						className={buttonVariants({ variant: "outline" })}
+						onClick={onDeleteHistoryOnly}
+					>
+						ลบแค่ประวัติ
+					</AlertDialogAction>
+					<AlertDialogAction
+						className={buttonVariants({ variant: "destructive" })}
+						onClick={onDeleteBoth}
+					>
+						ลบทั้งสอง
 					</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
@@ -54,7 +66,8 @@ export const DeleteBulkDialog = memo(function DeleteBulkDialog({
 	open,
 	itemCount,
 	onOpenChange,
-	onConfirm,
+	onDeleteHistoryOnly,
+	onDeleteBoth,
 }: DeleteBulkDialogProps) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -62,13 +75,22 @@ export const DeleteBulkDialog = memo(function DeleteBulkDialog({
 				<AlertDialogHeader>
 					<AlertDialogTitle>ยืนยันการลบหลายรายการ</AlertDialogTitle>
 					<AlertDialogDescription>
-						คุณแน่ใจหรือไม่ว่าต้องการลบ {itemCount} รายการที่เลือก? การดำเนินการนี้ไม่สามารถย้อนกลับได้.
+						เลือกรูปแบบการลบสำหรับ {itemCount} รายการที่เลือก
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel>ยกเลิก</AlertDialogCancel>
-					<AlertDialogAction className={buttonVariants({ variant: "destructive" })} onClick={onConfirm}>
-						ลบ {itemCount} รายการ
+					<AlertDialogAction
+						className={buttonVariants({ variant: "outline" })}
+						onClick={onDeleteHistoryOnly}
+					>
+						ลบแค่ประวัติ
+					</AlertDialogAction>
+					<AlertDialogAction
+						className={buttonVariants({ variant: "destructive" })}
+						onClick={onDeleteBoth}
+					>
+						ลบทั้งสอง ({itemCount})
 					</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
