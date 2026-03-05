@@ -1,7 +1,7 @@
 name: nekoshare-dev
 
 services:
-    database:
+    mysql:
         image: mysql:8.4.6
         restart: always
         env_file:
@@ -18,22 +18,47 @@ services:
         ports:
             - 7770:3306
 
+    redis:
+        image: redis:8.6.1
+        restart: always
+        env_file:
+            - .env.dev
+        command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+        volumes:
+            - redis-data:/data
+        ports:
+            - 7771:6379
+        networks:
+            - nekoshare-net-dev
+
     phpmyadmin:
         image: phpmyadmin
         restart: always
         ports:
-            - 7771:80
+            - 7772:80
         environment:
-            - PMA_HOST=database
+            - PMA_HOST=mysql
             - PMA_ARBITRARY=1
         depends_on:
-            database:
+            mysql:
                 condition: service_healthy
+        networks:
+            - nekoshare-net-dev
+
+    redis-insight:
+        image: redislabs/redisinsight:3.2
+        restart: always
+        volumes:
+            - redis-insight-data:/data
+        ports:
+            - 7773:5540
         networks:
             - nekoshare-net-dev
 
 volumes:
     mysql-data:
+    redis-data:
+    redis-insight-data:
 
 networks:
     nekoshare-net-dev:
