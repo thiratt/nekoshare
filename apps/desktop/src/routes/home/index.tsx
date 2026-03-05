@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
@@ -10,8 +10,15 @@ import {
 } from "@workspace/app-ui/components/ui/home/index";
 import type { FileData, HomeProps } from "@workspace/app-ui/types/home";
 
-import { useWorkspace } from "@/hooks/useWorkspace";
-import { useTransferRecords, useTransferStore } from "@/lib/store/transfers";
+import {
+  deleteTransferHistoryByFileId,
+  listTransferHistory,
+} from "@/lib/transfer-history";
+import {
+  type TransferRecord,
+  useTransferRecords,
+  useTransferStore,
+} from "@/lib/store/transfers";
 
 export const Route = createFileRoute("/home/")({
   component: RouteComponent,
@@ -21,18 +28,32 @@ const tauriInvoke = invoke as HomeProps["invoke"];
 
 function RouteComponent() {
   const navigate = useNavigate();
-  const { files, status, refresh } = useWorkspace();
+  const [isLoading, setIsLoading] = useState(true);
+
   const transferRecords = useTransferRecords();
+  const hydrateTransfers = useTransferStore((state) => state.hydrate);
+  const removeTransferByFileId = useTransferStore(
+    (state) => state.removeByFileId,
+  );
   const removeTransferByPath = useTransferStore((state) => state.removeByPath);
 
-  const isLoading = status === "loading";
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const records = await listTransferHistory();
+      hydrateTransfers(records);
+    } catch (error) {
+      console.error("Failed to load transfer history:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [hydrateTransfers]);
 
-  const workspacePathSet = useMemo(
-    () => new Set(files.map((file) => file.path.trim().toLowerCase())),
-    [files],
-  );
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
-  const resolveLabels = (record: (typeof transferRecords)[number]) => {
+  const resolveLabels = useCallback((record: TransferRecord) => {
     if (record.direction === "send") {
       return {
         fromIsMe: true,
@@ -54,47 +75,12 @@ function RouteComponent() {
       fromLabel: record.sourceUserName ?? "Unknown",
       deviceLabel: null,
     };
-  };
+  }, []);
 
-  const mergedData = useMemo<FileData[]>(() => {
-    const latestByPath = new Map<string, (typeof transferRecords)[number]>();
-
-    for (const record of transferRecords) {
-      const key = record.filePath.trim().toLowerCase();
-      const existing = latestByPath.get(key);
-
-      if (!existing || record.updatedAtMs > existing.updatedAtMs) {
-        latestByPath.set(key, record);
-      }
-    }
-
-    const workspaceRows: FileData[] = files.map((file) => {
-      const key = file.path.trim().toLowerCase();
-      const transfer = latestByPath.get(key);
-
-      return {
-        ...file,
-        transfer: transfer
-          ? {
-              status: transfer.status,
-              progressPercent: transfer.progressPercent,
-              ...resolveLabels(transfer),
-              error: transfer.error,
-              updatedAt: new Date(transfer.updatedAtMs).toISOString(),
-            }
-          : undefined,
-      };
-    });
-
-    const existingPaths = new Set(
-      workspaceRows.map((file) => file.path.trim().toLowerCase()),
-    );
-
-    const transferOnlyRows: FileData[] = transferRecords
-      .filter(
-        (record) => !existingPaths.has(record.filePath.trim().toLowerCase()),
-      )
-      .map((record) => ({
+  const historyData = useMemo<FileData[]>(
+    () =>
+      transferRecords.map((record) => ({
+        stableKey: record.fileId,
         name: record.fileName,
         path: record.filePath,
         size: record.totalBytes,
@@ -105,31 +91,15 @@ function RouteComponent() {
         accessedAt: null,
         transfer: {
           status: record.status,
+          direction: record.direction,
           progressPercent: record.progressPercent,
           ...resolveLabels(record),
           error: record.error,
           updatedAt: new Date(record.updatedAtMs).toISOString(),
         },
-      }));
-
-    return [...workspaceRows, ...transferOnlyRows];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files, transferRecords]);
-
-  if (status === "unavailable") {
-    return (
-      <HomeUI
-        onItemClick={() => {}}
-        onItemReveal={() => Promise.resolve()}
-        onItemRemove={() => Promise.resolve()}
-        onBulkDelete={() => {}}
-        onRefresh={refresh}
-        data={[]}
-        loading={false}
-        invoke={tauriInvoke}
-      />
-    );
-  }
+      })),
+    [resolveLabels, transferRecords],
+  );
 
   return (
     <HomeUI
@@ -138,33 +108,49 @@ function RouteComponent() {
         navigate({ to: "/home/transfer-detail" });
       }}
       onItemReveal={async (id) => {
-        const file = mergedData.find((f) => generateStableId(f.path) === id);
+        const file = historyData.find(
+          (item) => generateStableId(item.stableKey ?? item.path) === id,
+        );
+
         if (file) {
-          await revealItemInDir(file.path);
+          try {
+            await revealItemInDir(file.path);
+          } catch (error) {
+            console.error("Failed to reveal file in directory:", error);
+          }
         }
       }}
-      onItemRemove={async (id) => {
-        const file = mergedData.find((f) => generateStableId(f.path) === id);
-        if (file) {
-          const normalizedPath = file.path.trim().toLowerCase();
-          if (!workspacePathSet.has(normalizedPath)) {
-            removeTransferByPath(file.path);
-            return;
-          }
+      onItemRemove={async (id, scope = "history") => {
+        const file = historyData.find(
+          (item) => generateStableId(item.stableKey ?? item.path) === id,
+        );
 
+        if (!file) {
+          return;
+        }
+
+        if (scope === "both") {
           try {
             await invoke("delete_file", { path: file.path });
-            await refresh();
-          } catch (err) {
-            console.error("Failed to delete file:", err);
+          } catch (error) {
+            console.error("Failed to delete file:", error);
+            throw error;
           }
         }
+
+        if (file.stableKey) {
+          await deleteTransferHistoryByFileId(file.stableKey);
+          removeTransferByFileId(file.stableKey);
+          return;
+        }
+
+        removeTransferByPath(file.path);
       }}
       onBulkDelete={(ids) => {
         console.log("Bulk delete items with ids:", ids);
       }}
       onRefresh={refresh}
-      data={mergedData}
+      data={historyData}
       loading={isLoading}
       invoke={tauriInvoke}
     />

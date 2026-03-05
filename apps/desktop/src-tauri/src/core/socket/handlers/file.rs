@@ -11,6 +11,7 @@ use tokio::sync::{Mutex, RwLock};
 
 use crate::core::socket::{BinaryReader, Connection, PacketRouter, PacketType, SocketResult};
 use crate::core::socket::{SocketError, TransferConfig};
+use crate::core::transfer_history::{persist_transfer_progress_event, TransferProgressEventPayload};
 use crate::state::GlobalState;
 
 struct TransferState {
@@ -56,28 +57,6 @@ pub fn set_transfer_event_app_handle(app: AppHandle) {
     };
 }
 
-#[derive(Debug, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct TransferProgressEvent {
-    transfer_id: String,
-    file_id: String,
-    file_path: String,
-    file_name: String,
-    direction: &'static str,
-    source_user_id: Option<String>,
-    source_user_name: Option<String>,
-    source_device_id: Option<String>,
-    source_device_name: Option<String>,
-    same_account: Option<bool>,
-    target_device_id: String,
-    total_bytes: u64,
-    sent_bytes: u64,
-    progress_percent: f64,
-    status: &'static str,
-    error: Option<String>,
-    timestamp_ms: i64,
-}
-
 fn now_timestamp_ms() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     match SystemTime::now().duration_since(UNIX_EPOCH) {
@@ -94,7 +73,9 @@ fn parse_transfer_id(file_id: &str) -> String {
     }
 }
 
-fn emit_transfer_progress(service: &FileTransferService, event: TransferProgressEvent) {
+fn emit_transfer_progress(service: &FileTransferService, event: TransferProgressEventPayload) {
+    persist_transfer_progress_event(event.clone());
+
     if let Ok(guard) = service.event_app_handle.read() {
         if let Some(app) = guard.as_ref() {
             let _ = app.emit("transfer-progress", event);
@@ -177,12 +158,12 @@ async fn handle_file_offer(
 
     service.active_transfers.insert((conn_id, metadata.id.clone()), state);
 
-    emit_transfer_progress(&service, TransferProgressEvent {
+    emit_transfer_progress(&service, TransferProgressEventPayload {
         transfer_id,
         file_id: metadata.id,
         file_path: file_path.to_string_lossy().to_string(),
         file_name: metadata.name,
-        direction: "receive",
+        direction: "receive".to_string(),
         source_user_id: None,
         source_user_name: None,
         source_device_id: None,
@@ -192,7 +173,7 @@ async fn handle_file_offer(
         total_bytes: metadata.size,
         sent_bytes: 0,
         progress_percent: 0.0,
-        status: "processing",
+        status: "processing".to_string(),
         error: None,
         timestamp_ms: now_timestamp_ms(),
     });
@@ -243,12 +224,12 @@ async fn handle_file_chunk(
             } else {
                 ((current_size as f64 / total_size as f64) * 100.0).min(100.0)
             };
-            emit_transfer_progress(&service, TransferProgressEvent {
+            emit_transfer_progress(&service, TransferProgressEventPayload {
                 transfer_id: state.transfer_id.clone(),
                 file_id: state.file_id.clone(),
                 file_path: state.file_path.to_string_lossy().to_string(),
                 file_name: state.file_name.clone(),
-                direction: "receive",
+                direction: "receive".to_string(),
                 source_user_id: None,
                 source_user_name: None,
                 source_device_id: None,
@@ -258,7 +239,7 @@ async fn handle_file_chunk(
                 total_bytes: total_size,
                 sent_bytes: current_size,
                 progress_percent,
-                status: "processing",
+                status: "processing".to_string(),
                 error: None,
                 timestamp_ms: now_timestamp_ms(),
             });
@@ -271,12 +252,12 @@ async fn handle_file_chunk(
             }
 
             log::info!("Transfer complete: {:?}", state.file_path);
-            emit_transfer_progress(&service, TransferProgressEvent {
+            emit_transfer_progress(&service, TransferProgressEventPayload {
                 transfer_id: state.transfer_id.clone(),
                 file_id: state.file_id.clone(),
                 file_path: state.file_path.to_string_lossy().to_string(),
                 file_name: state.file_name.clone(),
-                direction: "receive",
+                direction: "receive".to_string(),
                 source_user_id: None,
                 source_user_name: None,
                 source_device_id: None,
@@ -286,7 +267,7 @@ async fn handle_file_chunk(
                 total_bytes: state.expected_size,
                 sent_bytes: state.expected_size,
                 progress_percent: 100.0,
-                status: "success",
+                status: "success".to_string(),
                 error: None,
                 timestamp_ms: now_timestamp_ms(),
             });
@@ -329,12 +310,12 @@ async fn handle_file_finish(
         } else {
             ((received_size as f64 / state.expected_size as f64) * 100.0).min(100.0)
         };
-        emit_transfer_progress(&service, TransferProgressEvent {
+        emit_transfer_progress(&service, TransferProgressEventPayload {
             transfer_id: state.transfer_id.clone(),
             file_id: state.file_id.clone(),
             file_path: state.file_path.to_string_lossy().to_string(),
             file_name: state.file_name.clone(),
-            direction: "receive",
+            direction: "receive".to_string(),
             source_user_id: None,
             source_user_name: None,
             source_device_id: None,
@@ -344,7 +325,7 @@ async fn handle_file_finish(
             total_bytes: state.expected_size,
             sent_bytes: received_size,
             progress_percent,
-            status: "success",
+            status: "success".to_string(),
             error: None,
             timestamp_ms: now_timestamp_ms(),
         });

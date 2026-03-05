@@ -56,8 +56,10 @@ interface IncomingTransferMeta {
 interface TransferStoreState {
   records: TransferRecord[];
   incomingMeta: Record<string, IncomingTransferMeta>;
+  hydrate: (records: TransferRecord[]) => void;
   upsertFromEvent: (event: TransferProgressEvent) => void;
   registerIncomingMeta: (meta: Omit<IncomingTransferMeta, "updatedAtMs">) => void;
+  removeByFileId: (fileId: string) => void;
   removeByPath: (path: string) => void;
   clearOld: (maxAgeMs: number) => void;
 }
@@ -76,6 +78,11 @@ function normalizePath(path: string): string {
 export const useTransferStore = create<TransferStoreState>((set) => ({
   records: [],
   incomingMeta: {},
+
+  hydrate: (records) => {
+    const sorted = [...records].sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+    set({ records: sorted });
+  },
 
   registerIncomingMeta: (meta) => {
     set((state) => ({
@@ -146,7 +153,9 @@ export const useTransferStore = create<TransferStoreState>((set) => ({
           updatedAtMs: event.timestampMs,
         };
 
-        return { records: [newRecord, ...state.records] };
+        const next = [newRecord, ...state.records];
+        next.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+        return { records: next };
       }
 
       const existing = state.records[recordIndex];
@@ -173,8 +182,15 @@ export const useTransferStore = create<TransferStoreState>((set) => ({
 
       const next = [...state.records];
       next[recordIndex] = merged;
+      next.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
       return { records: next };
     });
+  },
+
+  removeByFileId: (fileId) => {
+    set((state) => ({
+      records: state.records.filter((record) => record.fileId !== fileId),
+    }));
   },
 
   removeByPath: (path) => {

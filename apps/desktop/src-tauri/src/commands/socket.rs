@@ -16,33 +16,12 @@ use crate::{
             ids::{LinkKey, RouteKind},
             Connection, PacketType, SocketClientConfig, SocketManager, TransferConfig,
         },
+        transfer_history::{persist_transfer_progress_event, TransferProgressEventPayload},
     },
     state::GlobalState,
 };
 
 const STORE_FILE_NAME: &str = "nekoshare.json";
-
-#[derive(Debug, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct TransferProgressEvent {
-    transfer_id: String,
-    file_id: String,
-    file_path: String,
-    file_name: String,
-    direction: &'static str,
-    source_user_id: Option<String>,
-    source_user_name: Option<String>,
-    source_device_id: Option<String>,
-    source_device_name: Option<String>,
-    same_account: Option<bool>,
-    target_device_id: String,
-    total_bytes: u64,
-    sent_bytes: u64,
-    progress_percent: f64,
-    status: &'static str,
-    error: Option<String>,
-    timestamp_ms: i64,
-}
 
 fn now_timestamp_ms() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -73,17 +52,18 @@ struct SendTransferContext {
 }
 
 impl SendTransferContext {
-    fn emit_event(&self, event: TransferProgressEvent) {
+    fn emit_event(&self, event: TransferProgressEventPayload) {
+        persist_transfer_progress_event(event.clone());
         let _ = self.app_handle.emit("transfer-progress", event);
     }
 
     fn emit_started(&self, file_id: &str, file_path: &str, file_name: &str, total_bytes: u64) {
-        self.emit_event(TransferProgressEvent {
+        self.emit_event(TransferProgressEventPayload {
             transfer_id: self.transfer_id.clone(),
             file_id: file_id.to_string(),
             file_path: file_path.to_string(),
             file_name: file_name.to_string(),
-            direction: "send",
+            direction: "send".to_string(),
             source_user_id: self.source_user_id.clone(),
             source_user_name: self.source_user_name.clone(),
             source_device_id: Some(self.source_device_id.clone()),
@@ -93,7 +73,7 @@ impl SendTransferContext {
             total_bytes,
             sent_bytes: 0,
             progress_percent: 0.0,
-            status: "processing",
+            status: "processing".to_string(),
             error: None,
             timestamp_ms: now_timestamp_ms(),
         });
@@ -113,12 +93,12 @@ impl SendTransferContext {
             ((sent_bytes as f64 / total_bytes as f64) * 100.0).min(100.0)
         };
 
-        self.emit_event(TransferProgressEvent {
+        self.emit_event(TransferProgressEventPayload {
             transfer_id: self.transfer_id.clone(),
             file_id: file_id.to_string(),
             file_path: file_path.to_string(),
             file_name: file_name.to_string(),
-            direction: "send",
+            direction: "send".to_string(),
             source_user_id: self.source_user_id.clone(),
             source_user_name: self.source_user_name.clone(),
             source_device_id: Some(self.source_device_id.clone()),
@@ -128,19 +108,19 @@ impl SendTransferContext {
             total_bytes,
             sent_bytes,
             progress_percent,
-            status: "processing",
+            status: "processing".to_string(),
             error: None,
             timestamp_ms: now_timestamp_ms(),
         });
     }
 
     fn emit_completed(&self, file_id: &str, file_path: &str, file_name: &str, total_bytes: u64) {
-        self.emit_event(TransferProgressEvent {
+        self.emit_event(TransferProgressEventPayload {
             transfer_id: self.transfer_id.clone(),
             file_id: file_id.to_string(),
             file_path: file_path.to_string(),
             file_name: file_name.to_string(),
-            direction: "send",
+            direction: "send".to_string(),
             source_user_id: self.source_user_id.clone(),
             source_user_name: self.source_user_name.clone(),
             source_device_id: Some(self.source_device_id.clone()),
@@ -150,19 +130,19 @@ impl SendTransferContext {
             total_bytes,
             sent_bytes: total_bytes,
             progress_percent: 100.0,
-            status: "success",
+            status: "success".to_string(),
             error: None,
             timestamp_ms: now_timestamp_ms(),
         });
     }
 
     fn emit_batch_failed(&self, error_message: String) {
-        self.emit_event(TransferProgressEvent {
+        self.emit_event(TransferProgressEventPayload {
             transfer_id: self.transfer_id.clone(),
             file_id: String::new(),
             file_path: String::new(),
             file_name: String::new(),
-            direction: "send",
+            direction: "send".to_string(),
             source_user_id: self.source_user_id.clone(),
             source_user_name: self.source_user_name.clone(),
             source_device_id: Some(self.source_device_id.clone()),
@@ -172,7 +152,7 @@ impl SendTransferContext {
             total_bytes: 0,
             sent_bytes: 0,
             progress_percent: 0.0,
-            status: "failed",
+            status: "failed".to_string(),
             error: Some(error_message),
             timestamp_ms: now_timestamp_ms(),
         });
