@@ -2,6 +2,7 @@ export type Status = "success" | "failed" | "processing";
 
 export interface TransferSnapshot {
 	status: Status;
+	transferId?: string;
 	direction?: "send" | "receive";
 	progressPercent?: number;
 	fromIsMe?: boolean;
@@ -28,6 +29,7 @@ export interface FileData {
 export interface ShareItem {
 	id: number;
 	name: string;
+	direction?: "send" | "receive";
 	from: "me" | "buddy";
 	device: string | null;
 	friendName?: string;

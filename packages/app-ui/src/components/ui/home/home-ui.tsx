@@ -168,6 +168,8 @@ export function HomeUI({
 
 	const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
 	const [deleteBulkIds, setDeleteBulkIds] = useState<number[]>([]);
+	const [deleteItemAllowDeleteBoth, setDeleteItemAllowDeleteBoth] = useState(true);
+	const [deleteBulkAllowDeleteBoth, setDeleteBulkAllowDeleteBoth] = useState(true);
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
@@ -206,9 +208,14 @@ export function HomeUI({
 		[onItemReveal],
 	);
 
-	const handleItemDelete = useCallback((id: number) => {
-		setDeleteItemId(id);
-	}, []);
+	const handleItemDelete = useCallback(
+		(id: number) => {
+			const targetItem = items.find((item) => item.id === id);
+			setDeleteItemAllowDeleteBoth(targetItem ? targetItem.direction !== "send" : true);
+			setDeleteItemId(id);
+		},
+		[items],
+	);
 
 	const columns = useColumns({
 		onItemReveal,
@@ -267,19 +274,23 @@ export function HomeUI({
 
 	const handleBulkDelete = useCallback(() => {
 		const ids = table.getSelectedRowModel().rows.map((r) => r.original.id);
+		const idSet = new Set(ids);
+		const selectedItems = items.filter((item) => idSet.has(item.id));
+		setDeleteBulkAllowDeleteBoth(selectedItems.some((item) => item.direction !== "send"));
 		setDeleteBulkIds(ids);
-	}, [table]);
+	}, [items, table]);
 
 	const handleConfirmDelete = useCallback(async (scope: DeleteScope) => {
 		if (deleteItemId !== null) {
 			const idToDelete = deleteItemId;
 			setDeleteItemId(null);
+			const resolvedScope = !deleteItemAllowDeleteBoth && scope === "both" ? "history" : scope;
 
 			setTimeout(async () => {
 				try {
-					await onItemRemove(idToDelete, scope);
-					if (scope === "both") {
-						toast.success("Deleted history and file successfully");
+					await onItemRemove(idToDelete, resolvedScope);
+					if (resolvedScope === "both") {
+						toast.success("Deleted successfully");
 						return;
 					}
 					toast.success("Deleted history successfully");
@@ -289,21 +300,22 @@ export function HomeUI({
 				}
 			}, 200);
 		}
-	}, [deleteItemId, onItemRemove, toast]);
+	}, [deleteItemAllowDeleteBoth, deleteItemId, onItemRemove, toast]);
 
 	const handleConfirmBulkDelete = useCallback(async (scope: DeleteScope) => {
 		const idsToDelete = [...deleteBulkIds];
 		setDeleteBulkIds([]);
 		setRowSelection({});
+		const resolvedScope = !deleteBulkAllowDeleteBoth && scope === "both" ? "history" : scope;
 
 		setTimeout(async () => {
 			const idsSet = new Set(idsToDelete);
 			try {
-				await Promise.all(idsToDelete.map((id) => onItemRemove(id, scope)));
+				await Promise.all(idsToDelete.map((id) => onItemRemove(id, resolvedScope)));
 				setItems((prev) => prev.filter((item) => !idsSet.has(item.id)));
 
-				if (scope === "both") {
-					toast.success(`Deleted history and file for ${idsToDelete.length} items`);
+				if (resolvedScope === "both") {
+					toast.success(`Deleted ${idsToDelete.length} items successfully`);
 					return;
 				}
 				toast.success(`Deleted history for ${idsToDelete.length} items`);
@@ -312,7 +324,7 @@ export function HomeUI({
 				toast.error("Failed to delete selected items");
 			}
 		}, 200);
-	}, [deleteBulkIds, setItems, toast, onItemRemove]);
+	}, [deleteBulkAllowDeleteBoth, deleteBulkIds, setItems, toast, onItemRemove]);
 
 	return (
 		<div className="h-full flex flex-col">
@@ -457,25 +469,35 @@ export function HomeUI({
 
 			<DeleteItemDialog
 				open={deleteItemId !== null}
-				onOpenChange={(open) => !open && setDeleteItemId(null)}
+				onOpenChange={(open) => {
+					if (!open) {
+						setDeleteItemId(null);
+					}
+				}}
 				onDeleteHistoryOnly={() => {
 					void handleConfirmDelete("history");
 				}}
 				onDeleteBoth={() => {
 					void handleConfirmDelete("both");
 				}}
+				allowDeleteBoth={deleteItemAllowDeleteBoth}
 			/>
 
 			<DeleteBulkDialog
 				open={deleteBulkIds.length > 0}
 				itemCount={deleteBulkIds.length}
-				onOpenChange={(open) => !open && setDeleteBulkIds([])}
+				onOpenChange={(open) => {
+					if (!open) {
+						setDeleteBulkIds([]);
+					}
+				}}
 				onDeleteHistoryOnly={() => {
 					void handleConfirmBulkDelete("history");
 				}}
 				onDeleteBoth={() => {
 					void handleConfirmBulkDelete("both");
 				}}
+				allowDeleteBoth={deleteBulkAllowDeleteBoth}
 			/>
 		</div>
 	);

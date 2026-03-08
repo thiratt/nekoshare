@@ -142,7 +142,11 @@ export function useDevices(): UseDevicesReturn {
 
 		[PacketType.DEVICE_ONLINE]: (result) => {
 			if (result.status === "success") {
-				const payload = result.data as SocketDevicePresencePayload;
+				const payload = result.data as SocketDevicePresencePayload | undefined;
+				if (!payload?.deviceId) {
+					console.warn("[useDevices] DEVICE_ONLINE payload missing deviceId");
+					return;
+				}
 				setState((prev) => {
 					const device = findDeviceInMap(prev.deviceMap, payload.deviceId);
 
@@ -160,7 +164,11 @@ export function useDevices(): UseDevicesReturn {
 
 		[PacketType.DEVICE_OFFLINE]: (result) => {
 			if (result.status === "success") {
-				const payload = result.data as SocketDevicePresencePayload;
+				const payload = result.data as SocketDevicePresencePayload | undefined;
+				if (!payload?.deviceId) {
+					console.warn("[useDevices] DEVICE_OFFLINE payload missing deviceId");
+					return;
+				}
 				setState((prev) => {
 					const device = findDeviceInMap(prev.deviceMap, payload.deviceId);
 

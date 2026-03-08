@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+﻿import { memo, useMemo } from "react";
 
 import { LuArrowUpDown, LuFolderInput, LuTrash2 } from "react-icons/lu";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -6,7 +6,11 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import { Checkbox } from "@workspace/ui/components/checkbox";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@workspace/ui/components/tooltip";
 
 import type { ShareItem } from "@workspace/app-ui/types/home";
 
@@ -24,6 +28,61 @@ interface UseColumnsProps {
 	onItemDelete: (id: number) => void;
 }
 
+interface RowActionsCellProps {
+	id: number;
+	canDownload: boolean;
+	onItemReveal: (id: number) => void;
+	onItemDelete: (id: number) => void;
+}
+
+const RowActionsCell = memo(function RowActionsCell({
+	id,
+	canDownload,
+	onItemReveal,
+	onItemDelete,
+}: RowActionsCellProps) {
+	return (
+		<div className="flex gap-1">
+			{canDownload && (
+				<Tooltip delayDuration={150}>
+					<TooltipTrigger asChild>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary"
+							onClick={(e) => {
+								e.stopPropagation();
+								onItemReveal(id);
+							}}
+							aria-label="Reveal file"
+						>
+							<LuFolderInput className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>เปิดตำแหน่งไฟล์</TooltipContent>
+				</Tooltip>
+			)}
+			<Tooltip delayDuration={150}>
+				<TooltipTrigger asChild>
+					<Button
+						variant="ghost"
+						size="icon"
+						className="h-8 w-8 hover:bg-destructive hover:text-primary-foreground dark:hover:bg-destructive/60 dark:hover:text-foreground"
+						onClick={(e) => {
+							e.stopPropagation();
+							onItemDelete(id);
+						}}
+						aria-label="Delete item"
+					>
+						<LuTrash2 className="h-4 w-4" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent>ลบ</TooltipContent>
+			</Tooltip>
+		</div>
+	);
+});
+
 export const StatusBadge = memo(function StatusBadge({
 	status,
 	statusLabel,
@@ -38,8 +97,8 @@ export const StatusBadge = memo(function StatusBadge({
 	const displayLabel = statusLabel ?? fallbackLabel;
 
 	return (
-		<Badge className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${color}`}>
-			<Icon className="w-3 h-3" />
+		<Badge className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${color}`}>
+			<Icon className="h-3 w-3" />
 			{displayLabel}
 		</Badge>
 	);
@@ -54,7 +113,8 @@ export function useColumns({ onItemReveal, onItemDelete }: UseColumnsProps): Col
 					<Checkbox
 						className="border-foreground"
 						checked={
-							table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")
+							table.getIsAllPageRowsSelected() ||
+							(table.getIsSomePageRowsSelected() && "indeterminate")
 						}
 						onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
 						aria-label="Select all"
@@ -74,30 +134,27 @@ export function useColumns({ onItemReveal, onItemDelete }: UseColumnsProps): Col
 			},
 			{
 				accessorKey: "name",
-				header: ({ column }) => {
-					return (
-						<div
-							className="flex items-center gap-2"
-							onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-						>
-							ชื่อ
-							<LuArrowUpDown />
-						</div>
-					);
-				},
+				header: ({ column }) => (
+					<div
+						className="flex items-center gap-2"
+						onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+					>
+						ชื่อ
+						<LuArrowUpDown />
+					</div>
+				),
 				cell: ({ row }) => {
 					const name = row.original.name;
-
 					return (
 						<Tooltip delayDuration={300}>
 							<TooltipTrigger asChild>
-								<div className="flex items-center gap-2 min-w-0">
+								<div className="flex min-w-0 items-center gap-2">
 									<FileIcon type={row.original.type || "file"} className="shrink-0" />
 									<span className="truncate">{name}</span>
 								</div>
 							</TooltipTrigger>
 							<TooltipContent>
-								<div className="max-w-md break-all whitespace-normal text-sm p-1">{name}</div>
+								<div className="max-w-md break-all whitespace-normal p-1 text-sm">{name}</div>
 							</TooltipContent>
 						</Tooltip>
 					);
@@ -184,44 +241,12 @@ export function useColumns({ onItemReveal, onItemDelete }: UseColumnsProps): Col
 				header: "ตัวเลือก",
 				enableSorting: false,
 				cell: ({ row }) => (
-					<div className="flex gap-1">
-						{row.original.canDownload && (
-							<Tooltip delayDuration={150}>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary"
-										onClick={(e) => {
-											e.stopPropagation();
-											onItemReveal(row.original.id);
-										}}
-										aria-label="Download item"
-									>
-										<LuFolderInput className="h-4 w-4" />
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent>เปิดตำแหน่งไฟล์</TooltipContent>
-							</Tooltip>
-						)}
-						<Tooltip delayDuration={150}>
-							<TooltipTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 hover:bg-destructive hover:text-primary-foreground dark:hover:bg-destructive/60 dark:hover:text-foreground"
-									onClick={(e) => {
-										e.stopPropagation();
-										onItemDelete(row.original.id);
-									}}
-									aria-label="Delete item"
-								>
-									<LuTrash2 className="h-4 w-4" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>ลบ</TooltipContent>
-						</Tooltip>
-					</div>
+					<RowActionsCell
+						id={row.original.id}
+						canDownload={row.original.canDownload}
+						onItemReveal={onItemReveal}
+						onItemDelete={onItemDelete}
+					/>
 				),
 			},
 		],

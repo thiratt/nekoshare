@@ -34,35 +34,30 @@ export function generateStableId(path: string): number {
 }
 
 function resolveTransferStatusLabel(
+  transferFileCount: number,
   direction: "send" | "receive" | undefined,
   status: Status,
   progressPercent?: number,
 ): string | undefined {
-  if (!direction) {
-    return undefined;
-  }
-
   const roundedProgress =
     typeof progressPercent === "number" && Number.isFinite(progressPercent)
       ? Math.max(0, Math.min(100, Math.round(progressPercent)))
       : null;
 
   if (status === "processing") {
-    if (direction === "receive") {
-      return roundedProgress === null
-        ? "กำลังรับ"
-        : `กำลังรับ ${roundedProgress}%`;
+    if (transferFileCount > 1) {
+      if (direction === "receive") {
+        return `กำลังรับ ${transferFileCount} ไฟล์`;
+      }
+      if (direction === "send") {
+        return `กำลังส่ง ${transferFileCount} ไฟล์`;
+      }
     }
-    return roundedProgress === null
-      ? "กำลังส่ง"
-      : `กำลังส่ง ${roundedProgress}%`;
+    return `${roundedProgress ?? 0}%`;
   }
 
-  if (status === "success") {
-    return direction === "receive" ? "ได้รับไฟล์" : "ส่งไฟล์";
-  }
-
-  return direction === "receive" ? "รับไม่สำเร็จ" : "ส่งไม่สำเร็จ";
+  void direction;
+  return undefined;
 }
 
 export function useShareData({
@@ -79,9 +74,21 @@ export function useShareData({
       return;
     }
 
+    const transferCountMap = new Map<string, number>();
+    for (const item of data) {
+      const transferId = item.transfer?.transferId;
+      if (!transferId || transferId.length === 0) continue;
+      transferCountMap.set(transferId, (transferCountMap.get(transferId) ?? 0) + 1);
+    }
+
     const transformedItems: ShareItem[] = data.map((file) => {
       const transferStatus: Status = file.transfer?.status ?? "success";
       const progressPercent = file.transfer?.progressPercent;
+      const transferId = file.transfer?.transferId;
+      const transferFileCount =
+        transferId && transferId.length > 0
+          ? (transferCountMap.get(transferId) ?? 1)
+          : 1;
       const uploadedAtDate = file.modifiedAt || file.createdAt || new Date();
       const uploadedAt =
         uploadedAtDate instanceof Date
@@ -89,6 +96,7 @@ export function useShareData({
           : new Date().toISOString();
       const fromIsMe = file.transfer?.fromIsMe ?? true;
       const statusLabel = resolveTransferStatusLabel(
+        transferFileCount,
         file.transfer?.direction,
         transferStatus,
         progressPercent,
@@ -97,6 +105,7 @@ export function useShareData({
       return {
         id: generateStableId(file.stableKey ?? file.path),
         name: file.name,
+        direction: file.transfer?.direction,
         from: fromIsMe ? "me" : "buddy",
         device: file.transfer?.deviceLabel ?? null,
         friendName: fromIsMe ? undefined : file.transfer?.fromLabel,
