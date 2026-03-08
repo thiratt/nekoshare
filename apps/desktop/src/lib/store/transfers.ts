@@ -60,6 +60,7 @@ interface TransferStoreState {
   upsertFromEvent: (event: TransferProgressEvent) => void;
   registerIncomingMeta: (meta: Omit<IncomingTransferMeta, "updatedAtMs">) => void;
   removeByFileId: (fileId: string) => void;
+  removeByTransferId: (transferId: string) => void;
   removeByPath: (path: string) => void;
   clearOld: (maxAgeMs: number) => void;
 }
@@ -190,6 +191,14 @@ export const useTransferStore = create<TransferStoreState>((set) => ({
   removeByFileId: (fileId) => {
     set((state) => ({
       records: state.records.filter((record) => record.fileId !== fileId),
+    }));
+  },
+
+  removeByTransferId: (transferId) => {
+    set((state) => ({
+      records: state.records.filter(
+        (record) => record.transferId !== transferId,
+      ),
     }));
   },
 

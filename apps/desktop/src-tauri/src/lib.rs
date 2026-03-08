@@ -38,6 +38,7 @@ pub fn run() {
             // Transfer History
             commands::transfer_history::transfer_history_list,
             commands::transfer_history::transfer_history_delete,
+            commands::transfer_history::transfer_history_delete_transfer,
             // Socket Client
             commands::socket::socket_client_connect_to,
             commands::socket::socket_client_disconnect_from,

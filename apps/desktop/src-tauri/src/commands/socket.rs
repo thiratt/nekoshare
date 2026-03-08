@@ -31,7 +31,7 @@ fn now_timestamp_ms() -> i64 {
     }
 }
 
-const SEND_PROGRESS_EMIT_STEP: u64 = 256 * 1024;
+const SEND_PROGRESS_EMIT_STEP: u64 = 1024 * 1024;
 
 #[derive(serde::Serialize)]
 struct FileMetadata {

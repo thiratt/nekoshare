@@ -27,7 +27,7 @@ struct TransferState {
 
 type TransferMap = DashMap<(String, String), Arc<TransferState>>;
 
-const RECEIVE_PROGRESS_EMIT_STEP: u64 = 256 * 1024;
+const RECEIVE_PROGRESS_EMIT_STEP: u64 = 1024 * 1024;
 
 pub struct FileTransferService {
     active_transfers: TransferMap,

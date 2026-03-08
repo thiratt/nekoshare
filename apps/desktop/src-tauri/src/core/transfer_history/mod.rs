@@ -143,6 +143,15 @@ impl TransferHistoryService {
         Ok(())
     }
 
+    pub fn delete_by_transfer_id(&self, transfer_id: &str) -> Result<()> {
+        let conn = self.open_connection()?;
+        conn.execute(
+            "DELETE FROM transfer_history WHERE transfer_id = ?1",
+            params![transfer_id],
+        )?;
+        Ok(())
+    }
+
     pub fn upsert_progress_event(&self, event: &TransferProgressEventPayload) -> Result<()> {
         if event.file_id.trim().is_empty() {
             return self.mark_batch_failed(event);
@@ -172,26 +181,69 @@ impl TransferHistoryService {
                 updated_at_ms
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
             ON CONFLICT(file_id) DO UPDATE SET
-                transfer_id = excluded.transfer_id,
-                file_path = excluded.file_path,
-                file_name = excluded.file_name,
-                direction = excluded.direction,
-                source_user_id = excluded.source_user_id,
-                source_user_name = excluded.source_user_name,
-                source_device_id = excluded.source_device_id,
-                source_device_name = excluded.source_device_name,
-                same_account = excluded.same_account,
-                target_device_id = excluded.target_device_id,
-                total_bytes = excluded.total_bytes,
-                sent_bytes = excluded.sent_bytes,
-                progress_percent = excluded.progress_percent,
-                status = excluded.status,
-                error = excluded.error,
-                started_at_ms = CASE
-                    WHEN transfer_history.started_at_ms <= excluded.started_at_ms THEN transfer_history.started_at_ms
-                    ELSE excluded.started_at_ms
+                transfer_id = CASE
+                    WHEN excluded.updated_at_ms >= transfer_history.updated_at_ms THEN excluded.transfer_id
+                    ELSE transfer_history.transfer_id
                 END,
-                updated_at_ms = excluded.updated_at_ms
+                file_path = CASE
+                    WHEN excluded.updated_at_ms >= transfer_history.updated_at_ms THEN excluded.file_path
+                    ELSE transfer_history.file_path
+                END,
+                file_name = CASE
+                    WHEN excluded.updated_at_ms >= transfer_history.updated_at_ms THEN excluded.file_name
+                    ELSE transfer_history.file_name
+                END,
+                direction = CASE
+                    WHEN excluded.updated_at_ms >= transfer_history.updated_at_ms THEN excluded.direction
+                    ELSE transfer_history.direction
+                END,
+                source_user_id = CASE
+                    WHEN excluded.updated_at_ms >= transfer_history.updated_at_ms THEN excluded.source_user_id
+                    ELSE transfer_history.source_user_id
+                END,
+                source_user_name = CASE
+                    WHEN excluded.updated_at_ms >= transfer_history.updated_at_ms THEN excluded.source_user_name
+                    ELSE transfer_history.source_user_name
+                END,
+                source_device_id = CASE
+                    WHEN excluded.updated_at_ms >= transfer_history.updated_at_ms THEN excluded.source_device_id
+                    ELSE transfer_history.source_device_id
+                END,
+                source_device_name = CASE
+                    WHEN excluded.updated_at_ms >= transfer_history.updated_at_ms THEN excluded.source_device_name
+                    ELSE transfer_history.source_device_name
+                END,
+                same_account = CASE
+                    WHEN excluded.updated_at_ms >= transfer_history.updated_at_ms THEN excluded.same_account
+                    ELSE transfer_history.same_account
+                END,
+                target_device_id = CASE
+                    WHEN excluded.updated_at_ms >= transfer_history.updated_at_ms THEN excluded.target_device_id
+                    ELSE transfer_history.target_device_id
+                END,
+                total_bytes = MAX(transfer_history.total_bytes, excluded.total_bytes),
+                sent_bytes = CASE
+                    WHEN transfer_history.status = 'success' THEN transfer_history.total_bytes
+                    WHEN excluded.status = 'success' THEN MAX(excluded.sent_bytes, excluded.total_bytes)
+                    ELSE MAX(transfer_history.sent_bytes, excluded.sent_bytes)
+                END,
+                progress_percent = CASE
+                    WHEN transfer_history.status = 'success' OR excluded.status = 'success' THEN 100.0
+                    ELSE MAX(transfer_history.progress_percent, excluded.progress_percent)
+                END,
+                status = CASE
+                    WHEN transfer_history.status = 'success' THEN 'success'
+                    WHEN excluded.status = 'success' THEN 'success'
+                    WHEN transfer_history.status = 'failed' AND excluded.status = 'processing' THEN 'failed'
+                    ELSE excluded.status
+                END,
+                error = CASE
+                    WHEN excluded.status = 'success' THEN NULL
+                    WHEN excluded.error IS NOT NULL THEN excluded.error
+                    ELSE transfer_history.error
+                END,
+                started_at_ms = MIN(transfer_history.started_at_ms, excluded.started_at_ms),
+                updated_at_ms = MAX(transfer_history.updated_at_ms, excluded.updated_at_ms)
             "#,
             params![
                 event.transfer_id,
@@ -251,6 +303,21 @@ impl TransferHistoryService {
 
             CREATE INDEX IF NOT EXISTS idx_transfer_history_transfer_id
             ON transfer_history(transfer_id);
+
+            UPDATE transfer_history
+            SET
+                progress_percent = 100.0,
+                sent_bytes = total_bytes,
+                error = NULL
+            WHERE status = 'success' AND (progress_percent < 100.0 OR sent_bytes < total_bytes);
+
+            UPDATE transfer_history
+            SET
+                status = 'success',
+                progress_percent = 100.0,
+                sent_bytes = total_bytes,
+                error = NULL
+            WHERE status = 'processing' AND total_bytes > 0 AND sent_bytes >= total_bytes;
             "#,
         )?;
 

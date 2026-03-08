@@ -66,6 +66,12 @@ export async function deleteTransferHistoryByFileId(fileId: string): Promise<voi
   await invoke("transfer_history_delete", { fileId });
 }
 
+export async function deleteTransferHistoryByTransferId(
+  transferId: string,
+): Promise<void> {
+  await invoke("transfer_history_delete_transfer", { transferId });
+}
+
 export function eventToTransferRecord(event: TransferProgressEvent): TransferRecord {
   return {
     transferId: event.transferId,

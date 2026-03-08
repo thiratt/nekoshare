@@ -18,3 +18,12 @@ pub async fn transfer_history_delete(file_id: String) -> Result<(), String> {
         .map_err(|err| format!("transfer history delete task failed: {}", err))?
         .map_err(|err| format!("failed to delete transfer history record: {}", err))
 }
+
+#[tauri::command]
+pub async fn transfer_history_delete_transfer(transfer_id: String) -> Result<(), String> {
+    let service = GlobalState::get::<TransferHistoryService>();
+    tokio::task::spawn_blocking(move || service.delete_by_transfer_id(&transfer_id))
+        .await
+        .map_err(|err| format!("transfer history delete-transfer task failed: {}", err))?
+        .map_err(|err| format!("failed to delete transfer history transfer: {}", err))
+}

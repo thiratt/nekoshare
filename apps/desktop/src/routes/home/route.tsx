@@ -146,6 +146,8 @@ function RouteComponent() {
     setMode,
   } = useNekoShareDesktop();
   const { user } = Route.useRouteContext();
+  const userId = user?.id ?? null;
+  const userDeviceId = user?.deviceId ?? null;
   const { theme, setTheme } = useTheme();
   const { send } = useNekoSocket();
   const { devices } = useDevices();
@@ -156,6 +158,10 @@ function RouteComponent() {
   );
   const clearOldTransfers = useTransferStore((state) => state.clearOld);
   const pendingTransfers = useRef<Map<string, string[]>>(new Map());
+  const pendingTransferEvents = useRef<Map<string, TransferProgressEvent>>(
+    new Map(),
+  );
+  const flushTimerRef = useRef<number | null>(null);
   const titlebarHelperActions = useMemo(
     () => [
       {
@@ -194,9 +200,15 @@ function RouteComponent() {
         senderUserName,
         transferId,
       } = message.data;
+      if (!userId || !userDeviceId) {
+        console.error(
+          "[PacketRouter] Missing session user/device id for FILE_OFFER",
+        );
+        return;
+      }
 
       const sameAccount = senderUserId
-        ? senderUserId === user.id
+        ? senderUserId === userId
         : devices.some((d) => d.id === senderDeviceId);
 
       registerIncomingMeta({
@@ -235,7 +247,7 @@ function RouteComponent() {
       const acceptPayload = {
         transferId: transferId,
         senderDeviceId: senderDeviceId,
-        receiverDeviceId: user.deviceId,
+        receiverDeviceId: userDeviceId,
         receiverFingerprint: currentDevice.fingerprint,
         address,
         port,
@@ -270,8 +282,14 @@ function RouteComponent() {
         receiverDeviceId,
         receiverFingerprint,
       } = message.data;
+      if (!userId || !userDeviceId) {
+        console.error(
+          "[PacketRouter] Missing session user/device id for FILE_ACCEPT",
+        );
+        return;
+      }
       await invoke("socket_client_connect_to", {
-        deviceId: user.deviceId,
+        deviceId: userDeviceId,
         receiverId: receiverDeviceId,
         receiverAddress: address,
         receiverPort: port,
@@ -288,11 +306,11 @@ function RouteComponent() {
         );
 
         await invoke("socket_client_send_files", {
-          deviceId: user.deviceId,
+          deviceId: userDeviceId,
           targetId: receiverDeviceId,
           filePaths: filesToSend,
           transferId,
-          sourceUserId: user.id,
+          sourceUserId: userId,
           sourceUserName: user.name ?? null,
           sourceDeviceName: currentDevice.name,
           route: "direct",
@@ -333,6 +351,19 @@ function RouteComponent() {
     setGlobalLoading(false);
   }, [setGlobalLoading]);
 
+  const flushTransferEvents = useCallback(() => {
+    if (pendingTransferEvents.current.size === 0) {
+      return;
+    }
+
+    const events = Array.from(pendingTransferEvents.current.values());
+    pendingTransferEvents.current.clear();
+
+    for (const event of events) {
+      upsertTransfer(event);
+    }
+  }, [upsertTransfer]);
+
   useEffect(() => {
     let unlistenFn: null | (() => void) = null;
     let active = true;
@@ -342,7 +373,17 @@ function RouteComponent() {
         "transfer-progress",
         (event) => {
           if (!active) return;
-          upsertTransfer(event.payload);
+
+          const payload = event.payload;
+          const key = payload.fileId || `batch:${payload.transferId}`;
+          pendingTransferEvents.current.set(key, payload);
+
+          if (flushTimerRef.current === null) {
+            flushTimerRef.current = window.setTimeout(() => {
+              flushTimerRef.current = null;
+              flushTransferEvents();
+            }, 80);
+          }
         },
       );
 
@@ -362,12 +403,17 @@ function RouteComponent() {
 
     return () => {
       active = false;
+      if (flushTimerRef.current !== null) {
+        window.clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+      flushTransferEvents();
       window.clearInterval(cleanupInterval);
       if (unlistenFn) {
         unlistenFn();
       }
     };
-  }, [upsertTransfer, clearOldTransfers]);
+  }, [flushTransferEvents, clearOldTransfers]);
 
   const handleProcessFiles = useCallback(
     async (paths: string[]): Promise<FileEntry[]> => {
@@ -413,6 +459,10 @@ function RouteComponent() {
           }
 
           const transferId = crypto.randomUUID();
+          if (!userDeviceId) {
+            toast.error("Session is missing device information");
+            return;
+          }
           const filesPayload = await Promise.all(
             files.map(async (filePath) => {
               const fileStat = await stat(filePath);
@@ -428,11 +478,35 @@ function RouteComponent() {
             }),
           );
 
+          const seedTimestamp = Date.now();
+          files.forEach((filePath, index) => {
+            const meta = filesPayload[index];
+            upsertTransfer({
+              transferId,
+              fileId: `${transferId}:pending:${index}`,
+              filePath,
+              fileName: meta.fileName,
+              direction: "send",
+              sourceUserId: userId,
+              sourceUserName: user.name ?? null,
+              sourceDeviceId: userDeviceId,
+              sourceDeviceName: currentDevice.name,
+              sameAccount: true,
+              targetDeviceId: device.id,
+              totalBytes: meta.size,
+              sentBytes: 0,
+              progressPercent: 0,
+              status: "processing",
+              error: null,
+              timestampMs: seedTimestamp + index,
+            });
+          });
+
           pendingTransfers.current.set(transferId, files);
 
           const offerPayload = {
             transferId,
-            fromDeviceId: user.deviceId,
+            fromDeviceId: userDeviceId,
             toDeviceId: device.id,
             files: filesPayload,
           };
@@ -447,7 +521,16 @@ function RouteComponent() {
         toast.info("Friend transfers coming soon!");
       }
     },
-    [devices, send, toast, user.deviceId],
+    [
+      currentDevice.name,
+      devices,
+      send,
+      toast,
+      upsertTransfer,
+      user,
+      userDeviceId,
+      userId,
+    ],
   );
 
   const handleSendFiles = useCallback(
