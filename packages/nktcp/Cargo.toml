@@ -1,0 +1,11 @@
+[package]
+name = "nktcp"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "nktcp"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]

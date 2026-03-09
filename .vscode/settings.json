@@ -9,6 +9,6 @@
 		"source.fixAll.eslint": "explicit"
 	},
 	"eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
-	"rust-analyzer.linkedProjects": ["apps/desktop/src-tauri/Cargo.toml"],
+	"rust-analyzer.linkedProjects": ["Cargo.toml"],
 	"tailwindCSS.experimental.configFile": "packages/ui/src/styles/globals.css"
 }

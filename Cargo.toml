@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+members = [
+    "apps/desktop/src-tauri",
+    "packages/nkcrypto",
+    "packages/nktcp",
+]
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+
+[workspace.dependencies]
+nkcrypto = { path = "packages/nkcrypto" }
+nktcp = { path = "packages/nktcp" }
+
+aes-gcm = "0.10.3"
+jni = "0.22.3"
+jni_fn = "0.1.2"
+rand = "0.10.0"
+tokio = { version = "1", features = ["full"] }

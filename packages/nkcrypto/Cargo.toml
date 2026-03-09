@@ -1,0 +1,17 @@
+[package]
+name = "nkcrypto"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "nkcrypto"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+bytemuck = "1"
+ring = "0.17.14"
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { workspace = true }
+jni_fn = { workspace = true }
