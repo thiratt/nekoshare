@@ -27,4 +27,4 @@ COPY --from=prod-deps /prod/server/package.json ./package.json
 COPY --from=build /workspace/apps/server/dist ./dist
 
 EXPOSE 7780 7781
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/index.mjs"]
