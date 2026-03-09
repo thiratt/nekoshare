@@ -3,7 +3,11 @@
 	"private": true,
 	"scripts": {
 		"build": "turbo run build",
+		"build:server": "turbo run build --filter=server",
+		"build:desktop": "turbo run build --filter=desktop",
+		"build:lib-nksocket": "cargo build-lib-nksocket",
 		"dev": "turbo run dev",
+		"dev:server": "turbo run dev --filter=server",
 		"dev:desktop": "turbo run dev --filter=desktop --filter=server",
 		"lint": "turbo run lint",
 		"format": "prettier --write \"**/*.{ts,tsx,md}\"",
