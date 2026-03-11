@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AppError, ErrorCategory, ErrorSource, type Result } from "@workspace/app-ui/lib/errors";
-import { PacketType } from "@workspace/app-ui/lib/nk-socket/protocol";
+import { AppError, ErrorCategory, ErrorSource, type Result as AppResult } from "@workspace/app-ui/lib/errors";
+import { PacketType } from "@workspace/app-ui/lib/nk-socket";
 import { xfetchApi } from "@workspace/app-ui/lib/xfetch";
 import type { FriendItem, FriendListResponse, UserSearchResult } from "@workspace/app-ui/types/friends";
 
-import { usePacketRouter } from "./usePacketRouter";
+import { type TypedHandlerMap, usePacketRouter } from "./usePacketRouter";
 import type {
 	FriendPresencePayload,
 	FriendRemovedPayload,
@@ -75,7 +75,14 @@ function removeByFriendId(list: FriendItem[], friendId: string): FriendItem[] {
 	return nextList.length === list.length ? list : nextList;
 }
 
-function applySocketResult<T>(result: Result<T>, packetName: string, onSuccess: (payload: T) => void): void {
+// TODO: Align socket packet result typing with the shared Result type instead of using this local compatibility shape.
+type SocketPacketResult<T> = { status: "success"; data: T } | { status: "error"; error: { message: string } };
+
+function applySocketResult<T>(
+	result: SocketPacketResult<T>,
+	packetName: string,
+	onSuccess: (payload: T) => void,
+): void {
 	if (result.status === "success") {
 		onSuccess(result.data);
 		return;
@@ -122,138 +129,139 @@ export function useFriends(): UseFriendsReturn {
 	});
 
 	const socketHandlers = useMemo(
-		() => ({
-			[PacketType.FRIEND_REQUEST_RECEIVED]: (result: Result<FriendRequestReceivedPayload>) => {
-				applySocketResult(result, "FRIEND_REQUEST_RECEIVED", (payload) => {
-					setState((prev) => {
-						if (prev.incoming.some((item) => item.friendId === payload.friendId)) {
-							return prev;
-						}
+		() =>
+			({
+				[PacketType.FRIEND_REQUEST_RECEIVED]: (result: SocketPacketResult<FriendRequestReceivedPayload>) => {
+					applySocketResult(result, "FRIEND_REQUEST_RECEIVED", (payload) => {
+						setState((prev) => {
+							if (prev.incoming.some((item) => item.friendId === payload.friendId)) {
+								return prev;
+							}
 
-						const incomingItem = createFriendItem(
-							payload.user,
-							payload.friendId,
-							"incoming",
-							payload.createdAt,
-						);
-						return {
-							...prev,
-							incoming: addOrReplaceFriend(prev.incoming, incomingItem),
-						};
+							const incomingItem = createFriendItem(
+								payload.user,
+								payload.friendId,
+								"incoming",
+								payload.createdAt,
+							);
+							return {
+								...prev,
+								incoming: addOrReplaceFriend(prev.incoming, incomingItem),
+							};
+						});
 					});
-				});
-			},
+				},
 
-			[PacketType.FRIEND_REQUEST_ACCEPTED]: (result: Result<FriendRequestAcceptedPayload>) => {
-				applySocketResult(result, "FRIEND_REQUEST_ACCEPTED", (payload) => {
-					setState((prev) => {
-						const outgoingItem = prev.outgoing.find((item) => item.friendId === payload.friendId);
-						const acceptedFriend = outgoingItem
-							? { ...outgoingItem, status: "friend" as const }
-							: createFriendItem(payload.user, payload.friendId, "friend");
+				[PacketType.FRIEND_REQUEST_ACCEPTED]: (result: SocketPacketResult<FriendRequestAcceptedPayload>) => {
+					applySocketResult(result, "FRIEND_REQUEST_ACCEPTED", (payload) => {
+						setState((prev) => {
+							const outgoingItem = prev.outgoing.find((item) => item.friendId === payload.friendId);
+							const acceptedFriend = outgoingItem
+								? { ...outgoingItem, status: "friend" as const }
+								: createFriendItem(payload.user, payload.friendId, "friend");
 
-						return {
-							...prev,
-							outgoing: removeByFriendId(prev.outgoing, payload.friendId),
-							friends: addOrReplaceFriend(prev.friends, acceptedFriend),
-						};
+							return {
+								...prev,
+								outgoing: removeByFriendId(prev.outgoing, payload.friendId),
+								friends: addOrReplaceFriend(prev.friends, acceptedFriend),
+							};
+						});
 					});
-				});
-			},
+				},
 
-			[PacketType.FRIEND_REQUEST_REJECTED]: (result: Result<FriendRequestRejectedPayload>) => {
-				applySocketResult(result, "FRIEND_REQUEST_REJECTED", (payload) => {
-					setState((prev) => {
-						const nextOutgoing = removeByFriendId(prev.outgoing, payload.friendId);
+				[PacketType.FRIEND_REQUEST_REJECTED]: (result: SocketPacketResult<FriendRequestRejectedPayload>) => {
+					applySocketResult(result, "FRIEND_REQUEST_REJECTED", (payload) => {
+						setState((prev) => {
+							const nextOutgoing = removeByFriendId(prev.outgoing, payload.friendId);
 
-						if (nextOutgoing === prev.outgoing) {
-							return prev;
-						}
+							if (nextOutgoing === prev.outgoing) {
+								return prev;
+							}
 
-						return {
-							...prev,
-							outgoing: nextOutgoing,
-						};
+							return {
+								...prev,
+								outgoing: nextOutgoing,
+							};
+						});
 					});
-				});
-			},
+				},
 
-			[PacketType.FRIEND_REQUEST_CANCELLED]: (result: Result<FriendRequestCancelledPayload>) => {
-				applySocketResult(result, "FRIEND_REQUEST_CANCELLED", (payload) => {
-					setState((prev) => {
-						const nextIncoming = removeByFriendId(prev.incoming, payload.friendId);
+				[PacketType.FRIEND_REQUEST_CANCELLED]: (result: SocketPacketResult<FriendRequestCancelledPayload>) => {
+					applySocketResult(result, "FRIEND_REQUEST_CANCELLED", (payload) => {
+						setState((prev) => {
+							const nextIncoming = removeByFriendId(prev.incoming, payload.friendId);
 
-						if (nextIncoming === prev.incoming) {
-							return prev;
-						}
+							if (nextIncoming === prev.incoming) {
+								return prev;
+							}
 
-						return {
-							...prev,
-							incoming: nextIncoming,
-						};
+							return {
+								...prev,
+								incoming: nextIncoming,
+							};
+						});
 					});
-				});
-			},
+				},
 
-			[PacketType.FRIEND_REMOVED]: (result: Result<FriendRemovedPayload>) => {
-				applySocketResult(result, "FRIEND_REMOVED", (payload) => {
-					setState((prev) => {
-						const nextFriends = removeByFriendId(prev.friends, payload.friendId);
-						const nextIncoming = removeByFriendId(prev.incoming, payload.friendId);
-						const nextOutgoing = removeByFriendId(prev.outgoing, payload.friendId);
+				[PacketType.FRIEND_REMOVED]: (result: SocketPacketResult<FriendRemovedPayload>) => {
+					applySocketResult(result, "FRIEND_REMOVED", (payload) => {
+						setState((prev) => {
+							const nextFriends = removeByFriendId(prev.friends, payload.friendId);
+							const nextIncoming = removeByFriendId(prev.incoming, payload.friendId);
+							const nextOutgoing = removeByFriendId(prev.outgoing, payload.friendId);
 
-						if (
-							nextFriends === prev.friends &&
-							nextIncoming === prev.incoming &&
-							nextOutgoing === prev.outgoing
-						) {
-							return prev;
-						}
+							if (
+								nextFriends === prev.friends &&
+								nextIncoming === prev.incoming &&
+								nextOutgoing === prev.outgoing
+							) {
+								return prev;
+							}
 
-						return {
-							...prev,
-							friends: nextFriends,
-							incoming: nextIncoming,
-							outgoing: nextOutgoing,
-						};
+							return {
+								...prev,
+								friends: nextFriends,
+								incoming: nextIncoming,
+								outgoing: nextOutgoing,
+							};
+						});
 					});
-				});
-			},
+				},
 
-			[PacketType.FRIEND_ONLINE]: (result: Result<FriendPresencePayload>) => {
-				applySocketResult(result, "FRIEND_ONLINE", ({ userId }) => {
-					setState((prev) => {
-						const nextFriends = setFriendPresence(prev.friends, userId, true);
+				[PacketType.FRIEND_ONLINE]: (result: SocketPacketResult<FriendPresencePayload>) => {
+					applySocketResult(result, "FRIEND_ONLINE", ({ userId }) => {
+						setState((prev) => {
+							const nextFriends = setFriendPresence(prev.friends, userId, true);
 
-						if (nextFriends === prev.friends) {
-							return prev;
-						}
+							if (nextFriends === prev.friends) {
+								return prev;
+							}
 
-						return {
-							...prev,
-							friends: nextFriends,
-						};
+							return {
+								...prev,
+								friends: nextFriends,
+							};
+						});
 					});
-				});
-			},
+				},
 
-			[PacketType.FRIEND_OFFLINE]: (result: Result<FriendPresencePayload>) => {
-				applySocketResult(result, "FRIEND_OFFLINE", ({ userId }) => {
-					setState((prev) => {
-						const nextFriends = setFriendPresence(prev.friends, userId, false);
+				[PacketType.FRIEND_OFFLINE]: (result: SocketPacketResult<FriendPresencePayload>) => {
+					applySocketResult(result, "FRIEND_OFFLINE", ({ userId }) => {
+						setState((prev) => {
+							const nextFriends = setFriendPresence(prev.friends, userId, false);
 
-						if (nextFriends === prev.friends) {
-							return prev;
-						}
+							if (nextFriends === prev.friends) {
+								return prev;
+							}
 
-						return {
-							...prev,
-							friends: nextFriends,
-						};
+							return {
+								...prev,
+								friends: nextFriends,
+							};
+						});
 					});
-				});
-			},
-		}),
+				},
+			}) satisfies TypedHandlerMap,
 		[],
 	);
 
@@ -306,7 +314,7 @@ export function useFriends(): UseFriendsReturn {
 		async <T>(
 			applyOptimistic: (prev: UseFriendsState) => UseFriendsState,
 			rollbackOptimistic: (prev: UseFriendsState) => UseFriendsState,
-			request: () => Promise<Result<T>>,
+			request: () => Promise<AppResult<T>>,
 		): Promise<T> => {
 			setState(applyOptimistic);
 
@@ -502,11 +510,14 @@ export function useUserSearch(): UseUserSearchReturn {
 			setLoading(true);
 			setError(null);
 
-			const result = await xfetchApi<{ users: UserSearchResult[] }>(FRIENDS_API_ENDPOINTS.SEARCH(normalizedQuery), {
-				method: "GET",
-				signal: controller.signal,
-				operation: "Search users",
-			});
+			const result = await xfetchApi<{ users: UserSearchResult[] }>(
+				FRIENDS_API_ENDPOINTS.SEARCH(normalizedQuery),
+				{
+					method: "GET",
+					signal: controller.signal,
+					operation: "Search users",
+				},
+			);
 
 			if (result.status === "error") {
 				if (!result.error.isAbortError()) {
