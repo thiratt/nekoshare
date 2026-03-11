@@ -4,7 +4,8 @@ import tseslint from "typescript-eslint";
 import pluginReactHooks from "eslint-plugin-react-hooks";
 import pluginReact from "eslint-plugin-react";
 import globals from "globals";
-import { config as baseConfig } from "./base";
+// @ts-ignore
+import { config as baseConfig } from "./base.ts";
 
 /**
  * A custom ESLint configuration for libraries that use React.
@@ -18,7 +19,7 @@ export const config = [
 	pluginReact.configs.flat.recommended,
 	{
 		languageOptions: {
-			...pluginReact.configs.flat.recommended.languageOptions,
+			...pluginReact.configs.flat.recommended!.languageOptions,
 			globals: {
 				...globals.serviceworker,
 				...globals.browser,
@@ -41,6 +42,13 @@ export const config = [
 					varsIgnorePattern: "^_",
 				},
 			],
+		},
+	},
+	{
+		settings: {
+			react: {
+				version: "19",
+			},
 		},
 	},
 ];
