@@ -22,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -114,22 +113,6 @@ fun LoginScreen(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
-            Spacer(modifier = Modifier.height(32.dp))
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Share,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(

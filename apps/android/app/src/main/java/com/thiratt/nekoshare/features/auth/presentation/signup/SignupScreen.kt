@@ -24,7 +24,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -177,7 +178,7 @@ fun SignupScreen(
                         Icon(Icons.Rounded.Lock, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
                     trailingIcon = {
-                        val icon = if (isPasswordVisible) Icons.Rounded.Star else Icons.Rounded.Lock
+                        val icon = if (isPasswordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff
                         IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                             Icon(imageVector = icon, contentDescription = null)
                         }
