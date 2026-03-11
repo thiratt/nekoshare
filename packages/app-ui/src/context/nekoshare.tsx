@@ -8,7 +8,7 @@ import LoadingOverlay from "@workspace/app-ui/components/global-loading";
 import { SessionTerminatedDialog } from "@workspace/app-ui/components/session-terminated-dialog";
 import { SettingsUI } from "@workspace/app-ui/components/ui/settings/index";
 import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
-import { PacketType, socketClient } from "@workspace/app-ui/lib/nk-socket/index";
+import { PacketType, socketClient } from "@workspace/app-ui/lib/nk-socket";
 import { useGlobalLoading, useMode, useNekoShareStore, useSetMode } from "@workspace/app-ui/lib/store/nekoshareStore";
 import type { Router, UseNekoShareReturn } from "@workspace/app-ui/types/context";
 import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";

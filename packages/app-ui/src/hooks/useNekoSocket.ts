@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { isAuthenticated } from "@workspace/app-ui/lib/auth";
+
 import {
 	BinaryReader,
 	BinaryWriter,
@@ -12,7 +13,7 @@ import {
 	type SocketRequestOptions,
 	type SocketStats,
 	type SocketStatus,
-} from "@workspace/app-ui/lib/nk-socket/index";
+} from "../lib/nk-socket";
 
 export interface UseNekoSocketReturn {
 	readonly status: SocketStatus;

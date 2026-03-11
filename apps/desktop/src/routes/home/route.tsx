@@ -34,7 +34,7 @@ import { useFriends } from "@workspace/app-ui/hooks/use-friends";
 import { useNekoSocket } from "@workspace/app-ui/hooks/useNekoSocket";
 import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
 import { useSocketInterval } from "@workspace/app-ui/hooks/useSocketInterval";
-import { PacketType } from "@workspace/app-ui/lib/nk-socket/index";
+import { PacketType } from "@workspace/app-ui/lib/nk-socket";
 import { useTheme } from "@workspace/app-ui/providers/theme-provider";
 
 import { DesktopTitlebar } from "@/components/navbar";

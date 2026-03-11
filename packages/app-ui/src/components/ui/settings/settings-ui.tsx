@@ -8,7 +8,7 @@ import { SearchInput } from "@workspace/ui/components/search-input";
 
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import { authClient, invalidateSessionCache } from "@workspace/app-ui/lib/auth";
-import { socketClient } from "@workspace/app-ui/lib/nk-socket/index";
+import { socketClient } from "@workspace/app-ui/lib/nk-socket";
 import type { SettingCategory } from "@workspace/app-ui/types/settings";
 
 import { CONTENT_TRANSITION, CONTENT_VARIANTS, OVERLAY_TRANSITION, OVERLAY_VARIANTS } from "./animations";

@@ -9,7 +9,7 @@ import {
 	updateDevice as $updateDevice,
 } from "@workspace/app-ui/lib/device-api";
 import { AppError } from "@workspace/app-ui/lib/errors";
-import { PacketType } from "@workspace/app-ui/lib/nk-socket/index";
+import { PacketType } from "@workspace/app-ui/lib/nk-socket";
 import type { UiDevice } from "@workspace/app-ui/types/device";
 import type { UseDevicesReturn } from "@workspace/app-ui/types/hooks";
 
