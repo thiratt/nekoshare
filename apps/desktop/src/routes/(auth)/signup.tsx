@@ -19,29 +19,48 @@ function RouteComponent() {
   const { setGlobalLoading } = useNekoShare();
   const { toast } = useToast();
 
-  const onSubmit = async (data: TSignupSchema) => {
-    const { error } = await authClient.signUp.email({
-      email: data.email,
-      password: data.password,
-      name: data.username,
-      username: data.username,
-    });
-
-    if (error) {
-      toast.error(error.message ?? "สมัครสมาชิกไม่สำเร็จ");
-      console.error("Signup error:", error);
-      return;
-    }
-    invalidateSessionCache();
-
+  const onGoogle = async () => {
     try {
+      console.log("GOOGLE");
+    } catch (error) {
+      console.error("Error in onGoogle:", error);
+    }
+  };
+
+  const onSubmit = async (data: TSignupSchema) => {
+    try {
+      const result = await authClient.signUp.email({
+        email: data.email,
+        password: data.password,
+        name: data.username,
+      });
+
+      if (result.error) {
+        throw new Error(
+          result.error.code +
+            ": -" +
+            result.error.message +
+            result.error.status +
+            " " +
+            result.error.statusText,
+        );
+      }
+
+      invalidateSessionCache();
       setGlobalLoading(true);
       const registration = await registerDevice();
       await syncMasterKeyForDevice(registration.device.id);
       await router.navigate({ to: "/home", replace: true });
     } catch (error) {
-      console.error("Failed to register device:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "ไม่สามารถสมัครสมาชิกได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง",
+      );
     }
   };
-  return <SignupCard linkComponent={Link} onSubmit={onSubmit} />;
+
+  return (
+    <SignupCard linkComponent={Link} onSubmit={onSubmit} onGoogle={onGoogle} />
+  );
 }

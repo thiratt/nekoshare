@@ -14,8 +14,6 @@ export const Route = createFileRoute("/(auth)/login")({
   component: RouteComponent,
 });
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 function RouteComponent() {
   const router = useRouter();
   const { setGlobalLoading } = useNekoShare();
@@ -30,18 +28,11 @@ function RouteComponent() {
   };
 
   const onSubmit = async (data: TLoginSchema) => {
-    const isEmail = EMAIL_REGEX.test(data.identifier);
-
     try {
-      const result = isEmail
-        ? await authClient.signIn.email({
-            email: data.identifier,
-            password: data.password,
-          })
-        : await authClient.signIn.username({
-            username: data.identifier,
-            password: data.password,
-          });
+      const result = await authClient.signIn.email({
+        email: data.identifier,
+        password: data.password,
+      });
 
       if (result.error) {
         throw new Error(
@@ -59,11 +50,14 @@ function RouteComponent() {
       const registration = await registerDevice();
       await syncMasterKeyForDevice(registration.device.id);
       await router.navigate({ to: "/home" });
-    } catch {
+    } catch (error) {
       toast.error(
-        "[500] ไม่สามารถเข้าสู่ระบบได้ เนื่องจากระบบขัดข้อง กรุณาลองใหม่ภายหลัง",
+        error instanceof Error
+          ? error.message
+          : "ไม่สามารถเข้าสู่ระบบได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง",
       );
-      return;
+    } finally {
+      setGlobalLoading(false);
     }
   };
 
