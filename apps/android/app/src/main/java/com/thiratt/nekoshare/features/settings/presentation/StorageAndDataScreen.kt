@@ -6,11 +6,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CellWifi
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FolderOpen
-import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -30,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.settings.presentation.components.SettingsActionItem
-import com.thiratt.nekoshare.features.settings.presentation.components.SettingsSwitchItem
 import com.thiratt.nekoshare.features.settings.presentation.components.SettingsTopAppBar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -85,25 +82,25 @@ fun StorageAndDataScreen(
                 onClick = onDownloadPathClick
             )
 
-            SettingsGroupTitle("เครือข่าย")
-
-            SettingsSwitchItem(
-                icon = Icons.Rounded.CellWifi,
-                title = "ใช้ข้อมูลมือถือ",
-                subtitle = "อนุญาตการโอนไฟล์ผ่านเครือข่ายมือถือ",
-                checked = useMobileData,
-                onCheckedChange = { useMobileData = it }
-            )
+//            SettingsGroupTitle("เครือข่าย")
+//
+//            SettingsSwitchItem(
+//                icon = Icons.Rounded.CellWifi,
+//                title = "ใช้ข้อมูลมือถือ",
+//                subtitle = "อนุญาตการโอนไฟล์ผ่านเครือข่ายมือถือ",
+//                checked = useMobileData,
+//                onCheckedChange = { useMobileData = it }
+//            )
 
             SettingsGroupTitle("การจัดการข้อมูล")
 
-            SettingsActionItem(
-                icon = Icons.Rounded.History,
-                title = "ลบประวัติอัตโนมัติ",
-                subtitle = "ลบบันทึกการโอนโดยอัตโนมัติ",
-                value = autoDeleteHistory,
-                onClick = { /* Show Dialog to pick: Never, 30 days, 1 year */ }
-            )
+//            SettingsActionItem(
+//                icon = Icons.Rounded.History,
+//                title = "ลบประวัติอัตโนมัติ",
+//                subtitle = "ลบบันทึกการโอนโดยอัตโนมัติ",
+//                value = autoDeleteHistory,
+//                onClick = { /* Show Dialog to pick: Never, 30 days, 1 year */ }
+//            )
 
             SettingsActionItem(
                 icon = Icons.Rounded.CleaningServices,

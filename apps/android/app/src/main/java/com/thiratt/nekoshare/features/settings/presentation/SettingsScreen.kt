@@ -21,8 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Accessibility
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -110,21 +108,23 @@ fun SettingsScreen(
                 onClick = onAccessibilityClick
             )
 
-            SettingsItem(
-                icon = Icons.Rounded.Notifications,
-                title = "การแจ้งเตือน",
-                subtitle = "การโอน คำขอ เสียง และการสั่น",
-                onClick = onNotificationsClick
-            )
+//            In progress
+//            SettingsItem(
+//                icon = Icons.Rounded.Notifications,
+//                title = "การแจ้งเตือน",
+//                subtitle = "การโอน คำขอ เสียง และการสั่น",
+//                onClick = onNotificationsClick
+//            )
 
             SettingsGroupTitle("ความเป็นส่วนตัวและข้อมูล")
 
-            SettingsItem(
-                icon = Icons.Rounded.Security,
-                title = "ความเป็นส่วนตัวและความปลอดภัย",
-                subtitle = "การมองเห็น ความปลอดภัย และสิทธิ์",
-                onClick = onPrivacyAndSecurityClick
-            )
+//            In progress
+//            SettingsItem(
+//                icon = Icons.Rounded.Security,
+//                title = "ความเป็นส่วนตัวและความปลอดภัย",
+//                subtitle = "การมองเห็น ความปลอดภัย และสิทธิ์",
+//                onClick = onPrivacyAndSecurityClick
+//            )
 
             SettingsItem(
                 icon = Icons.Rounded.Storage,

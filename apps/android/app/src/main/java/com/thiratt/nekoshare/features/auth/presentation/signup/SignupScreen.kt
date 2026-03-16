@@ -142,10 +142,10 @@ fun SignupScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 NekoTextField(
-                    label = "ชื่อที่ใช้แสดง",
+                    label = "ชื่อผู้ใช้งาน",
                     value = name,
                     onValueChange = { name = it },
-                    placeholder = "เช่น Home PC",
+                    placeholder = "เช่น Alex123",
                     leadingIcon = {
                         Icon(Icons.Rounded.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
