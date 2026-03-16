@@ -63,12 +63,15 @@ import com.thiratt.nekoshare.features.transferdetail.model.TransferStatus
 import com.thiratt.nekoshare.features.transferdetail.model.toDetailItem
 import com.thiratt.nekoshare.features.transferdetail.presentation.TransferDetailRoute
 import com.thiratt.nekoshare.core.navigation.TransferItem as TransferItemRoute
+import com.thiratt.nekoshare.features.auth.data.AuthRepository
 
 @Composable
 fun AppNavGraph(
-    themeViewModel: ThemeViewModel
+    themeViewModel: ThemeViewModel,
+    startDestination: Any,
+    authRepository: AuthRepository
 ) {
-    val navigator = rememberSafeNavigator(Welcome)
+    val navigator = rememberSafeNavigator(startDestination)
     val backStack = navigator.backStack
 
     val enterTransition = (slideInHorizontally(tween(300)) { it / 2 } + fadeIn(tween(300)))
@@ -84,7 +87,7 @@ fun AppNavGraph(
         entryProvider = { key ->
             authNav(key, navigator)
                 ?: homeNav(key, navigator)
-                ?: settingsNav(key, navigator, themeViewModel)
+                ?: settingsNav(key, navigator, themeViewModel, authRepository)
                 ?: error("Unknown route: $key")
         }
     )
@@ -118,7 +121,7 @@ fun authNav(key: Any, navigator: SafeNavigator): NavEntry<Any>? {
                     when (event) {
                         SignupNavEvent.Back -> navigator.pop()
                         SignupNavEvent.Login -> navigator.navigateSingleTop(Login)
-                        SignupNavEvent.CreateAccount -> {}
+                        SignupNavEvent.CreateAccount -> navigator.setRoot(HomeRoot)
                     }
                 }
             )
@@ -200,7 +203,8 @@ fun homeNav(key: Any, navigator: SafeNavigator): NavEntry<Any>? {
 fun settingsNav(
     key: Any,
     navigator: SafeNavigator,
-    themeViewModel: ThemeViewModel
+    themeViewModel: ThemeViewModel,
+    authRepository: AuthRepository
 ): NavEntry<Any>? {
     return when (key) {
         is SettingsRoot -> NavEntry(key) {
@@ -217,7 +221,10 @@ fun settingsNav(
 
                         SettingsNavEvent.StorageAndData -> navigator.push(SettingsStorageAndData)
                         SettingsNavEvent.About -> navigator.push(SettingsAbout)
-                        SettingsNavEvent.Logout -> navigator.setRoot(Welcome)
+                        SettingsNavEvent.Logout -> {
+                            authRepository.clearSavedSession()
+                            navigator.setRoot(Welcome)
+                        }
                     }
                 }
             )

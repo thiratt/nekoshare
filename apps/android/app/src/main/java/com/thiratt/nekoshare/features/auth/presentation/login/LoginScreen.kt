@@ -1,5 +1,6 @@
 package com.thiratt.nekoshare.features.auth.presentation.login
 
+import android.util.Patterns
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,11 +38,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -49,9 +52,25 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.thiratt.nekoshare.BuildConfig
 import com.thiratt.nekoshare.core.designsystem.components.NekoButton
 import com.thiratt.nekoshare.core.designsystem.components.NekoTextField
 import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
+import com.thiratt.nekoshare.features.auth.data.AuthRepository
+import com.thiratt.nekoshare.features.auth.data.EmailLoginResult
+import com.thiratt.nekoshare.features.auth.data.getGoogleAuthErrorMessage
+import kotlinx.coroutines.launch
+
+private const val GOOGLE_SIGN_IN_FALLBACK = "ไม่สามารถเข้าสู่ระบบด้วย Google ได้ในขณะนี้"
+private const val GOOGLE_NO_ACCOUNT_MESSAGE = "ไม่พบบัญชี Google ในอุปกรณ์นี้ กรุณาเพิ่มบัญชีก่อนแล้วลองอีกครั้ง"
 
 sealed interface LoginNavEvent {
     data object Back : LoginNavEvent
@@ -83,7 +102,14 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var generalError by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val authRepository = remember(context) { AuthRepository(context.applicationContext) }
+    val credentialManager = remember(context) { CredentialManager.create(context) }
 
     Scaffold(
         topBar = {
@@ -128,17 +154,33 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            if (generalError != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = generalError!!,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 NekoTextField(
                     label = "อีเมล",
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = {
+                        email = it
+                        emailError = null
+                        generalError = null
+                    },
                     placeholder = "hello@example.com",
                     leadingIcon = {
                         Icon(Icons.Rounded.Email, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
+                    isError = emailError != null,
+                    errorMessage = emailError,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Next
@@ -149,7 +191,10 @@ fun LoginScreen(
                     NekoTextField(
                         label = "รหัสผ่าน",
                         value = password,
-                        onValueChange = { password = it },
+                        onValueChange = {
+                            password = it
+                            generalError = null
+                        },
                         placeholder = "••••••••",
                         leadingIcon = {
                             Icon(Icons.Rounded.Lock, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -160,7 +205,11 @@ fun LoginScreen(
                                 Icon(imageVector = icon, contentDescription = null)
                             }
                         },
-                        visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        visualTransformation = if (isPasswordVisible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
@@ -190,9 +239,38 @@ fun LoginScreen(
 
             NekoButton(
                 text = "เข้าสู่ระบบ",
-                onClick = onLoginClick,
+                onClick = {
+                    if (isLoading) {
+                        return@NekoButton
+                    }
+
+                    val normalizedEmail = email.trim()
+
+                    if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
+                        emailError = "กรุณากรอกอีเมลให้ถูกต้อง"
+                        return@NekoButton
+                    }
+
+                    emailError = null
+                    generalError = null
+                    isLoading = true
+
+                    coroutineScope.launch {
+                        when (val result = authRepository.loginWithEmail(normalizedEmail, password)) {
+                            is EmailLoginResult.Success -> {
+                                isLoading = false
+                                onLoginClick()
+                            }
+
+                            is EmailLoginResult.Failure -> {
+                                isLoading = false
+                                generalError = result.message
+                            }
+                        }
+                    }
+                },
                 fullWidth = true,
-                enabled = email.isNotEmpty() && password.isNotEmpty()
+                enabled = email.isNotEmpty() && password.isNotEmpty() && !isLoading
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -218,7 +296,72 @@ fun LoginScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                SocialButton(onClick = {}, icon = { Text("G", fontWeight = FontWeight.Bold) })
+                SocialButton(
+                    onClick = {
+                        if (isLoading) {
+                            return@SocialButton
+                        }
+
+                        generalError = null
+                        emailError = null
+                        isLoading = true
+
+                        coroutineScope.launch {
+                            try {
+                                val googleIdOption = GetGoogleIdOption.Builder()
+                                    .setFilterByAuthorizedAccounts(false)
+                                    .setServerClientId(BuildConfig.GOOGLE_SERVER_CLIENT_ID)
+                                    .setAutoSelectEnabled(false)
+                                    .build()
+
+                                val request = GetCredentialRequest.Builder()
+                                    .addCredentialOption(googleIdOption)
+                                    .build()
+
+                                val result = credentialManager.getCredential(
+                                    request = request,
+                                    context = context
+                                )
+
+                                val credential = result.credential
+                                if (
+                                    credential is CustomCredential &&
+                                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                                ) {
+                                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                                    val idToken = googleIdTokenCredential.idToken
+
+                                    when (val loginResult = authRepository.loginWithGoogleIdToken(idToken)) {
+                                        is EmailLoginResult.Success -> {
+                                            isLoading = false
+                                            onLoginClick()
+                                        }
+
+                                        is EmailLoginResult.Failure -> {
+                                            isLoading = false
+                                            generalError = loginResult.message
+                                        }
+                                    }
+                                } else {
+                                    isLoading = false
+                                    generalError = GOOGLE_SIGN_IN_FALLBACK
+                                }
+                            } catch (e: NoCredentialException) {
+                                isLoading = false
+                                generalError = GOOGLE_NO_ACCOUNT_MESSAGE
+                            } catch (e: GetCredentialCancellationException) {
+                                isLoading = false
+                            } catch (e: GetCredentialException) {
+                                isLoading = false
+                                generalError = getGoogleAuthErrorMessage(e.message.orEmpty()) ?: GOOGLE_SIGN_IN_FALLBACK
+                            } catch (e: Exception) {
+                                isLoading = false
+                                generalError = getGoogleAuthErrorMessage(e.message.orEmpty()) ?: GOOGLE_SIGN_IN_FALLBACK
+                            }
+                        }
+                    },
+                    icon = { Text("G", fontWeight = FontWeight.Bold) }
+                )
             }
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -258,11 +401,13 @@ fun SocialButton(
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
-            .then(Modifier.border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = CircleShape
-            )),
+            .then(
+                Modifier.border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = CircleShape
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
         icon()

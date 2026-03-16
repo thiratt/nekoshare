@@ -1,4 +1,24 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use(::load)
+    }
+}
+
+val googleServerClientId = localProperties
+    .getProperty("GOOGLE_SERVER_CLIENT_ID")
+    ?.removeSurrounding("\"")
+    ?.takeIf { it.isNotBlank() }
+    ?: error("Missing GOOGLE_SERVER_CLIENT_ID in apps/android/local.properties")
+
+val apiBaseUrl = localProperties
+    .getProperty("API_BASE_URL")
+    ?.removeSurrounding("\"")
+    ?.takeIf { it.isNotBlank() }
+    ?: error("Missing API_BASE_URL in apps/android/local.properties")
 
 plugins {
     alias(libs.plugins.android.application)
@@ -16,6 +36,12 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        buildConfigField(
+            "String",
+            "GOOGLE_SERVER_CLIENT_ID",
+            "\"$googleServerClientId\""
+        )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -37,6 +63,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -65,6 +92,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
