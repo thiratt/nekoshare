@@ -5,6 +5,7 @@ import { mapDeviceToDto, mapRegistrationToDbValues } from "./devices.mapper";
 import type { DeviceRecord } from "./devices.repository";
 import type { DeviceRegistrationInput, DeviceUpdateInput } from "./devices.schema";
 
+import { cacheDeviceIdBySessionId } from "@/modules/auth/lib/utils";
 import { HttpServiceError } from "@/shared/http";
 import type { DeviceListResponse, DeviceRegistrationResponse } from "@/types/api";
 
@@ -97,6 +98,8 @@ export class DevicesService {
 				throw new DevicesServiceError("INTERNAL_ERROR", 500, "Failed to retrieve updated device");
 			}
 
+			await cacheDeviceIdBySessionId(session.id, updatedDevice.id);
+
 			return {
 				device: mapDeviceToDto(updatedDevice),
 				isNew: false,
@@ -128,6 +131,8 @@ export class DevicesService {
 						throw new DevicesServiceError("INTERNAL_ERROR", 500, "Failed to retrieve updated device");
 					}
 
+					await cacheDeviceIdBySessionId(session.id, updatedDevice.id);
+
 					return {
 						device: mapDeviceToDto(updatedDevice),
 						isNew: false,
@@ -142,6 +147,8 @@ export class DevicesService {
 		if (!newDevice) {
 			throw new DevicesServiceError("INTERNAL_ERROR", 500, "Failed to retrieve new device");
 		}
+
+		await cacheDeviceIdBySessionId(session.id, newDevice.id);
 
 		const dto = mapDeviceToDto(newDevice);
 		this.events.emitDeviceAdded(session.userId, dto);

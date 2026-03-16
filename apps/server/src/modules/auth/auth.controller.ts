@@ -1,13 +1,18 @@
 import { generateRandomString } from "better-auth/crypto";
 import { handleOAuthUserInfo } from "better-auth/oauth2";
+import { z } from "zod";
 
+import { env } from "@/config/env";
 import { Logger } from "@/infrastructure/logger";
 import { auth } from "@/modules/auth/lib";
+import { HttpServiceError } from "@/shared/http";
+import { handleControllerError, jsonError, jsonSuccess } from "@/shared/http";
 import type { AppContext } from "@/shared/http/router";
 
 const DESKTOP_GOOGLE_VERIFICATION_PREFIX = "desktop-google-oauth:";
 const GOOGLE_CALLBACK_PATH = "/auth/callback/google";
 const DESKTOP_GOOGLE_STATE_TTL_MS = 10 * 60 * 1000;
+const GOOGLE_TOKEN_INFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 
 type DesktopAuthFlow = "login" | "signup";
 
@@ -16,6 +21,30 @@ interface DesktopGoogleStatePayload {
 	callbackUrl?: string;
 	codeVerifier: string;
 	flow: DesktopAuthFlow;
+}
+
+const mobileGoogleAuthBodySchema = z.object({
+	idToken: z.string().min(1),
+	flow: z.enum(["login", "signup"]).default("login"),
+});
+
+const googleTokenInfoSchema = z.object({
+	aud: z.string(),
+	email: z.string().email(),
+	email_verified: z.union([z.literal("true"), z.literal("false"), z.boolean()]),
+	exp: z.string(),
+	iss: z.string(),
+	name: z.string().optional(),
+	picture: z.string().optional(),
+	sub: z.string().min(1),
+});
+
+interface GoogleIdentityProfile {
+	email: string;
+	emailVerified: boolean;
+	id: string;
+	image?: string;
+	name: string;
 }
 
 function getDesktopAuthFlow(c: AppContext): DesktopAuthFlow {
@@ -58,6 +87,74 @@ function normalizeDesktopAuthError(error: unknown): string {
 	}
 
 	return "oauth_failed";
+}
+
+function getAuthErrorStatus(errorCode: string) {
+	switch (errorCode) {
+		case "signup_disabled":
+		case "user_not_found":
+			return 404 as const;
+		case "account_not_linked":
+		case "account_already_linked_to_different_user":
+			return 409 as const;
+		case "invalid_token":
+		case "token_expired":
+		case "email_not_verified":
+			return 401 as const;
+		case "oauth_provider_not_found":
+			return 503 as const;
+		default:
+			return 400 as const;
+	}
+}
+
+async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdentityProfile> {
+	const tokenInfoUrl = new URL(GOOGLE_TOKEN_INFO_URL);
+	tokenInfoUrl.searchParams.set("id_token", idToken);
+
+	const response = await fetch(tokenInfoUrl.toString(), {
+		headers: {
+			accept: "application/json",
+		},
+	});
+
+	if (!response.ok) {
+		throw new HttpServiceError("invalid_token", 401, "Invalid Google ID token.");
+	}
+
+	const parsed = googleTokenInfoSchema.safeParse(await response.json());
+	if (!parsed.success) {
+		throw new HttpServiceError("invalid_token", 401, "Invalid Google ID token payload.");
+	}
+
+	const payload = parsed.data;
+	const isEmailVerified = payload.email_verified === true || payload.email_verified === "true";
+	const normalizedIssuer = payload.iss.trim().toLowerCase();
+	const expiresAtMs = Number(payload.exp) * 1000;
+
+	if (payload.aud !== env.GOOGLE_CLIENT_ID) {
+		throw new HttpServiceError("invalid_token", 401, "Google ID token audience is invalid.");
+	}
+
+	if (normalizedIssuer !== "accounts.google.com" && normalizedIssuer !== "https://accounts.google.com") {
+		throw new HttpServiceError("invalid_token", 401, "Google ID token issuer is invalid.");
+	}
+
+	if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
+		throw new HttpServiceError("token_expired", 401, "Google ID token has expired.");
+	}
+
+	if (!isEmailVerified) {
+		throw new HttpServiceError("email_not_verified", 401, "Google account email is not verified.");
+	}
+
+	return {
+		email: payload.email.toLowerCase(),
+		emailVerified: true,
+		id: payload.sub,
+		image: payload.picture,
+		name: payload.name?.trim() || payload.email.split("@")[0] || "Google User",
+	};
 }
 
 function normalizeDesktopCallbackUrl(input?: string): string | undefined {
@@ -161,6 +258,63 @@ function getGoogleCallbackUrl(c: AppContext, baseUrl?: string): string {
 export const authController = {
 	handle(c: AppContext) {
 		return auth.handler(c.req.raw);
+	},
+	async handleMobileGoogleAuth(c: AppContext) {
+		try {
+			const payload = mobileGoogleAuthBodySchema.parse(await c.req.json());
+			const profile = await verifyGoogleIdToken(payload.idToken);
+			const authContext = await auth.$context;
+			const provider = authContext.socialProviders.find((entry) => entry.id === "google");
+
+			if (!provider) {
+				return jsonError(c, "oauth_provider_not_found", "Google sign-in is not available right now.", 503);
+			}
+
+			const oauthResult = await handleOAuthUserInfo(
+				{
+					context: authContext,
+					redirect: (url: string) => c.redirect(url),
+					request: c.req.raw,
+				} as never,
+				{
+					userInfo: {
+						email: profile.email,
+						emailVerified: profile.emailVerified,
+						id: profile.id,
+						image: profile.image,
+						name: profile.name,
+					},
+					account: {
+						accountId: profile.id,
+						idToken: payload.idToken,
+						providerId: provider.id,
+					},
+					callbackURL: "/",
+					disableSignUp: (provider.disableImplicitSignUp && payload.flow !== "signup") || !!provider.disableSignUp,
+				} as never,
+			);
+
+			if (oauthResult.error || !oauthResult.data?.session.token || !oauthResult.data.user) {
+				const errorCode = normalizeDesktopAuthError(oauthResult.error ?? "session_not_found");
+				return jsonError(c, errorCode, errorCode, getAuthErrorStatus(errorCode));
+			}
+
+			return jsonSuccess(c, {
+				token: oauthResult.data.session.token,
+				user: oauthResult.data.user,
+			});
+		} catch (error) {
+			if (error instanceof HttpServiceError) {
+				return handleControllerError(c, error);
+			}
+
+			if (error instanceof z.ZodError) {
+				return handleControllerError(c, error, { withValidation: true });
+			}
+
+			Logger.warn("Auth", "Failed to complete mobile Google auth", error);
+			return jsonError(c, "oauth_failed", "Unable to sign in with Google right now.", 500);
+		}
 	},
 	async handleDesktopGoogleStart(c: AppContext) {
 		const flow = getDesktopAuthFlow(c);
