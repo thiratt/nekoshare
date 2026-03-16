@@ -88,7 +88,7 @@ export function LoginCard({ data, linkComponent, onGoogle, onSubmit }: LoginCard
 					<form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="contents">
 						<CardContent className="space-y-4">
 							<div className="flex flex-col gap-4">
-								{renderField("identifier", "อีเมลหรือชื่อผู้ใช้งาน")}
+								{renderField("identifier", "อีเมล")}
 								{renderField("password", "รหัสผ่าน", "password")}
 
 								<Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
@@ -110,7 +110,11 @@ export function LoginCard({ data, linkComponent, onGoogle, onSubmit }: LoginCard
 									type="button"
 									onClick={async () => {
 										setIsGoogleLoading(true);
-										await onGoogle();
+										try {
+											await onGoogle();
+										} finally {
+											setIsGoogleLoading(false);
+										}
 									}}
 								>
 									{isGoogleLoading ? (

@@ -1,8 +1,9 @@
-import { useCallback } from "react";
+import { type JSX, useCallback, useState } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { FaGoogle } from "react-icons/fa";
+import { LuLoader } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
@@ -24,10 +25,12 @@ interface ExampleDataSignupProps {
 
 interface SignupCardProps extends IncludeLinkComponentProps {
 	data?: ExampleDataSignupProps;
+	onGoogle?: () => Promise<void>;
 	onSubmit: (data: TSignupSchema) => Promise<void>;
 }
 
-export function SignupCard({ data, linkComponent, onSubmit }: SignupCardProps) {
+export function SignupCard({ data, linkComponent, onGoogle, onSubmit }: SignupCardProps): JSX.Element {
+	const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 	const form = useForm<TSignupSchema>({
 		mode: "onSubmit",
 		resolver: zodResolver(signupFormSchema),
@@ -87,9 +90,28 @@ export function SignupCard({ data, linkComponent, onSubmit }: SignupCardProps) {
 								<Button
 									className="items-center justify-center"
 									variant="outline"
-									disabled={form.formState.isSubmitting}
+									type="button"
+									disabled={form.formState.isSubmitting || !onGoogle}
+									onClick={async () => {
+										if (!onGoogle) {
+											return;
+										}
+
+										setIsGoogleLoading(true);
+										try {
+											await onGoogle();
+										} finally {
+											setIsGoogleLoading(false);
+										}
+									}}
 								>
-									<FaGoogle className="size-3" /> ดำเนินการต่อด้วย Google
+									{isGoogleLoading ? (
+										<LuLoader className="animate-spin" />
+									) : (
+										<>
+											<FaGoogle className="size-3" /> ดำเนินการต่อด้วย Google
+										</>
+									)}
 								</Button>
 								<div className="flex gap-1 justify-center items-center text-sm">
 									มีบัญชีอยู่แล้ว?
