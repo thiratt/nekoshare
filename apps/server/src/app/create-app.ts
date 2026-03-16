@@ -4,22 +4,24 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { poweredBy } from "hono/powered-by";
 
-import { env } from "@/config/env";
-import { onError } from "@/shared/errors/hono";
+import { createModuleDependencies } from "./create-module-deps";
+import { createModuleRouters } from "./create-module-routes";
+import { createModules } from "./create-modules";
+import { registerRoutes } from "./register-routes";
+
 import authMiddleware from "@/app/middleware/auth";
+import { env } from "@/config/env";
 import { Logger, nekoShareLogger } from "@/infrastructure/logger";
 import { createWebSocketInstance } from "@/infrastructure/socket/transport/ws";
-
-import { createModuleDependencies } from "./create-module-deps";
-import { createModules } from "./create-modules";
-import { createModuleRouters } from "./create-module-routes";
-import { registerRoutes } from "./register-routes";
+import { onError } from "@/shared/errors/hono";
 
 const CORS_CONFIG = {
 	origin: (origin: string) => {
 		const allowedOrigins = [
 			"http://localhost:7787",
 			"http://127.0.0.1:7787",
+			"http://localhost:7786",
+			"http://127.0.0.1:7786",
 			"http://tauri.localhost",
 			"tauri://localhost",
 		];

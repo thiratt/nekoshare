@@ -1,48 +1,17 @@
-﻿import type { BetterAuthOptions } from "better-auth";
-import { eq } from "drizzle-orm";
+﻿import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { bearer, customSession, oneTimeToken, username } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
+import type { BetterAuthOptions } from "better-auth";
 
+import { hashPassword, verifyPassword } from "./password-hash";
+import { cacheDeviceIdBySessionId, collectTrustedOrigins, readCachedDeviceIdBySessionId } from "./utils";
+
+import { env } from "@/config/env";
 import { db } from "@/infrastructure/db";
 import { userPreference } from "@/infrastructure/db/schemas";
-import { env } from "@/config/env";
-import { hashPassword, verifyPassword } from "./password-hash";
 import { Logger } from "@/infrastructure/logger";
-import { getRedisClient } from "@/infrastructure/redis";
-import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 
 const RESERVED_USERNAMES = ["admin", "dev", "system", "root", "nekoshare"] as const;
-const SESSION_DEVICE_CACHE_TTL_SECONDS = 60;
-const SESSION_DEVICE_CACHE_KEY_PREFIX = "auth:session:device:";
-const SESSION_DEVICE_CACHE_NULL_MARKER = "__none__";
-
-function getSessionDeviceCacheKey(sessionId: string): string {
-	return `${SESSION_DEVICE_CACHE_KEY_PREFIX}${sessionId}`;
-}
-
-async function readCachedDeviceIdBySessionId(sessionId: string): Promise<string | null | undefined> {
-	try {
-		const cachedValue = await getRedisClient().get(getSessionDeviceCacheKey(sessionId));
-		if (cachedValue === null) {
-			return undefined;
-		}
-
-		return cachedValue === SESSION_DEVICE_CACHE_NULL_MARKER ? null : cachedValue;
-	} catch (error) {
-		Logger.warn("Auth", `Failed to read session-device cache for session ${sessionId}`, error);
-		return undefined;
-	}
-}
-
-async function cacheDeviceIdBySessionId(sessionId: string, deviceId: string | null): Promise<void> {
-	try {
-		const cacheValue = deviceId ?? SESSION_DEVICE_CACHE_NULL_MARKER;
-		await getRedisClient().set(getSessionDeviceCacheKey(sessionId), cacheValue, {
-			EX: SESSION_DEVICE_CACHE_TTL_SECONDS,
-		});
-	} catch (error) {
-		Logger.warn("Auth", `Failed to write session-device cache for session ${sessionId}`, error);
-	}
-}
 
 const databaseOptions: BetterAuthOptions["database"] = drizzleAdapter(db, {
 	provider: "mysql",
@@ -78,6 +47,7 @@ const emailAndPasswordOptions: BetterAuthOptions["emailAndPassword"] = {
 const socialProvidersOptions: BetterAuthOptions["socialProviders"] = {
 	google: {
 		prompt: "select_account",
+		disableImplicitSignUp: true,
 		clientId: env.GOOGLE_CLIENT_ID,
 		clientSecret: env.GOOGLE_CLIENT_SECRET,
 	},
@@ -124,11 +94,12 @@ const pluginsOptions = [
 	}),
 ];
 
-const trustedOriginsOptions: BetterAuthOptions["trustedOrigins"] = [
+const trustedOriginsOptions: BetterAuthOptions["trustedOrigins"] = collectTrustedOrigins(
 	"http://localhost:7780",
+	"http://localhost:7786",
 	"http://localhost:7787",
 	"http://tauri.localhost",
-];
+);
 
 const loggerOptions: BetterAuthOptions["logger"] = {
 	level: env.NODE_ENV === "production" ? "info" : "debug",
@@ -155,14 +126,14 @@ const sessionOptions: BetterAuthOptions["session"] = {
 };
 
 export {
-	db, // for convenience
-	databaseOptions,
-	databaseHookOptions,
-	emailAndPasswordOptions,
-	socialProvidersOptions,
-	pluginsOptions,
-	trustedOriginsOptions,
-	loggerOptions,
 	advancedOptions,
+	databaseHookOptions,
+	databaseOptions,
+	db, // for convenience
+	emailAndPasswordOptions,
+	loggerOptions,
+	pluginsOptions,
 	sessionOptions,
+	socialProvidersOptions,
+	trustedOriginsOptions,
 };
