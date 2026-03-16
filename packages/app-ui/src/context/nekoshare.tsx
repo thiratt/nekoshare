@@ -80,7 +80,7 @@ const NekoShareProvider = <TRouter extends Router>({
 	router,
 	children,
 	currentDevice,
-	appMode,
+	appMode = "desktop",
 	onBeforeSignOut,
 }: NekoShareProviderProps<TRouter>): React.ReactElement => {
 	const [sessionTerminated, setSessionTerminated] = useState<SessionTerminatedState>(INITIAL_SESSION_STATE);
