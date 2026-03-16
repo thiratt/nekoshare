@@ -1,8 +1,10 @@
-use std::sync::Arc;
 use crate::{
-    core::device::{CommandError, DeviceInfoWithFingerprint, DeviceInfoWithKey, DeviceManager, KeyDer}, 
-    state::GlobalState
+    core::device::{
+        CommandError, DeviceInfoWithFingerprint, DeviceInfoWithKey, DeviceManager, KeyDer,
+    },
+    state::GlobalState,
 };
+use std::sync::Arc;
 
 fn get_manager() -> Arc<DeviceManager> {
     GlobalState::get::<DeviceManager>()
@@ -27,7 +29,7 @@ pub fn ns_get_device_info_with_key() -> Result<DeviceInfoWithKey, CommandError> 
 #[tauri::command]
 pub fn ns_get_key() -> Result<KeyDer, CommandError> {
     let manager = get_manager();
-    
+
     let key = manager.key().map_err(CommandError::from)?;
 
     Ok(key)

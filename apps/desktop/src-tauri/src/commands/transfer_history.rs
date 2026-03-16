@@ -2,7 +2,9 @@ use crate::core::transfer_history::{TransferHistoryRecord, TransferHistoryServic
 use crate::state::GlobalState;
 
 #[tauri::command]
-pub async fn transfer_history_list(limit: Option<u32>) -> Result<Vec<TransferHistoryRecord>, String> {
+pub async fn transfer_history_list(
+    limit: Option<u32>,
+) -> Result<Vec<TransferHistoryRecord>, String> {
     let service = GlobalState::get::<TransferHistoryService>();
     tokio::task::spawn_blocking(move || service.list_records(limit))
         .await

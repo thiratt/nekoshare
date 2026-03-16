@@ -182,7 +182,8 @@ async fn send_file_offer(
         size: total_size,
     };
 
-    let header_bytes = serde_json::to_vec(&header).map_err(|e| map_transfer_error("Serialize header error", e))?;
+    let header_bytes =
+        serde_json::to_vec(&header).map_err(|e| map_transfer_error("Serialize header error", e))?;
 
     connection
         .send_packet(PacketType::FileOffer, |w| {

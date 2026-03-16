@@ -353,7 +353,8 @@ impl TransferHistoryService {
 pub fn persist_transfer_progress_event(event: TransferProgressEventPayload) {
     let service = GlobalState::get::<TransferHistoryService>();
     tauri::async_runtime::spawn(async move {
-        let write_result = tokio::task::spawn_blocking(move || service.upsert_progress_event(&event)).await;
+        let write_result =
+            tokio::task::spawn_blocking(move || service.upsert_progress_event(&event)).await;
 
         match write_result {
             Ok(Ok(())) => {}

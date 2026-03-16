@@ -11,7 +11,9 @@ use tokio::sync::{Mutex, RwLock};
 
 use crate::core::socket::{BinaryReader, Connection, PacketRouter, PacketType, SocketResult};
 use crate::core::socket::{SocketError, TransferConfig};
-use crate::core::transfer_history::{persist_transfer_progress_event, TransferProgressEventPayload};
+use crate::core::transfer_history::{
+    persist_transfer_progress_event, TransferProgressEventPayload,
+};
 use crate::state::GlobalState;
 
 struct TransferState {
@@ -156,27 +158,32 @@ async fn handle_file_offer(
         last_emitted_size: AtomicU64::new(0),
     });
 
-    service.active_transfers.insert((conn_id, metadata.id.clone()), state);
+    service
+        .active_transfers
+        .insert((conn_id, metadata.id.clone()), state);
 
-    emit_transfer_progress(&service, TransferProgressEventPayload {
-        transfer_id,
-        file_id: metadata.id,
-        file_path: file_path.to_string_lossy().to_string(),
-        file_name: metadata.name,
-        direction: "receive".to_string(),
-        source_user_id: None,
-        source_user_name: None,
-        source_device_id: None,
-        source_device_name: None,
-        same_account: None,
-        target_device_id: String::new(),
-        total_bytes: metadata.size,
-        sent_bytes: 0,
-        progress_percent: 0.0,
-        status: "processing".to_string(),
-        error: None,
-        timestamp_ms: now_timestamp_ms(),
-    });
+    emit_transfer_progress(
+        &service,
+        TransferProgressEventPayload {
+            transfer_id,
+            file_id: metadata.id,
+            file_path: file_path.to_string_lossy().to_string(),
+            file_name: metadata.name,
+            direction: "receive".to_string(),
+            source_user_id: None,
+            source_user_name: None,
+            source_device_id: None,
+            source_device_name: None,
+            same_account: None,
+            target_device_id: String::new(),
+            total_bytes: metadata.size,
+            sent_bytes: 0,
+            progress_percent: 0.0,
+            status: "processing".to_string(),
+            error: None,
+            timestamp_ms: now_timestamp_ms(),
+        },
+    );
 
     Ok(())
 }
@@ -224,25 +231,28 @@ async fn handle_file_chunk(
             } else {
                 ((current_size as f64 / total_size as f64) * 100.0).min(100.0)
             };
-            emit_transfer_progress(&service, TransferProgressEventPayload {
-                transfer_id: state.transfer_id.clone(),
-                file_id: state.file_id.clone(),
-                file_path: state.file_path.to_string_lossy().to_string(),
-                file_name: state.file_name.clone(),
-                direction: "receive".to_string(),
-                source_user_id: None,
-                source_user_name: None,
-                source_device_id: None,
-                source_device_name: None,
-                same_account: None,
-                target_device_id: String::new(),
-                total_bytes: total_size,
-                sent_bytes: current_size,
-                progress_percent,
-                status: "processing".to_string(),
-                error: None,
-                timestamp_ms: now_timestamp_ms(),
-            });
+            emit_transfer_progress(
+                &service,
+                TransferProgressEventPayload {
+                    transfer_id: state.transfer_id.clone(),
+                    file_id: state.file_id.clone(),
+                    file_path: state.file_path.to_string_lossy().to_string(),
+                    file_name: state.file_name.clone(),
+                    direction: "receive".to_string(),
+                    source_user_id: None,
+                    source_user_name: None,
+                    source_device_id: None,
+                    source_device_name: None,
+                    same_account: None,
+                    target_device_id: String::new(),
+                    total_bytes: total_size,
+                    sent_bytes: current_size,
+                    progress_percent,
+                    status: "processing".to_string(),
+                    error: None,
+                    timestamp_ms: now_timestamp_ms(),
+                },
+            );
         }
 
         if current_size >= state.expected_size {
@@ -252,25 +262,28 @@ async fn handle_file_chunk(
             }
 
             log::info!("Transfer complete: {:?}", state.file_path);
-            emit_transfer_progress(&service, TransferProgressEventPayload {
-                transfer_id: state.transfer_id.clone(),
-                file_id: state.file_id.clone(),
-                file_path: state.file_path.to_string_lossy().to_string(),
-                file_name: state.file_name.clone(),
-                direction: "receive".to_string(),
-                source_user_id: None,
-                source_user_name: None,
-                source_device_id: None,
-                source_device_name: None,
-                same_account: None,
-                target_device_id: String::new(),
-                total_bytes: state.expected_size,
-                sent_bytes: state.expected_size,
-                progress_percent: 100.0,
-                status: "success".to_string(),
-                error: None,
-                timestamp_ms: now_timestamp_ms(),
-            });
+            emit_transfer_progress(
+                &service,
+                TransferProgressEventPayload {
+                    transfer_id: state.transfer_id.clone(),
+                    file_id: state.file_id.clone(),
+                    file_path: state.file_path.to_string_lossy().to_string(),
+                    file_name: state.file_name.clone(),
+                    direction: "receive".to_string(),
+                    source_user_id: None,
+                    source_user_name: None,
+                    source_device_id: None,
+                    source_device_name: None,
+                    same_account: None,
+                    target_device_id: String::new(),
+                    total_bytes: state.expected_size,
+                    sent_bytes: state.expected_size,
+                    progress_percent: 100.0,
+                    status: "success".to_string(),
+                    error: None,
+                    timestamp_ms: now_timestamp_ms(),
+                },
+            );
 
             service.active_transfers.remove(&(conn_id, file_id));
         }
@@ -310,25 +323,28 @@ async fn handle_file_finish(
         } else {
             ((received_size as f64 / state.expected_size as f64) * 100.0).min(100.0)
         };
-        emit_transfer_progress(&service, TransferProgressEventPayload {
-            transfer_id: state.transfer_id.clone(),
-            file_id: state.file_id.clone(),
-            file_path: state.file_path.to_string_lossy().to_string(),
-            file_name: state.file_name.clone(),
-            direction: "receive".to_string(),
-            source_user_id: None,
-            source_user_name: None,
-            source_device_id: None,
-            source_device_name: None,
-            same_account: None,
-            target_device_id: String::new(),
-            total_bytes: state.expected_size,
-            sent_bytes: received_size,
-            progress_percent,
-            status: "success".to_string(),
-            error: None,
-            timestamp_ms: now_timestamp_ms(),
-        });
+        emit_transfer_progress(
+            &service,
+            TransferProgressEventPayload {
+                transfer_id: state.transfer_id.clone(),
+                file_id: state.file_id.clone(),
+                file_path: state.file_path.to_string_lossy().to_string(),
+                file_name: state.file_name.clone(),
+                direction: "receive".to_string(),
+                source_user_id: None,
+                source_user_name: None,
+                source_device_id: None,
+                source_device_name: None,
+                same_account: None,
+                target_device_id: String::new(),
+                total_bytes: state.expected_size,
+                sent_bytes: received_size,
+                progress_percent,
+                status: "success".to_string(),
+                error: None,
+                timestamp_ms: now_timestamp_ms(),
+            },
+        );
     }
 
     Ok(())

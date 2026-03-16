@@ -30,8 +30,7 @@ pub struct DeviceManager {
 impl DeviceManager {
     pub fn new() -> DeviceResult<Self> {
         let device_info_manager = DeviceInfoManager::new();
-        let key_manager = KeyManager::new(None)
-            .context("Failed to initialize key manager")?;
+        let key_manager = KeyManager::new(None).context("Failed to initialize key manager")?;
 
         let device_info = device_info_manager.info();
         let key_der = key_manager
@@ -40,7 +39,7 @@ impl DeviceManager {
 
         Ok(Self {
             device_info_manager,
-            key_der
+            key_der,
         })
     }
 

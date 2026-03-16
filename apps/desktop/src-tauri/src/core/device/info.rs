@@ -1,6 +1,6 @@
-﻿use log::{debug, warn};
-use sysinfo::System;
+use log::{debug, warn};
 use std::net::UdpSocket;
+use sysinfo::System;
 
 use super::error::DeviceError;
 
@@ -52,7 +52,10 @@ impl DeviceInfoManager {
     fn get_ip(&self) -> Option<String> {
         let socket = UdpSocket::bind("0.0.0.0:0").ok()?;
         socket.connect("10.10.10.10:10").ok()?;
-        socket.local_addr().ok().map(|local_addr| local_addr.ip().to_string())
+        socket
+            .local_addr()
+            .ok()
+            .map(|local_addr| local_addr.ip().to_string())
     }
 
     fn machine_id(&self) -> String {
@@ -86,7 +89,12 @@ impl DeviceInfoManager {
         return "other";
         #[cfg(target_os = "macos")]
         return "other";
-        #[cfg(not(any(target_os = "windows", target_os = "android", target_os = "linux", target_os = "macos")))]
+        #[cfg(not(any(
+            target_os = "windows",
+            target_os = "android",
+            target_os = "linux",
+            target_os = "macos"
+        )))]
         return "other";
     }
 

@@ -5,7 +5,7 @@ use anyhow::Context;
 use directories::ProjectDirs;
 use log::{debug, info, warn};
 use rcgen::{CertificateParams, KeyPair};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 use super::error::{DeviceError, DeviceResult};
 
@@ -171,8 +171,7 @@ impl KeyManager {
 
         info!(
             "Successfully generated and saved TLS certificates to {:?} (fingerprint: {})",
-            self.base_path,
-            key_der_result.fingerprint
+            self.base_path, key_der_result.fingerprint
         );
 
         Ok(key_der_result)

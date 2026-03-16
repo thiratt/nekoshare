@@ -188,7 +188,6 @@ pub fn search_items(items: Vec<SearchableItem>, query: String, threshold: f64) -
     }
 }
 
-
 #[tauri::command]
 pub fn search_items_paginated(
     items: Vec<SearchableItem>,
