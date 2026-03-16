@@ -8,7 +8,7 @@
 		"build:lib-nksocket": "cargo build-lib-nksocket",
 		"dev": "turbo run dev",
 		"dev:server": "turbo run dev --filter=server",
-		"dev:desktop": "turbo run dev --filter=desktop --filter=server",
+		"dev:desktop": "turbo run dev --filter=desktop --filter=server --filter=web",
 		"lint": "turbo run lint",
 		"format": "prettier --write \"**/*.{ts,tsx,md}\"",
 		"check-types": "turbo run check-types"
