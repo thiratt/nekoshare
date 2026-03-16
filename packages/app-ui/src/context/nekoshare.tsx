@@ -14,6 +14,7 @@ import type { Router, UseNekoShareReturn } from "@workspace/app-ui/types/context
 import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
 
 import { authClient, invalidateSessionCache } from "../lib/auth";
+import { useTheme } from "../providers/theme-provider";
 
 interface NekoShareContextValue {
 	readonly router: Router;
@@ -85,6 +86,7 @@ const NekoShareProvider = <TRouter extends Router>({
 }: NekoShareProviderProps<TRouter>): React.ReactElement => {
 	const [sessionTerminated, setSessionTerminated] = useState<SessionTerminatedState>(INITIAL_SESSION_STATE);
 	const [mounted, setMounted] = useState(false);
+	const { theme } = useTheme();
 
 	const mode = useMode();
 	const setMode = useSetMode();
@@ -234,7 +236,12 @@ const NekoShareProvider = <TRouter extends Router>({
 				terminatorName={sessionTerminated.terminator}
 				onComplete={handleSessionTerminationComplete}
 			/>
-			<Toaster richColors position="top-right" offset={{ top: appMode === "desktop" ? "3rem" : "1rem" }} />
+			<Toaster
+				richColors
+				position="top-right"
+				offset={{ top: appMode === "desktop" ? "3rem" : "1rem" }}
+				theme={theme}
+			/>
 		</NekoShareContext.Provider>
 	);
 };
