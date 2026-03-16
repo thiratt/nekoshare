@@ -1,7 +1,6 @@
 import type { ServerType } from "@hono/node-server";
 import type { Server as NetServer } from "net";
 
-import { createApp, shutdownApp } from "@/app/create-app";
 import { env } from "./config/env";
 import { initializeDatabase } from "./infrastructure/db";
 import { Logger, LogLevel } from "./infrastructure/logger";
@@ -10,6 +9,8 @@ import { shutdownWsPubSub } from "./infrastructure/socket/events/ws-pubsub";
 import { shutdownUserPresenceTracking } from "./infrastructure/socket/presence";
 import { initializePacketRelay, shutdownConnectionRouting, shutdownPacketRelay } from "./infrastructure/socket/routing";
 import { createTCPSocketInstance } from "./infrastructure/socket/transport/tcp";
+
+import { createApp, shutdownApp } from "@/app/create-app";
 
 let httpServer: ServerType | null = null;
 let socketServer: NetServer | null = null;

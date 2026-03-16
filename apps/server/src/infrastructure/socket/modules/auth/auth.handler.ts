@@ -1,9 +1,9 @@
-import { Logger } from "@/infrastructure/logger";
-import { PacketType } from "@workspace/contracts/ws";
+import { authenticateClient, revokeOneTimeToken } from "./auth.service";
 
+import { Logger } from "@/infrastructure/logger";
 import { PacketRouter } from "@/infrastructure/socket/runtime/packet-router";
 import type { CommandHandler, IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
-import { authenticateClient, revokeOneTimeToken } from "./auth.service";
+import { PacketType } from "@workspace/contracts/ws";
 
 function sendLoginResponse(client: IConnection, requestId: number, ok: boolean, messageOrPayload: string): void {
 	client.sendPacket(

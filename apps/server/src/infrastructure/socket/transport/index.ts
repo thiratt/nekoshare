@@ -1,2 +1,2 @@
-export * as wsTransport from "./ws";
 export * as tcpTransport from "./tcp";
+export * as wsTransport from "./ws";

@@ -1,7 +1,7 @@
-import type { Device } from "@/types/api";
-import { device } from "@/infrastructure/db/schemas";
-
 import type { DeviceRegistrationInput } from "./devices.schema";
+
+import { device } from "@/infrastructure/db/schemas";
+import type { Device } from "@/types/api";
 
 export function mapDeviceToDto(record: typeof device.$inferSelect): Device {
 	return {

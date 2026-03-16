@@ -1,10 +1,10 @@
+import type { AppModuleDependencies } from "./create-module-deps";
+
 import { createAccountModule } from "@/modules/account";
 import { createAuthModule } from "@/modules/auth";
 import { createDevicesModule } from "@/modules/devices";
 import { createFriendsModule } from "@/modules/friends";
 import { createRootModule } from "@/modules/root";
-
-import type { AppModuleDependencies } from "./create-module-deps";
 
 export type AppModules = {
 	root: ReturnType<typeof createRootModule>;

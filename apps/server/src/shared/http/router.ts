@@ -1,4 +1,4 @@
-﻿import { Hono, type Context, type Env } from "hono";
+﻿import { type Context, type Env,Hono } from "hono";
 import type { HonoOptions } from "hono/hono-base";
 
 import type { AuthenticatedType } from "@/modules/auth/lib";

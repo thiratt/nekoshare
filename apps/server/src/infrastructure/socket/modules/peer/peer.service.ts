@@ -1,5 +1,15 @@
+import {
+	findConnectionTargetByDeviceId,
+	findConnectionTargetByDeviceSession,
+	getConnectionIp,
+	sendJsonPacket,
+} from "./peer.gateway";
+import { peerRepository } from "./peer.repository";
+import * as PeerState from "./peer.state";
+
 import { Logger } from "@/infrastructure/logger";
-import { PacketType } from "@workspace/contracts/ws";
+import { sendJsonPacketToConnectionTarget } from "@/infrastructure/socket/routing";
+import type { IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
 import type {
 	AckPayload,
 	PeerConnectionConfirmPayload,
@@ -12,17 +22,7 @@ import type {
 	PeerSocketReadyPayload,
 	PeerSocketReadyResponsePayload,
 } from "@workspace/contracts/ws";
-
-import type { IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
-import { sendJsonPacketToConnectionTarget } from "@/infrastructure/socket/routing";
-import * as PeerState from "./peer.state";
-import {
-	findConnectionTargetByDeviceId,
-	findConnectionTargetByDeviceSession,
-	getConnectionIp,
-	sendJsonPacket,
-} from "./peer.gateway";
-import { peerRepository } from "./peer.repository";
+import { PacketType } from "@workspace/contracts/ws";
 
 export async function handlePeerConnectRequest(
 	client: IConnection,

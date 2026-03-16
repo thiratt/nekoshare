@@ -1,10 +1,10 @@
 import { Logger } from "@/infrastructure/logger";
 import {
+	broadcastFriendRemoved,
 	broadcastFriendRequestAccepted,
 	broadcastFriendRequestCancelled,
 	broadcastFriendRequestReceived,
 	broadcastFriendRequestRejected,
-	broadcastFriendRemoved,
 	invalidateUsersFriendGraphCache,
 } from "@/infrastructure/socket/modules/friend";
 import { sendJsonToSessions } from "@/infrastructure/socket/modules/friend/friend.gateway";

@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { mysqlTable, varchar, text, timestamp, boolean, mysqlEnum, index } from "drizzle-orm/mysql-core";
+import { boolean, index,mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
 	id: varchar("id", { length: 36 }).primaryKey(),

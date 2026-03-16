@@ -1,11 +1,11 @@
-import { Logger } from "@/infrastructure/logger";
-import { safeJsonParse } from "@/shared/utils/json-helper";
-import { PacketType } from "@workspace/contracts/ws";
-
-import { PacketRouter } from "@/infrastructure/socket/runtime/packet-router";
-import type { CommandHandler, IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
 import { processUserDeviceUpdate } from "./user.service";
 import type { UserDeviceUpdatePayload } from "./user.types";
+
+import { Logger } from "@/infrastructure/logger";
+import { PacketRouter } from "@/infrastructure/socket/runtime/packet-router";
+import type { CommandHandler, IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
+import { safeJsonParse } from "@/shared/utils/json-helper";
+import { PacketType } from "@workspace/contracts/ws";
 
 function sendError(client: IConnection, requestId: number, message: string): void {
 	client.sendPacket(

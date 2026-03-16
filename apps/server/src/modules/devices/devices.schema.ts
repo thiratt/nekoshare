@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import type { Os } from "@workspace/contracts/api";
 
 const OS_TYPES = ["windows", "android", "web", "other"] as const satisfies readonly Os[];

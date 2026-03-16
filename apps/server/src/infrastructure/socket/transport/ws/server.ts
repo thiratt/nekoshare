@@ -1,11 +1,13 @@
 import { createNodeWebSocket } from "@hono/node-ws";
 import { eq } from "drizzle-orm";
 
-import { device } from "@/infrastructure/db/schemas";
+import { bootstrapWsTransport } from "./bootstrap";
+import { WSConnection, wsSessionManager } from "./connection";
+
 import { db } from "@/infrastructure/db";
+import { device } from "@/infrastructure/db/schemas";
 import { Logger } from "@/infrastructure/logger";
 import { initializeWsPubSub } from "@/infrastructure/socket/events/ws-pubsub";
-import { handleDeviceSocketDisconnect } from "@/infrastructure/socket/modules/peer";
 import {
 	broadcastDeviceOffline,
 	broadcastDeviceOnline,
@@ -13,14 +15,12 @@ import {
 	broadcastUserOnline,
 	getUserFriendIds,
 } from "@/infrastructure/socket/modules/friend";
+import { handleDeviceSocketDisconnect } from "@/infrastructure/socket/modules/peer";
 import { registerUserPresenceSession, unregisterUserPresenceSession } from "@/infrastructure/socket/presence";
 import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 import { generateConnectionId } from "@/infrastructure/socket/runtime/connection-id";
 import type { User } from "@/modules/auth/lib";
 import type { createRouter } from "@/shared/http/router";
-
-import { bootstrapWsTransport } from "./bootstrap";
-import { WSConnection, wsSessionManager } from "./connection";
 
 function getForwardedClientIp(forwardedHeader: string | undefined): string | undefined {
 	if (!forwardedHeader) {
@@ -128,14 +128,14 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 					}
 				},
 
-				onMessage(evt, ws) {
+				onMessage(evt) {
 					if (connection) {
 						const data = evt.data instanceof ArrayBuffer ? evt.data : Buffer.from(evt.data as string);
 						connection.handleMessage(data);
 					}
 				},
 
-				onClose(evt, ws) {
+				onClose(evt) {
 					if (connection) {
 						const userId = connection.user?.id;
 						const sessionId = connection.session?.id;

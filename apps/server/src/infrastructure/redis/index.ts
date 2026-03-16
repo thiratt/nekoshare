@@ -1,2 +1,2 @@
 export { closeRedis, getRedisClient, initializeRedis } from "./client";
-export { acquireLock, releaseLock, type RedisLock } from "./lock";
+export { acquireLock, type RedisLock,releaseLock } from "./lock";

@@ -1,6 +1,6 @@
-﻿import type { AppContext } from "@/shared/http/router";
+﻿import { RootService } from "./root.service";
 
-import { RootService } from "./root.service";
+import type { AppContext } from "@/shared/http/router";
 
 export function createRootController(service: RootService) {
 	return {

@@ -1,5 +1,6 @@
-import { Logger } from "@/infrastructure/logger";
 import type { IConnection, ISessionManager, TransportType } from "./types";
+
+import { Logger } from "@/infrastructure/logger";
 
 export class SessionManager<T extends IConnection> implements ISessionManager<T> {
 	private sessions = new Map<string, T>();

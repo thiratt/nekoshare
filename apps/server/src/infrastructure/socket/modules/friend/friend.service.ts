@@ -1,7 +1,3 @@
-import { Logger } from "@/infrastructure/logger";
-import { getRedisClient } from "@/infrastructure/redis";
-import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
-
 import { sendJsonToSessions } from "./friend.gateway";
 import { friendRepository } from "./friend.repository";
 import type {
@@ -11,6 +7,10 @@ import type {
 	FriendPresencePayload,
 	FriendRequestPayload,
 } from "./friend.types";
+
+import { Logger } from "@/infrastructure/logger";
+import { getRedisClient } from "@/infrastructure/redis";
+import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 
 const FRIEND_IDS_CACHE_TTL_SECONDS = 5 * 60;
 const FRIEND_IDS_CACHE_KEY_PREFIX = "friend:accepted:ids:";

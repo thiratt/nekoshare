@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import { bigint, index, mysqlEnum, mysqlTable, text, timestamp, unique, varchar } from "drizzle-orm/mysql-core";
+
 import { accounts, sessions, users } from "./auth";
 
 const devices = mysqlTable(
@@ -226,27 +227,27 @@ const notificationsRelations = relations(notifications, ({ one }) => ({
 }));
 
 export {
-	userSettings,
-	devices,
-	friends,
-	publicShare,
-	publicShareFiles,
-	transferMetrics,
-	notifications,
-	userRelations,
-	userSettingsRelations,
+	devices as device,
 	deviceRelations,
+	devices,
+	publicShare as flashShare,
+	friends as friend,
 	friendRelations,
-	publicShareRelations,
-	publicShareFilesRelations,
-	transferMetricsRelations,
+	friends,
+	notifications as notification,
+	notifications,
 	notificationsRelations,
+	publicShare,
+	publicShareFiles as publicShareFile,
+	publicShareFiles,
+	publicShareFilesRelations,
+	publicShareRelations,
+	transferMetrics as transferHistory,
+	transferMetrics,
+	transferMetricsRelations,
 	// Backward-compatible aliases for existing imports.
 	userSettings as userPreference,
-	devices as device,
-	friends as friend,
-	publicShare as flashShare,
-	publicShareFiles as publicShareFile,
-	transferMetrics as transferHistory,
-	notifications as notification,
+	userRelations,
+	userSettings,
+	userSettingsRelations,
 };

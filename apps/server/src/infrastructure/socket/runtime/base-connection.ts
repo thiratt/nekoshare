@@ -1,12 +1,12 @@
-import { Logger } from "@/infrastructure/logger";
-import type { Session, User } from "@/modules/auth/lib";
+import type { TransportType } from "./types";
 
+import { Logger } from "@/infrastructure/logger";
 import { BinaryReader } from "@/infrastructure/socket/protocol/binary-reader";
 import { BinaryWriter } from "@/infrastructure/socket/protocol/binary-writer";
 import { HEADER_SIZE, MAX_FRAME_SIZE } from "@/infrastructure/socket/protocol/frame";
 import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 import { registerConnectionRoute, unregisterConnectionRoute } from "@/infrastructure/socket/routing/connection-routing";
-import type { TransportType } from "./types";
+import type { Session, User } from "@/modules/auth/lib";
 
 interface BaseSessionManager {
 	removeSession(userId: string): void;

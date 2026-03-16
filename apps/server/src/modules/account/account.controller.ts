@@ -1,7 +1,7 @@
-﻿import type { AppContext } from "@/shared/http/router";
-import { jsonSuccess } from "@/shared/http";
+﻿import { AccountService } from "./account.service";
 
-import { AccountService } from "./account.service";
+import { jsonSuccess } from "@/shared/http";
+import type { AppContext } from "@/shared/http/router";
 
 export function createAccountController(service: AccountService) {
 	return {

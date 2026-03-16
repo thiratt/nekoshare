@@ -1,9 +1,8 @@
-import type { Session, User } from "@/modules/auth/lib";
-import type { UserDeviceInfoPacket } from "@workspace/contracts/ws";
-
 import type { BinaryReader } from "@/infrastructure/socket/protocol/binary-reader";
 import type { BinaryWriter } from "@/infrastructure/socket/protocol/binary-writer";
 import type { PacketType } from "@/infrastructure/socket/protocol/packet-type";
+import type { Session, User } from "@/modules/auth/lib";
+import type { UserDeviceInfoPacket } from "@workspace/contracts/ws";
 
 export type TransportType = "TCP" | "WebSocket";
 

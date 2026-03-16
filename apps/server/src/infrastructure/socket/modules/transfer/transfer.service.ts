@@ -1,11 +1,5 @@
-import { Logger } from "@/infrastructure/logger";
-import { PacketType } from "@workspace/contracts/ws";
-
-import type { IConnection } from "@/infrastructure/socket/runtime/types";
-import { sendJsonPacketToConnectionTarget, type ConnectionTarget } from "@/infrastructure/socket/routing";
 import { findConnectionTargetByDeviceId as findConnectionByDeviceIdRoute, findConnectionTargetBySessionId } from "./transfer.gateway";
 import { transferRepository } from "./transfer.repository";
-import type { FileAcceptPacketInput, FileOfferPacketInput, FileRejectPacketInput } from "./transfer.types";
 import {
 	ensureTransferParticipants,
 	getTransferSessionForFallback,
@@ -14,6 +8,12 @@ import {
 	removeTransferSession,
 	resolveTransferForAck,
 } from "./transfer.state";
+import type { FileAcceptPacketInput, FileOfferPacketInput, FileRejectPacketInput } from "./transfer.types";
+
+import { Logger } from "@/infrastructure/logger";
+import { type ConnectionTarget,sendJsonPacketToConnectionTarget } from "@/infrastructure/socket/routing";
+import type { IConnection } from "@/infrastructure/socket/runtime/types";
+import { PacketType } from "@workspace/contracts/ws";
 
 function sendJsonPacket(client: IConnection, packetType: PacketType, payload: object, requestId?: number): void {
 	client.sendPacket(

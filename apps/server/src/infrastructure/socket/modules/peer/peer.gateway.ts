@@ -1,8 +1,7 @@
 import type { ConnectionTarget } from "@/infrastructure/socket/routing";
 import { resolveConnectionTargetByDeviceId, resolveConnectionTargetBySessionId } from "@/infrastructure/socket/routing";
-import { PacketType } from "@workspace/contracts/ws";
-
 import type { IConnection } from "@/infrastructure/socket/runtime/types";
+import { PacketType } from "@workspace/contracts/ws";
 
 export function getConnectionIp(conn: IConnection): string {
 	const wsAddress = (conn as { remoteAddress?: string | null }).remoteAddress;

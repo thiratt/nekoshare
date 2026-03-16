@@ -1,7 +1,7 @@
-import { createDevicesRouter } from "./devices.route";
 import { devicesRepository } from "./devices.repository";
-import type { DevicesEventsPort } from "./devices.service";
+import { createDevicesRouter } from "./devices.route";
 import { DevicesService } from "./devices.service";
+import type { DevicesEventsPort } from "./devices.service";
 
 export type CreateDevicesModuleInput = {
 	events: DevicesEventsPort;

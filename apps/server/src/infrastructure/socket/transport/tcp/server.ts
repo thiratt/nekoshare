@@ -1,5 +1,8 @@
-import { createServer, Server as NetServer, Socket } from "net";
 import { eq } from "drizzle-orm";
+import { createServer, Server as NetServer, Socket } from "net";
+
+import { bootstrapTcpTransport } from "./bootstrap";
+import { TCPConnection, tcpSessionManager } from "./connection";
 
 import { env } from "@/config/env";
 import { db } from "@/infrastructure/db";
@@ -9,9 +12,6 @@ import { handleDeviceSocketDisconnect } from "@/infrastructure/socket/modules/pe
 import { HEADER_SIZE, MAX_FRAME_SIZE } from "@/infrastructure/socket/protocol/frame";
 import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 import { generateConnectionId } from "@/infrastructure/socket/runtime/connection-id";
-
-import { bootstrapTcpTransport } from "./bootstrap";
-import { TCPConnection, tcpSessionManager } from "./connection";
 
 export async function createTCPSocketInstance() {
 	bootstrapTcpTransport();

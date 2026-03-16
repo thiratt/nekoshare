@@ -1,9 +1,9 @@
-import { Logger } from "@/infrastructure/logger";
-import type { IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
-
 import { broadcastDeviceRemoved, broadcastDeviceUpdated } from "./device.gateway";
 import { deviceRepository } from "./device.repository";
 import type { DeviceDeletePayload, DeviceRenamePayload } from "./device.types";
+
+import { Logger } from "@/infrastructure/logger";
+import type { IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
 
 export async function processDeviceRename(
 	client: IConnection,

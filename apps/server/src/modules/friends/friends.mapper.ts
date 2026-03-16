@@ -1,6 +1,6 @@
-import type { FriendItem, FriendStatus } from "@/types/api";
-
 import type { FriendRecord, UserRecord } from "./friends.repository";
+
+import type { FriendItem, FriendStatus } from "@/types/api";
 
 export function isFriendParticipant(record: FriendRecord, userId: string): boolean {
 	return record.userLowId === userId || record.userHighId === userId;

@@ -1,1 +1,1 @@
-export { auth, type AuthType, type AuthenticatedType, type Session, type User } from "./authentication";
+export { auth, type AuthenticatedType, type AuthType, type Session, type User } from "./authentication";

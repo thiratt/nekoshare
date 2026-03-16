@@ -1,8 +1,8 @@
-﻿import type { AppContext } from "@/shared/http/router";
-import { handleControllerError, jsonSuccess } from "@/shared/http";
-
-import { friendRequestSchema } from "./friends.schema";
+﻿import { friendRequestSchema } from "./friends.schema";
 import { FriendsService } from "./friends.service";
+
+import { handleControllerError, jsonSuccess } from "@/shared/http";
+import type { AppContext } from "@/shared/http/router";
 
 export function createFriendsController(service: FriendsService) {
 	return {

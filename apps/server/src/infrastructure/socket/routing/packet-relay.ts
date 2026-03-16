@@ -1,10 +1,11 @@
+import { type ConnectionTarget,getLocalNodeId } from "./connection-routing";
+
 import { Logger } from "@/infrastructure/logger";
 import { getRedisClient } from "@/infrastructure/redis";
 import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 import type { IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
 import { tcpSessionManager } from "@/infrastructure/socket/transport/tcp/connection";
 import { wsSessionManager } from "@/infrastructure/socket/transport/ws/connection";
-import { getLocalNodeId, type ConnectionTarget } from "./connection-routing";
 
 type RedisClient = ReturnType<typeof getRedisClient>;
 

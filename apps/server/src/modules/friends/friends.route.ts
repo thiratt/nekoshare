@@ -1,7 +1,7 @@
-import { createRouter } from "@/shared/http/router";
-
 import { createFriendsController } from "./friends.controller";
 import { FriendsService } from "./friends.service";
+
+import { createRouter } from "@/shared/http/router";
 
 export function createFriendsRouter(service: FriendsService) {
 	const controller = createFriendsController(service);

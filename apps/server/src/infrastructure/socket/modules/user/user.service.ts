@@ -1,8 +1,8 @@
-import { Logger } from "@/infrastructure/logger";
-
-import type { IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
 import { userSocketRepository } from "./user.repository";
 import type { UserDeviceUpdatePayload } from "./user.types";
+
+import { Logger } from "@/infrastructure/logger";
+import type { IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
 
 export async function processUserDeviceUpdate(
 	client: IConnection,

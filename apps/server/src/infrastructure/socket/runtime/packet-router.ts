@@ -1,6 +1,7 @@
+import type { CommandHandler, IConnection, TransportType } from "./types";
+
 import { Logger } from "@/infrastructure/logger";
 import type { BinaryReader } from "@/infrastructure/socket/protocol/binary-reader";
-import type { CommandHandler, IConnection, TransportType } from "./types";
 
 export class PacketRouter<T extends IConnection = IConnection> {
 	private handlers = new Map<number, CommandHandler<T>>();

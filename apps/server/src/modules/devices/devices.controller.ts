@@ -1,8 +1,8 @@
-﻿import type { AppContext } from "@/shared/http/router";
-import { handleControllerError, jsonSuccess } from "@/shared/http";
-
-import { deviceRegistrationSchema, deviceUpdateSchema } from "./devices.schema";
+﻿import { deviceRegistrationSchema, deviceUpdateSchema } from "./devices.schema";
 import { DevicesService } from "./devices.service";
+
+import { handleControllerError, jsonSuccess } from "@/shared/http";
+import type { AppContext } from "@/shared/http/router";
 
 export function createDevicesController(service: DevicesService) {
 	return {

@@ -1,7 +1,7 @@
-import { createRouter } from "@/shared/http/router";
-
 import { createDevicesController } from "./devices.controller";
 import { DevicesService } from "./devices.service";
+
+import { createRouter } from "@/shared/http/router";
 
 export function createDevicesRouter(service: DevicesService) {
 	const controller = createDevicesController(service);

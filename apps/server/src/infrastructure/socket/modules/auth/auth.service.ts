@@ -1,8 +1,8 @@
-import { auth } from "@/modules/auth/lib";
-import type { IConnection } from "@/infrastructure/socket/runtime/types";
-
 import { authSocketRepository } from "./auth.repository";
 import type { LoginResult, TokenRevokeResult } from "./auth.types";
+
+import type { IConnection } from "@/infrastructure/socket/runtime/types";
+import { auth } from "@/modules/auth/lib";
 
 export async function authenticateClient(client: IConnection, oneTimeToken: string): Promise<LoginResult> {
 	if (client.isAuthenticated) {

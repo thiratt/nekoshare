@@ -1,9 +1,9 @@
-import { Logger } from "@/infrastructure/logger";
-import { PacketType } from "@workspace/contracts/ws";
+import { processHeartbeat } from "./system.service";
 
+import { Logger } from "@/infrastructure/logger";
 import { PacketRouter } from "@/infrastructure/socket/runtime/packet-router";
 import type { CommandHandler, IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
-import { processHeartbeat } from "./system.service";
+import { PacketType } from "@workspace/contracts/ws";
 
 function sendError(client: IConnection, requestId: number, message: string): void {
 	client.sendPacket(

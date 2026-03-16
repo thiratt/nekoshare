@@ -1,6 +1,5 @@
-import { PacketType } from "@workspace/contracts/ws";
-
 import { wsSessionManager } from "@/infrastructure/socket/transport/ws/connection";
+import { PacketType } from "@workspace/contracts/ws";
 
 export function broadcastDeviceUpdated(userId: string, payload: { id: string; name: string }): void {
 	const userSessions = wsSessionManager.getSessionsByUserId(userId);

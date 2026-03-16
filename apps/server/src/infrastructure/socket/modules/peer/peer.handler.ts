@@ -1,6 +1,15 @@
+import { sendJsonPacket } from "./peer.gateway";
+import {
+	handlePeerConnectionConfirm,
+	handlePeerConnectRequest,
+	handlePeerDisconnect,
+	handlePeerSocketReady,
+} from "./peer.service";
+
 import { Logger } from "@/infrastructure/logger";
+import { PacketRouter } from "@/infrastructure/socket/runtime/packet-router";
+import type { CommandHandler, IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
 import { safeJsonParse } from "@/shared/utils/json-helper";
-import { PacketType } from "@workspace/contracts/ws";
 import type {
 	AckPayload,
 	PeerConnectionConfirmPayload,
@@ -10,16 +19,7 @@ import type {
 	PeerSocketReadyPayload,
 	PeerSocketReadyResponsePayload,
 } from "@workspace/contracts/ws";
-
-import { PacketRouter } from "@/infrastructure/socket/runtime/packet-router";
-import type { CommandHandler, IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
-import { sendJsonPacket } from "./peer.gateway";
-import {
-	handlePeerConnectRequest,
-	handlePeerConnectionConfirm,
-	handlePeerDisconnect,
-	handlePeerSocketReady,
-} from "./peer.service";
+import { PacketType } from "@workspace/contracts/ws";
 
 function sendConnectFailure(client: IConnection, requestId: number, message: string): void {
 	const response: PeerConnectResponsePayload = {

@@ -2,10 +2,10 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 
+import * as schema from "./schemas";
+
 import { env } from "@/config/env";
 import { Logger } from "@/infrastructure/logger";
-
-import * as schema from "./schemas";
 
 const poolConnection = mysql.createPool({
 	host: env.DB_HOST,
@@ -74,4 +74,4 @@ async function initializeDatabase(): Promise<void> {
 	Logger.info("Database", "Database initialization complete");
 }
 
-export { db, poolConnection, checkDatabaseConnection, ensureTablesExist, initializeDatabase };
+export { checkDatabaseConnection, db, ensureTablesExist, initializeDatabase,poolConnection };

@@ -1,11 +1,12 @@
-import type { DeviceListResponse, DeviceRegistrationResponse } from "@/types/api";
-import { HttpServiceError } from "@/shared/http";
-import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { randomUUID } from "node:crypto";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 import { mapDeviceToDto, mapRegistrationToDbValues } from "./devices.mapper";
-import type { DeviceRegistrationInput, DeviceUpdateInput } from "./devices.schema";
 import type { DeviceRecord } from "./devices.repository";
+import type { DeviceRegistrationInput, DeviceUpdateInput } from "./devices.schema";
+
+import { HttpServiceError } from "@/shared/http";
+import type { DeviceListResponse, DeviceRegistrationResponse } from "@/types/api";
 
 type SessionInfo = {
 	id: string;
