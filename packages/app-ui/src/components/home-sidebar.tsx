@@ -1,17 +1,8 @@
 import { useMemo } from "react";
 
-import { LuChevronLeft, LuHouse, LuLogOut, LuMonitorSmartphone, LuUsers } from "react-icons/lu";
+import { LuChevronLeft, LuHouse, LuMonitorSmartphone, LuUsers } from "react-icons/lu";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 
@@ -61,13 +52,7 @@ const SidebarButton = ({ label, link, icon: Icon, isActive, isOpen, linkComponen
 	return <div key={link}>{content}</div>;
 };
 
-export function HomeSidebar({
-	linkComponent,
-	pathname,
-	mode = "website",
-	onSignout,
-	collapseWhenNotificationOpen = false,
-}: HomeSidebarProps) {
+export function HomeSidebar({ linkComponent, pathname, collapseWhenNotificationOpen = false }: HomeSidebarProps) {
 	const { isOpen, toggleSidebar } = useSidebar();
 
 	// Force collapse when notification sidebar is open
@@ -90,24 +75,8 @@ export function HomeSidebar({
 				link: "/home/devices",
 				icon: LuMonitorSmartphone,
 			},
-			// {
-			// 	label: "รายการย้อนหลัง",
-			// 	link: "/home/items",
-			// 	icon: GalleryVerticalEnd,
-			// },
-
-			// {
-			// 	label: "ประวัติการแชร์",
-			// 	link: "/home/history",
-			// 	icon: Clock,
-			// },
-			// {
-			// 	label: "ถังขยะ",
-			// 	link: "/home/trash",
-			// 	icon: Trash2,
-			// },
 		],
-		[]
+		[],
 	);
 
 	const normalizePath = useMemo(() => {
@@ -125,36 +94,21 @@ export function HomeSidebar({
 		<TooltipProvider>
 			<aside
 				className={cn(
-					"relative flex flex-col py-4 pb-12 border-r duration-300 px-4.5",
-					effectiveIsOpen ? "w-52 xl:w-64" : "w-20"
+					"relative flex flex-col py-4 border-r duration-300 px-4.5",
+					effectiveIsOpen ? "w-52 xl:w-64" : "w-20",
 				)}
 			>
-				{mode === "desktop" && (
-					<div
-						className={cn(
-							"absolute flex items-center transition-[margin] -right-4",
-							!effectiveIsOpen && ""
-						)}
+				<div className={cn("absolute flex items-center transition-[margin] -right-4", !effectiveIsOpen && "")}>
+					<Button
+						className="h-8 w-8 rounded-full"
+						size="icon"
+						onClick={toggleSidebar}
+						disabled={collapseWhenNotificationOpen}
 					>
-						<Button
-							className="h-8 w-8 rounded-full"
-							size="icon"
-							onClick={toggleSidebar}
-							disabled={collapseWhenNotificationOpen}
-						>
-							<LuChevronLeft className={effectiveIsOpen ? "rotate-180" : "rotate-0"} />
-						</Button>
-					</div>
-				)}
+						<LuChevronLeft className={effectiveIsOpen ? "rotate-180" : "rotate-0"} />
+					</Button>
+				</div>
 				<nav className="flex-1 flex flex-col">
-					{mode === "website" && (
-						<div className={cn("flex items-center transition-[margin] mb-4", !effectiveIsOpen && "ms-2")}>
-							<Button size="icon" onClick={toggleSidebar} className="h-8 w-8 rounded-full">
-								<LuChevronLeft className={effectiveIsOpen ? "rotate-180" : "rotate-0"} />
-							</Button>
-							{effectiveIsOpen && <h3 className="ms-2 font-bold text-xl truncate">NekoShare</h3>}
-						</div>
-					)}
 					<div className="space-y-1 flex flex-col">
 						{sidebarLink.map((item) => (
 							<SidebarButton
@@ -168,80 +122,6 @@ export function HomeSidebar({
 							/>
 						))}
 					</div>
-					{mode === "website" && (
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button
-									className="px-1 mt-auto justify-start h-12 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-									variant="ghost"
-									asChild
-								>
-									<div>
-										<div className="flex items-center gap-2 px-0.5 py-1.5 text-left text-sm">
-											<Avatar className="h-8 w-8 rounded-lg">
-												<AvatarImage src="https://github.com/evilrabbit.png" alt="Thiratcha" />
-												<AvatarFallback className="rounded-lg">TM</AvatarFallback>
-											</Avatar>
-											{effectiveIsOpen && (
-												<div className="grid flex-1 text-left text-sm leading-tight">
-													<span className="truncate font-medium">Thiratcha</span>
-													<span className="truncate text-xs">66011212181@msu.ac.th</span>
-												</div>
-											)}
-										</div>
-									</div>
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent
-								className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-								side="right"
-								align="end"
-								sideOffset={4}
-							>
-								<DropdownMenuLabel className="p-0 font-normal">
-									<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-										<Avatar className="h-8 w-8 rounded-lg">
-											<AvatarImage src="https://github.com/evilrabbit.png" alt="Thiratcha" />
-											<AvatarFallback className="rounded-lg">TM</AvatarFallback>
-										</Avatar>
-										<div className="grid flex-1 text-left text-sm leading-tight">
-											<span className="truncate font-medium">Thiratcha</span>
-											<span className="truncate text-xs">66011212181@msu.ac.th</span>
-										</div>
-									</div>
-								</DropdownMenuLabel>
-								{/* <DropdownMenuSeparator />
-								<DropdownMenuGroup>
-									<DropdownMenuItem>
-										<Sparkles />
-										Upgrade to Pro
-									</DropdownMenuItem>
-								</DropdownMenuGroup>
-								<DropdownMenuSeparator />
-								<DropdownMenuGroup>
-									<DropdownMenuItem onClick={() => setMode("setting")}>
-										<Settings />
-										Settings
-									</DropdownMenuItem>
-									<DropdownMenuItem>
-										<CreditCard />
-										Billing
-									</DropdownMenuItem>
-									<DropdownMenuItem onClick={toggleNotification}>
-										<Bell />
-										Notifications
-									</DropdownMenuItem>
-								</DropdownMenuGroup> */}
-								<DropdownMenuSeparator />
-								<DropdownMenuItem asChild>
-									<div onClick={onSignout}>
-										<LuLogOut />
-										Log out
-									</div>
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
-					)}
 				</nav>
 			</aside>
 		</TooltipProvider>
