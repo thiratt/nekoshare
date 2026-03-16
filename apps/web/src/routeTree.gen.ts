@@ -9,38 +9,147 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as HomeRouteRouteImport } from './routes/home/route'
+import { Route as authRouteRouteImport } from './routes/(auth)/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HomeIndexRouteImport } from './routes/home/index'
+import { Route as HomeFriendsRouteImport } from './routes/home/friends'
+import { Route as HomeDevicesRouteImport } from './routes/home/devices'
+import { Route as authSignupRouteImport } from './routes/(auth)/signup'
+import { Route as authResetPwdRouteImport } from './routes/(auth)/reset-pwd'
+import { Route as authLoginRouteImport } from './routes/(auth)/login'
 
+const HomeRouteRoute = HomeRouteRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const authRouteRoute = authRouteRouteImport.update({
+  id: '/(auth)',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HomeIndexRoute = HomeIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => HomeRouteRoute,
+} as any)
+const HomeFriendsRoute = HomeFriendsRouteImport.update({
+  id: '/friends',
+  path: '/friends',
+  getParentRoute: () => HomeRouteRoute,
+} as any)
+const HomeDevicesRoute = HomeDevicesRouteImport.update({
+  id: '/devices',
+  path: '/devices',
+  getParentRoute: () => HomeRouteRoute,
+} as any)
+const authSignupRoute = authSignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => authRouteRoute,
+} as any)
+const authResetPwdRoute = authResetPwdRouteImport.update({
+  id: '/reset-pwd',
+  path: '/reset-pwd',
+  getParentRoute: () => authRouteRoute,
+} as any)
+const authLoginRoute = authLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => authRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/home': typeof HomeRouteRouteWithChildren
+  '/login': typeof authLoginRoute
+  '/reset-pwd': typeof authResetPwdRoute
+  '/signup': typeof authSignupRoute
+  '/home/devices': typeof HomeDevicesRoute
+  '/home/friends': typeof HomeFriendsRoute
+  '/home/': typeof HomeIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof authLoginRoute
+  '/reset-pwd': typeof authResetPwdRoute
+  '/signup': typeof authSignupRoute
+  '/home/devices': typeof HomeDevicesRoute
+  '/home/friends': typeof HomeFriendsRoute
+  '/home': typeof HomeIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/(auth)': typeof authRouteRouteWithChildren
+  '/home': typeof HomeRouteRouteWithChildren
+  '/(auth)/login': typeof authLoginRoute
+  '/(auth)/reset-pwd': typeof authResetPwdRoute
+  '/(auth)/signup': typeof authSignupRoute
+  '/home/devices': typeof HomeDevicesRoute
+  '/home/friends': typeof HomeFriendsRoute
+  '/home/': typeof HomeIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/home'
+    | '/login'
+    | '/reset-pwd'
+    | '/signup'
+    | '/home/devices'
+    | '/home/friends'
+    | '/home/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/login'
+    | '/reset-pwd'
+    | '/signup'
+    | '/home/devices'
+    | '/home/friends'
+    | '/home'
+  id:
+    | '__root__'
+    | '/'
+    | '/(auth)'
+    | '/home'
+    | '/(auth)/login'
+    | '/(auth)/reset-pwd'
+    | '/(auth)/signup'
+    | '/home/devices'
+    | '/home/friends'
+    | '/home/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  authRouteRoute: typeof authRouteRouteWithChildren
+  HomeRouteRoute: typeof HomeRouteRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(auth)': {
+      id: '/(auth)'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof authRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +157,87 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/home/': {
+      id: '/home/'
+      path: '/'
+      fullPath: '/home/'
+      preLoaderRoute: typeof HomeIndexRouteImport
+      parentRoute: typeof HomeRouteRoute
+    }
+    '/home/friends': {
+      id: '/home/friends'
+      path: '/friends'
+      fullPath: '/home/friends'
+      preLoaderRoute: typeof HomeFriendsRouteImport
+      parentRoute: typeof HomeRouteRoute
+    }
+    '/home/devices': {
+      id: '/home/devices'
+      path: '/devices'
+      fullPath: '/home/devices'
+      preLoaderRoute: typeof HomeDevicesRouteImport
+      parentRoute: typeof HomeRouteRoute
+    }
+    '/(auth)/signup': {
+      id: '/(auth)/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof authSignupRouteImport
+      parentRoute: typeof authRouteRoute
+    }
+    '/(auth)/reset-pwd': {
+      id: '/(auth)/reset-pwd'
+      path: '/reset-pwd'
+      fullPath: '/reset-pwd'
+      preLoaderRoute: typeof authResetPwdRouteImport
+      parentRoute: typeof authRouteRoute
+    }
+    '/(auth)/login': {
+      id: '/(auth)/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof authLoginRouteImport
+      parentRoute: typeof authRouteRoute
+    }
   }
 }
 
+interface authRouteRouteChildren {
+  authLoginRoute: typeof authLoginRoute
+  authResetPwdRoute: typeof authResetPwdRoute
+  authSignupRoute: typeof authSignupRoute
+}
+
+const authRouteRouteChildren: authRouteRouteChildren = {
+  authLoginRoute: authLoginRoute,
+  authResetPwdRoute: authResetPwdRoute,
+  authSignupRoute: authSignupRoute,
+}
+
+const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
+  authRouteRouteChildren,
+)
+
+interface HomeRouteRouteChildren {
+  HomeDevicesRoute: typeof HomeDevicesRoute
+  HomeFriendsRoute: typeof HomeFriendsRoute
+  HomeIndexRoute: typeof HomeIndexRoute
+}
+
+const HomeRouteRouteChildren: HomeRouteRouteChildren = {
+  HomeDevicesRoute: HomeDevicesRoute,
+  HomeFriendsRoute: HomeFriendsRoute,
+  HomeIndexRoute: HomeIndexRoute,
+}
+
+const HomeRouteRouteWithChildren = HomeRouteRoute._addFileChildren(
+  HomeRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  authRouteRoute: authRouteRouteWithChildren,
+  HomeRouteRoute: HomeRouteRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
