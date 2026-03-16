@@ -5,6 +5,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 
 import { DesktopTitlebar } from "@/components/navbar";
+import { GoogleAuthProgressProvider } from "@/context/GoogleAuthProgressContext";
 import { getCachedSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/(auth)")({
@@ -33,7 +34,9 @@ function RouteComponent() {
     <div className="h-screen flex flex-col">
       <DesktopTitlebar />
       <div className="flex-1 flex items-center justify-center bg-muted">
-        <Outlet />
+        <GoogleAuthProgressProvider>
+          <Outlet />
+        </GoogleAuthProgressProvider>
       </div>
     </div>
   );

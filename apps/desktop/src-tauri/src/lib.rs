@@ -18,12 +18,17 @@ use crate::core::transfer_history::TransferHistoryService;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|_, _, _| {}))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .setup(setup_app)
         .invoke_handler(tauri::generate_handler![
+            // Auth callback
+            commands::auth_callback::ns_start_google_auth_callback_server,
+            commands::auth_callback::ns_wait_google_auth_callback_server,
+            commands::auth_callback::ns_cancel_google_auth_callback_server,
             // Device
             commands::device::ns_get_device_info,
             commands::device::ns_get_device_info_with_key,

@@ -6,9 +6,13 @@ import { SignupCard } from "@workspace/app-ui/components/signup-card";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import type { TSignupSchema } from "@workspace/app-ui/types/schema";
 
+import { useGoogleAuthProgress } from "@/context/GoogleAuthProgressContext";
 import { authClient, invalidateSessionCache } from "@/lib/auth";
-import { registerDevice } from "@/lib/device";
-import { syncMasterKeyForDevice } from "@/lib/security/master-key-sync";
+import { bootstrapAuthenticatedDesktopSession } from "@/lib/auth-bootstrap";
+import {
+  isGoogleAuthCancelledError,
+  signInWithGoogle,
+} from "@/lib/google-auth";
 
 export const Route = createFileRoute("/(auth)/signup")({
   component: RouteComponent,
@@ -18,12 +22,30 @@ function RouteComponent() {
   const router = useRouter();
   const { setGlobalLoading } = useNekoShare();
   const { toast } = useToast();
+  const { hideGoogleAuthProgress, showGoogleAuthProgress } =
+    useGoogleAuthProgress();
 
   const onGoogle = async () => {
     try {
-      console.log("GOOGLE");
+      showGoogleAuthProgress();
+      await signInWithGoogle("signup");
+      invalidateSessionCache();
+      setGlobalLoading(true);
+      await bootstrapAuthenticatedDesktopSession();
+      await router.navigate({ to: "/home", replace: true });
     } catch (error) {
-      console.error("Error in onGoogle:", error);
+      if (isGoogleAuthCancelledError(error)) {
+        return;
+      }
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to sign up with Google right now.",
+      );
+    } finally {
+      hideGoogleAuthProgress();
+      setGlobalLoading(false);
     }
   };
 
@@ -48,15 +70,16 @@ function RouteComponent() {
 
       invalidateSessionCache();
       setGlobalLoading(true);
-      const registration = await registerDevice();
-      await syncMasterKeyForDevice(registration.device.id);
+      await bootstrapAuthenticatedDesktopSession();
       await router.navigate({ to: "/home", replace: true });
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "ไม่สามารถสมัครสมาชิกได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง",
+          : "Unable to sign up right now. Please try again later.",
       );
+    } finally {
+      setGlobalLoading(false);
     }
   };
 

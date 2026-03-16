@@ -4,11 +4,15 @@ import { useToast } from "@workspace/ui/hooks/use-toast";
 
 import { LoginCard } from "@workspace/app-ui/components/login-card";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
-import { authClient, invalidateSessionCache } from "@workspace/app-ui/lib/auth";
 import type { TLoginSchema } from "@workspace/app-ui/types/schema";
 
-import { registerDevice } from "@/lib/device";
-import { syncMasterKeyForDevice } from "@/lib/security/master-key-sync";
+import { useGoogleAuthProgress } from "@/context/GoogleAuthProgressContext";
+import { authClient, invalidateSessionCache } from "@/lib/auth";
+import { bootstrapAuthenticatedDesktopSession } from "@/lib/auth-bootstrap";
+import {
+  isGoogleAuthCancelledError,
+  signInWithGoogle,
+} from "@/lib/google-auth";
 
 export const Route = createFileRoute("/(auth)/login")({
   component: RouteComponent,
@@ -18,12 +22,30 @@ function RouteComponent() {
   const router = useRouter();
   const { setGlobalLoading } = useNekoShare();
   const { toast } = useToast();
+  const { hideGoogleAuthProgress, showGoogleAuthProgress } =
+    useGoogleAuthProgress();
 
   const onGoogle = async () => {
     try {
-      console.log("GOOGLE");
+      showGoogleAuthProgress();
+      await signInWithGoogle("login");
+      invalidateSessionCache();
+      setGlobalLoading(true);
+      await bootstrapAuthenticatedDesktopSession();
+      await router.navigate({ to: "/home" });
     } catch (error) {
-      console.error("Error in onGoogle:", error);
+      if (isGoogleAuthCancelledError(error)) {
+        return;
+      }
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to sign in with Google right now.",
+      );
+    } finally {
+      hideGoogleAuthProgress();
+      setGlobalLoading(false);
     }
   };
 
@@ -47,8 +69,7 @@ function RouteComponent() {
 
       invalidateSessionCache();
       setGlobalLoading(true);
-      const registration = await registerDevice();
-      await syncMasterKeyForDevice(registration.device.id);
+      await bootstrapAuthenticatedDesktopSession();
       await router.navigate({ to: "/home" });
     } catch (error) {
       toast.error(
