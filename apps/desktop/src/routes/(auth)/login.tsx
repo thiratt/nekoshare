@@ -9,6 +9,7 @@ import type { TLoginSchema } from "@workspace/app-ui/types/schema";
 import { useGoogleAuthProgress } from "@/context/GoogleAuthProgressContext";
 import { authClient, invalidateSessionCache } from "@/lib/auth";
 import { bootstrapAuthenticatedDesktopSession } from "@/lib/auth-bootstrap";
+import { getThaiAuthErrorMessage } from "@/lib/auth-error";
 import {
   isGoogleAuthCancelledError,
   signInWithGoogle,
@@ -39,9 +40,10 @@ function RouteComponent() {
       }
 
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to sign in with Google right now.",
+        getThaiAuthErrorMessage(
+          error,
+          "ไม่สามารถเข้าสู่ระบบด้วย Google ได้ในขณะนี้",
+        ),
       );
     } finally {
       hideGoogleAuthProgress();
@@ -57,14 +59,7 @@ function RouteComponent() {
       });
 
       if (result.error) {
-        throw new Error(
-          result.error.code +
-            ": -" +
-            result.error.message +
-            result.error.status +
-            " " +
-            result.error.statusText,
-        );
+        throw result.error;
       }
 
       invalidateSessionCache();
@@ -73,9 +68,10 @@ function RouteComponent() {
       await router.navigate({ to: "/home" });
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "ไม่สามารถเข้าสู่ระบบได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง",
+        getThaiAuthErrorMessage(
+          error,
+          "ไม่สามารถเข้าสู่ระบบได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง",
+        ),
       );
     } finally {
       setGlobalLoading(false);

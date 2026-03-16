@@ -42,6 +42,7 @@ function RouteComponent() {
       <NekoShareProvider
         router={router}
         currentDevice={deviceInfo}
+        appMode="desktop"
         onBeforeSignOut={clearMasterKeyForCurrentSession}
       >
         <NSDesktopProvider initialMaximized={isMaximized}>
