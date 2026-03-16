@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { FaGoogle } from "react-icons/fa";
 import { LuLoader } from "react-icons/lu";
 
+import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert";
 import { Button } from "@workspace/ui/components/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@workspace/ui/components/form";
@@ -25,9 +26,16 @@ interface LoginCardProps extends IncludeLinkComponentProps {
 	data?: ExampleDataLoginProps;
 	onGoogle: () => Promise<void>;
 	onSubmit: (data: TLoginSchema) => Promise<void>;
+	socialErrorMessage?: string | null;
 }
 
-export function LoginCard({ data, linkComponent, onGoogle, onSubmit }: LoginCardProps): JSX.Element {
+export function LoginCard({
+	data,
+	linkComponent,
+	onGoogle,
+	onSubmit,
+	socialErrorMessage,
+}: LoginCardProps): JSX.Element {
 	const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 	const form = useForm<TLoginSchema>({
 		mode: "onSubmit",
@@ -74,7 +82,7 @@ export function LoginCard({ data, linkComponent, onGoogle, onSubmit }: LoginCard
 				)}
 			/>
 		),
-		[form.control, form.formState.isSubmitting, linkComponent]
+		[form.control, form.formState.isSubmitting, linkComponent],
 	);
 
 	return (
@@ -88,6 +96,11 @@ export function LoginCard({ data, linkComponent, onGoogle, onSubmit }: LoginCard
 					<form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="contents">
 						<CardContent className="space-y-4">
 							<div className="flex flex-col gap-4">
+								{socialErrorMessage ? (
+									<Alert variant="destructive">
+										<AlertTitle>{socialErrorMessage}</AlertTitle>
+									</Alert>
+								) : null}
 								{renderField("identifier", "อีเมล")}
 								{renderField("password", "รหัสผ่าน", "password")}
 

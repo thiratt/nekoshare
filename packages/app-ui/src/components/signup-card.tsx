@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { FaGoogle } from "react-icons/fa";
 import { LuLoader } from "react-icons/lu";
 
+import { Alert, AlertTitle } from "@workspace/ui/components/alert";
 import { Button } from "@workspace/ui/components/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@workspace/ui/components/form";
@@ -27,9 +28,16 @@ interface SignupCardProps extends IncludeLinkComponentProps {
 	data?: ExampleDataSignupProps;
 	onGoogle?: () => Promise<void>;
 	onSubmit: (data: TSignupSchema) => Promise<void>;
+	socialErrorMessage?: string | null;
 }
 
-export function SignupCard({ data, linkComponent, onGoogle, onSubmit }: SignupCardProps): JSX.Element {
+export function SignupCard({
+	data,
+	linkComponent,
+	onGoogle,
+	onSubmit,
+	socialErrorMessage,
+}: SignupCardProps): JSX.Element {
 	const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 	const form = useForm<TSignupSchema>({
 		mode: "onSubmit",
@@ -58,7 +66,7 @@ export function SignupCard({ data, linkComponent, onGoogle, onSubmit }: SignupCa
 				)}
 			/>
 		),
-		[form.control]
+		[form.control],
 	);
 
 	return (
@@ -72,6 +80,11 @@ export function SignupCard({ data, linkComponent, onGoogle, onSubmit }: SignupCa
 					<form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off">
 						<CardContent className="space-y-4">
 							<div className="flex flex-col gap-4">
+								{socialErrorMessage ? (
+									<Alert variant="destructive">
+										<AlertTitle>{socialErrorMessage}</AlertTitle>
+									</Alert>
+								) : null}
 								{renderField("username", "ชื่อผู้ใช้งาน", "name")}
 								{renderField("email", "อีเมล", "email")}
 								<div className="grid grid-cols-2 gap-4">
