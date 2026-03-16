@@ -72,6 +72,7 @@ interface NekoShareProviderProps<TRouter extends Router = Router> {
 	router: TRouter;
 	children: ReactNode;
 	currentDevice: LocalDeviceInfo | undefined;
+	appMode: "desktop" | "web";
 	onBeforeSignOut?: () => Promise<void> | void;
 }
 
@@ -79,6 +80,7 @@ const NekoShareProvider = <TRouter extends Router>({
 	router,
 	children,
 	currentDevice,
+	appMode,
 	onBeforeSignOut,
 }: NekoShareProviderProps<TRouter>): React.ReactElement => {
 	const [sessionTerminated, setSessionTerminated] = useState<SessionTerminatedState>(INITIAL_SESSION_STATE);
@@ -232,7 +234,7 @@ const NekoShareProvider = <TRouter extends Router>({
 				terminatorName={sessionTerminated.terminator}
 				onComplete={handleSessionTerminationComplete}
 			/>
-			<Toaster richColors position="top-right" offset={{ top: "3rem" }} />
+			<Toaster richColors position="top-right" offset={{ top: appMode === "desktop" ? "3rem" : "1rem" }} />
 		</NekoShareContext.Provider>
 	);
 };
