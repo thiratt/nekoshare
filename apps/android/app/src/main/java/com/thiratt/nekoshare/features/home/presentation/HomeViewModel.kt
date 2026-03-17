@@ -1,5 +1,6 @@
 package com.thiratt.nekoshare.features.home.presentation
 
+import android.app.Application
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Home
@@ -7,15 +8,20 @@ import androidx.compose.material.icons.outlined.SupervisorAccount
 import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.SupervisorAccount
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.thiratt.nekoshare.core.designsystem.model.NekoNavigationBarItem
+import com.thiratt.nekoshare.features.home.data.DevicesLoadResult
+import com.thiratt.nekoshare.features.home.data.DevicesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
-class HomeViewModel : ViewModel() {
+class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(HomeUiState())
+    private val devicesRepository = DevicesRepository(application.applicationContext)
 
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
@@ -26,6 +32,7 @@ class HomeViewModel : ViewModel() {
             NekoNavigationBarItem("อุปกรณ์", Icons.Outlined.Devices, Icons.Rounded.Devices)
         )
         _uiState.update { it.copy(bottomNavItems = items) }
+        loadDevices()
     }
 
     fun onBottomNavSelected(index: Int) {
@@ -34,6 +41,44 @@ class HomeViewModel : ViewModel() {
 
     fun toggleShareSheet(isOpen: Boolean) {
         _uiState.update { it.copy(isShareSheetOpen = isOpen) }
+    }
+
+    fun loadDevices() {
+        viewModelScope.launch {
+            _uiState.update { current ->
+                current.copy(
+                    devicesTabState = current.devicesTabState.copy(
+                        isLoading = true,
+                        errorMessage = null
+                    )
+                )
+            }
+
+            when (val result = devicesRepository.fetchDevices()) {
+                is DevicesLoadResult.Success -> {
+                    _uiState.update { current ->
+                        current.copy(
+                            devicesTabState = DevicesTabUiState(
+                                devices = result.devices,
+                                isLoading = false,
+                                errorMessage = null
+                            )
+                        )
+                    }
+                }
+
+                is DevicesLoadResult.Failure -> {
+                    _uiState.update { current ->
+                        current.copy(
+                            devicesTabState = current.devicesTabState.copy(
+                                isLoading = false,
+                                errorMessage = result.message
+                            )
+                        )
+                    }
+                }
+            }
+        }
     }
 
     fun onHomeFilterSelected(filter: String) {

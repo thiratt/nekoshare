@@ -75,7 +75,8 @@ fun HomeRoute(
         },
         onBottomNavSelected = viewModel::onBottomNavSelected,
         onHomeFilterSelected = viewModel::onHomeFilterSelected,
-        onHomeScrollPositionChanged = viewModel::onHomeScrollPositionChanged
+        onHomeScrollPositionChanged = viewModel::onHomeScrollPositionChanged,
+        onRetryLoadDevices = viewModel::loadDevices
     )
 }
 
@@ -93,7 +94,8 @@ fun HomeScreen(
     onDeviceSelected: (DeviceItem) -> Unit,
     onTransferItemClick: (transferId: String) -> Unit,
     onHomeFilterSelected: (String) -> Unit,
-    onHomeScrollPositionChanged: (Int, Int) -> Unit
+    onHomeScrollPositionChanged: (Int, Int) -> Unit,
+    onRetryLoadDevices: () -> Unit
 ) {
     var tabSearchStates by remember {
         mutableStateOf(List(HOME_TAB_COUNT) { TabSearchState() })
@@ -120,7 +122,9 @@ fun HomeScreen(
     }
 
     LaunchedEffect(selectedIndex, isSearchActive) {
-        if (isSearchActive) focusRequester.requestFocus()
+        if (isSearchActive) {
+            focusRequester.requestFocus()
+        }
     }
 
     Surface(
@@ -133,6 +137,7 @@ fun HomeScreen(
             HomeTabsContent(
                 selectedIndex = uiState.selectedIndex,
                 homeTabState = uiState.homeTabState,
+                devicesTabState = uiState.devicesTabState,
                 onTransferItemClick = onTransferItemClick,
                 onManageFriends = onManageFriends,
                 isSearchActive = isSearchActive,
@@ -145,7 +150,11 @@ fun HomeScreen(
                 },
                 onSearchActiveChange = { active ->
                     updateCurrentTabSearchState { current ->
-                        if (active) current.copy(isActive = true) else TabSearchState()
+                        if (active) {
+                            current.copy(isActive = true)
+                        } else {
+                            TabSearchState()
+                        }
                     }
                     if (!active) {
                         focusManager.clearFocus()
@@ -154,7 +163,8 @@ fun HomeScreen(
                 onNotificationsClick = onNotificationsClick,
                 onSettingsClick = onSettingsClick,
                 onHomeFilterSelected = onHomeFilterSelected,
-                onHomeScrollPositionChanged = onHomeScrollPositionChanged
+                onHomeScrollPositionChanged = onHomeScrollPositionChanged,
+                onRetryLoadDevices = onRetryLoadDevices
             )
 
             if (uiState.isShareSheetOpen) {
@@ -199,6 +209,7 @@ private const val HOME_TAB_COUNT = 3
 private fun HomeTabsContent(
     selectedIndex: Int,
     homeTabState: HomeTabState,
+    devicesTabState: DevicesTabUiState,
     onTransferItemClick: (String) -> Unit,
     onManageFriends: () -> Unit,
     isSearchActive: Boolean,
@@ -209,7 +220,8 @@ private fun HomeTabsContent(
     onNotificationsClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onHomeFilterSelected: (String) -> Unit,
-    onHomeScrollPositionChanged: (Int, Int) -> Unit
+    onHomeScrollPositionChanged: (Int, Int) -> Unit,
+    onRetryLoadDevices: () -> Unit
 ) {
     val saveableStateHolder = rememberSaveableStateHolder()
 
@@ -248,13 +260,15 @@ private fun HomeTabsContent(
                 )
 
                 2 -> DevicesContent(
+                    devicesTabState = devicesTabState,
                     isSearchActive = isSearchActive,
                     searchQuery = searchQuery,
                     focusRequester = focusRequester,
                     onSearchQueryChange = onSearchQueryChange,
                     onSearchActiveChange = onSearchActiveChange,
                     onNotificationsClick = onNotificationsClick,
-                    onSettingsClick = onSettingsClick
+                    onSettingsClick = onSettingsClick,
+                    onRetryLoadDevices = onRetryLoadDevices
                 )
             }
         }
@@ -267,10 +281,10 @@ private fun AnimatedContentTransitionScope<Int>.getTabTransitionSpec() = run {
 
     if (targetState > initialState) {
         (slideInHorizontally(animationSpec = tweenOffset) { it / 2 } + fadeIn(tweenSpec)) togetherWith
-                (slideOutHorizontally(animationSpec = tweenOffset) { -it / 2 } + fadeOut(tweenSpec))
+            (slideOutHorizontally(animationSpec = tweenOffset) { -it / 2 } + fadeOut(tweenSpec))
     } else {
         (slideInHorizontally(animationSpec = tweenOffset) { -it / 2 } + fadeIn(tweenSpec)) togetherWith
-                (slideOutHorizontally(animationSpec = tweenOffset) { it / 2 } + fadeOut(tweenSpec))
+            (slideOutHorizontally(animationSpec = tweenOffset) { it / 2 } + fadeOut(tweenSpec))
     }
 }
 
@@ -297,7 +311,8 @@ fun HomeScreenPreview() {
             onDeviceSelected = {},
             onTransferItemClick = {},
             onHomeFilterSelected = {},
-            onHomeScrollPositionChanged = { _, _ -> }
+            onHomeScrollPositionChanged = { _, _ -> },
+            onRetryLoadDevices = {}
         )
     }
 }

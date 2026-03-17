@@ -1,6 +1,6 @@
 package com.thiratt.nekoshare.features.home.model
 
-enum class DeviceType { Windows, Android, Website }
+enum class DeviceType { Windows, Android, Website, Other }
 enum class DeviceStatus { Online, Offline, Current }
 
 data class DeviceItem(
@@ -14,3 +14,12 @@ data class DeviceItem(
     val location: String = "ไม่ทราบ",
     val lastSeen: String
 )
+
+fun DeviceType.toOperatingSystemLabel(): String {
+    return when (this) {
+        DeviceType.Android -> "Android"
+        DeviceType.Windows -> "Windows"
+        DeviceType.Website -> "Web"
+        DeviceType.Other -> "อื่นๆ"
+    }
+}

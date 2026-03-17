@@ -398,6 +398,7 @@ fun DeviceItem(
                 DeviceType.Windows -> "วินโดวส์"
                 DeviceType.Android -> "แอนดรอยด์"
                 DeviceType.Website -> "เว็บ"
+                DeviceType.Other -> "อื่นๆ"
             },
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

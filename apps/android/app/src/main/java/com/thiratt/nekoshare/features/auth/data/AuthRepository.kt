@@ -175,6 +175,8 @@ class AuthRepository(context: Context) {
         }
     }
 
+    fun getSavedSessionSnapshot(): SavedAuthSession? = readSavedSession()
+
     private suspend fun authenticateEmailFlow(
         path: String,
         requestBody: JSONObject,

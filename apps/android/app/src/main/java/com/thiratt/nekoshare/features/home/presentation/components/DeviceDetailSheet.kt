@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Dns
-import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -37,6 +35,7 @@ import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.home.model.DeviceItem
 import com.thiratt.nekoshare.features.home.model.DeviceStatus
 import com.thiratt.nekoshare.features.home.model.DeviceType
+import com.thiratt.nekoshare.features.home.model.toOperatingSystemLabel
 import com.thiratt.nekoshare.features.home.presentation.tabs.getDeviceIconAndColor
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,7 +77,7 @@ fun DeviceDetailSheet(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "${device.appName} ${device.appVersion}",
+                    text = device.type.toOperatingSystemLabel(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -86,19 +85,9 @@ fun DeviceDetailSheet(
         }
 
         InfoRow(
-            icon = Icons.Outlined.LocationOn,
-            title = device.location,
-            subtitle = "ตำแหน่ง"
-        )
-        InfoRow(
-            icon = Icons.Outlined.Dns,
-            title = device.ipAddress,
-            subtitle = "ที่อยู่ IP"
-        )
-        InfoRow(
             icon = Icons.Outlined.Schedule,
             title = device.lastSeen,
-            subtitle = if(device.status == DeviceStatus.Current) "สถานะ" else "เห็นล่าสุด"
+            subtitle = if (device.status == DeviceStatus.Current) "สถานะ" else "เห็นล่าสุด"
         )
 
         Spacer(modifier = Modifier.height(18.dp))
@@ -107,8 +96,16 @@ fun DeviceDetailSheet(
         Button(
             onClick = onDismissRequest,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isCurrentDevice) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer,
-                contentColor = if (isCurrentDevice) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer
+                containerColor = if (isCurrentDevice) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.errorContainer
+                },
+                contentColor = if (isCurrentDevice) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onErrorContainer
+                }
             ),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
@@ -164,7 +161,17 @@ fun InfoRow(
 @Preview(showBackground = true)
 @Composable
 fun DeviceDetailSheetPreview() {
-    val deviceItem = DeviceItem("2", "Kenneth's PC", "NekoShare Desktop", "2.1.0", DeviceType.Windows, DeviceStatus.Online, "10.237.215.68", "Bangkok, Thailand", "ออนไลน์")
+    val deviceItem = DeviceItem(
+        id = "2",
+        name = "Kenneth's PC",
+        appName = "NekoShare Desktop",
+        appVersion = "2.1.0",
+        type = DeviceType.Windows,
+        status = DeviceStatus.Online,
+        ipAddress = "10.237.215.68",
+        location = "Bangkok, Thailand",
+        lastSeen = "ออนไลน์"
+    )
     val sheetState = rememberNekoBottomSheetState()
 
     NekoShareTheme {
