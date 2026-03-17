@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { migrate } from "drizzle-orm/mysql2/migrator";
 import mysql from "mysql2/promise";
+import { existsSync } from "node:fs";
+import path from "node:path";
 
 import * as schema from "./schemas";
 
@@ -16,6 +19,20 @@ const poolConnection = mysql.createPool({
 });
 
 const db = drizzle(poolConnection, { schema, mode: "default" });
+
+const requiredTables = [
+	"users",
+	"sessions",
+	"accounts",
+	"verifications",
+	"user_settings",
+	"devices",
+	"friends",
+	"public_share",
+	"public_share_files",
+	"transfer_metrics",
+	"notifications",
+] as const;
 
 async function checkDatabaseConnection(): Promise<boolean> {
 	try {
@@ -33,21 +50,32 @@ async function getExistingTables(): Promise<string[]> {
 	return rows.map((row) => Object.values(row)[0]);
 }
 
+function resolveMigrationsFolder(): string {
+	const candidateFolders = [
+		path.resolve(process.cwd(), "drizzle"),
+		path.resolve(process.cwd(), "apps/server/drizzle"),
+	];
+
+	for (const candidateFolder of candidateFolders) {
+		if (existsSync(path.join(candidateFolder, "meta", "_journal.json"))) {
+			return candidateFolder;
+		}
+	}
+
+	throw new Error(
+		`Missing Drizzle migrations folder. Expected one of: ${candidateFolders.join(", ")}. Run 'pnpm -C apps/server dz:g' first.`,
+	);
+}
+
+async function runDatabaseMigrations(): Promise<void> {
+	const migrationsFolder = resolveMigrationsFolder();
+	Logger.info("Database", `Applying database migrations from ${migrationsFolder}...`);
+	await migrate(db, { migrationsFolder });
+	Logger.info("Database", "Database migrations applied");
+}
+
 async function ensureTablesExist(): Promise<void> {
 	const existingTables = await getExistingTables();
-	const requiredTables = [
-		"users",
-		"sessions",
-		"accounts",
-		"verifications",
-		"user_settings",
-		"devices",
-		"friends",
-		"public_share",
-		"public_share_files",
-		"transfer_metrics",
-		"notifications",
-	];
 
 	const missingTables = requiredTables.filter((tableName) => !existingTables.includes(tableName));
 	if (missingTables.length === 0) {
@@ -70,8 +98,9 @@ async function initializeDatabase(): Promise<void> {
 	}
 	Logger.info("Database", "Database connection established");
 
+	await runDatabaseMigrations();
 	await ensureTablesExist();
 	Logger.info("Database", "Database initialization complete");
 }
 
-export { checkDatabaseConnection, db, ensureTablesExist, initializeDatabase,poolConnection };
+export { checkDatabaseConnection, db, ensureTablesExist, initializeDatabase, poolConnection, runDatabaseMigrations };
