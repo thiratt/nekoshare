@@ -44,3 +44,4 @@ docs
 .stfolder
 .stignore
 target
+__pycache__
