@@ -118,11 +118,10 @@ def build_targets(repo_root: Path) -> dict[str, DockerTarget]:
         ),
         "web": DockerTarget(
             name="web",
-            description="Reserved for the frontend image.",
+            description="Build the frontend image served by nginx.",
             context=repo_root,
             dockerfile=repo_root / "apps" / "web" / "Dockerfile",
             default_tag="nekoshare-web",
-            implemented=False,
         ),
     }
 
