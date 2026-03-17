@@ -7,13 +7,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DarkMode
-import androidx.compose.material.icons.rounded.FontDownload
-import androidx.compose.material.icons.rounded.FormatSize
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Smartphone
-import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -31,7 +28,6 @@ import com.thiratt.nekoshare.ThemeViewModel
 import com.thiratt.nekoshare.core.designsystem.theme.NekoShareTheme
 import com.thiratt.nekoshare.features.settings.presentation.components.SettingsActionItem
 import com.thiratt.nekoshare.features.settings.presentation.components.SettingsDialog
-import com.thiratt.nekoshare.features.settings.presentation.components.SettingsSwitchItem
 import com.thiratt.nekoshare.features.settings.presentation.components.SettingsTopAppBar
 
 sealed interface SettingsAccessibilityNavEvent {
@@ -97,37 +93,37 @@ fun AccessibilityScreen(
                 onClick = { activeDialog = DialogType.Language }
             )
 
-            SettingsActionItem(
-                icon = Icons.Rounded.FontDownload,
-                title = "รูปแบบตัวอักษร",
-                value = currentFontStyle,
-                onClick = { activeDialog = DialogType.FontStyle }
-            )
-
-            SettingsActionItem(
-                icon = Icons.Rounded.FormatSize,
-                title = "ขนาดตัวอักษร",
-                value = currentFontSize,
-                onClick = { activeDialog = DialogType.FontSize }
-            )
-
-            SettingsGroupTitle("การโต้ตอบ")
-
-            SettingsSwitchItem(
-                icon = Icons.Rounded.Smartphone,
-                title = "เปิดหน้าจอไว้",
-                subtitle = "ป้องกันหน้าจอดับระหว่างโอนไฟล์",
-                checked = keepScreenOn,
-                onCheckedChange = { keepScreenOn = it }
-            )
-
-            SettingsSwitchItem(
-                icon = Icons.Rounded.TouchApp,
-                title = "การสั่นตอบสนอง",
-                subtitle = "สั่นเมื่อมีการแตะ",
-                checked = hapticFeedback,
-                onCheckedChange = { hapticFeedback = it }
-            )
+//            SettingsActionItem(
+//                icon = Icons.Rounded.FontDownload,
+//                title = "รูปแบบตัวอักษร",
+//                value = currentFontStyle,
+//                onClick = { activeDialog = DialogType.FontStyle }
+//            )
+//
+//            SettingsActionItem(
+//                icon = Icons.Rounded.FormatSize,
+//                title = "ขนาดตัวอักษร",
+//                value = currentFontSize,
+//                onClick = { activeDialog = DialogType.FontSize }
+//            )
+//
+//            SettingsGroupTitle("การโต้ตอบ")
+//
+//            SettingsSwitchItem(
+//                icon = Icons.Rounded.Smartphone,
+//                title = "เปิดหน้าจอไว้",
+//                subtitle = "ป้องกันหน้าจอดับระหว่างโอนไฟล์",
+//                checked = keepScreenOn,
+//                onCheckedChange = { keepScreenOn = it }
+//            )
+//
+//            SettingsSwitchItem(
+//                icon = Icons.Rounded.TouchApp,
+//                title = "การสั่นตอบสนอง",
+//                subtitle = "สั่นเมื่อมีการแตะ",
+//                checked = hapticFeedback,
+//                onCheckedChange = { hapticFeedback = it }
+//            )
         }
 
         when (activeDialog) {
