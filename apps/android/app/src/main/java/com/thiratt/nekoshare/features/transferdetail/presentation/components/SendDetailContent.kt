@@ -82,42 +82,38 @@ fun SendDetailContent(
     }
 
     val fileProgresses = remember(item.id, item.files) {
-        mutableStateMapOf<File, Float>().apply {
-            item.files.forEach { file ->
-                put(
-                    file,
-                    if (initiallySucceeded) {
-                        1f
-                    } else {
-                        0f
-                    }
-                )
+        val progressMap = mutableStateMapOf<File, Float>()
+        for (file in item.files) {
+            val progress = if (initiallySucceeded) {
+                1f
+            } else {
+                0f
             }
+            progressMap[file] = progress
         }
+        progressMap
     }
 
     val sentBytesByFile = remember(item.id, item.files) {
-        mutableStateMapOf<File, Long>().apply {
-            item.files.forEach { file ->
-                val fileSize = fileSizes[file] ?: 0L
-                put(
-                    file,
-                    if (initiallySucceeded) {
-                        fileSize
-                    } else {
-                        0L
-                    }
-                )
+        val sentBytesMap = mutableStateMapOf<File, Long>()
+        for (file in item.files) {
+            val fileSize = fileSizes[file] ?: 0L
+            val initialBytes = if (initiallySucceeded) {
+                fileSize
+            } else {
+                0L
             }
+            sentBytesMap[file] = initialBytes
         }
+        sentBytesMap
     }
 
     val completionByFile = remember(item.id, item.files) {
-        mutableStateMapOf<File, Boolean>().apply {
-            item.files.forEach { file ->
-                put(file, initiallySucceeded)
-            }
+        val completionMap = mutableStateMapOf<File, Boolean>()
+        for (file in item.files) {
+            completionMap[file] = initiallySucceeded
         }
+        completionMap
     }
 
     fun setFileSentBytes(file: File, sentBytes: Long) {
@@ -180,49 +176,58 @@ fun SendDetailContent(
     }
 
     LaunchedEffect(item.files, fileSizes, totalBytes, status, transferRunKey) {
-        if (status != TransferStatus.Transferring) {
-            return@LaunchedEffect
-        }
+        if (status == TransferStatus.Transferring) {
+            val currentRunKey = transferRunKey
 
-        val currentRunKey = transferRunKey
+            for (file in item.files) {
+                val isCompleted = completionByFile[file] == true
+                if (!isCompleted) {
+                    launch {
+                        val fileSize = fileSizes[file] ?: 0L
+                        if (fileSize <= 0L || totalBytes <= 0L) {
+                            setFileSentBytes(file, fileSize)
+                        } else {
+                            var sentBytesForFile = sentBytesByFile[file] ?: 0L
+                            val chunkSize = max(fileSize / PROGRESS_CHUNKS_PER_FILE, 1L)
+                            var shouldStopTransfer = false
 
-        item.files.forEach { file ->
-            if (completionByFile[file] == true) {
-                return@forEach
-            }
+                            while (isActive && sentBytesForFile < fileSize) {
+                                val transferChanged =
+                                    status != TransferStatus.Transferring || currentRunKey != transferRunKey
 
-            launch {
-                val fileSize = fileSizes[file] ?: 0L
-                if (fileSize <= 0L || totalBytes <= 0L) {
-                    setFileSentBytes(file, fileSize)
-                    return@launch
-                }
+                                if (transferChanged) {
+                                    shouldStopTransfer = true
+                                    break
+                                }
 
-                var sentBytesForFile = sentBytesByFile[file] ?: 0L
-                val chunkSize = max(fileSize / PROGRESS_CHUNKS_PER_FILE, 1L)
+                                if (isPaused) {
+                                    delay(PROGRESS_TICK_DELAY_MS)
+                                    continue
+                                }
 
-                while (isActive && sentBytesForFile < fileSize) {
-                    if (status != TransferStatus.Transferring || currentRunKey != transferRunKey) {
-                        return@launch
+                                delay(PROGRESS_TICK_DELAY_MS)
+
+                                val canContinueSending =
+                                    status == TransferStatus.Transferring &&
+                                        currentRunKey == transferRunKey &&
+                                        !isPaused
+
+                                if (!canContinueSending) {
+                                    continue
+                                }
+
+                                sentBytesForFile = (sentBytesForFile + chunkSize).coerceAtMost(fileSize)
+                                setFileSentBytes(file, sentBytesForFile)
+                            }
+
+                            if (!shouldStopTransfer &&
+                                status == TransferStatus.Transferring &&
+                                currentRunKey == transferRunKey
+                            ) {
+                                setFileSentBytes(file, fileSize)
+                            }
+                        }
                     }
-
-                    if (isPaused) {
-                        delay(PROGRESS_TICK_DELAY_MS)
-                        continue
-                    }
-
-                    delay(PROGRESS_TICK_DELAY_MS)
-
-                    if (status != TransferStatus.Transferring || currentRunKey != transferRunKey || isPaused) {
-                        continue
-                    }
-
-                    sentBytesForFile = (sentBytesForFile + chunkSize).coerceAtMost(fileSize)
-                    setFileSentBytes(file, sentBytesForFile)
-                }
-
-                if (status == TransferStatus.Transferring && currentRunKey == transferRunKey) {
-                    setFileSentBytes(file, fileSize)
                 }
             }
         }
@@ -246,7 +251,11 @@ fun SendDetailContent(
         }
     }
 
-    val targetName = item.senderName.takeIf { it.isNotBlank() } ?: "อุปกรณ์ปลายทาง"
+    val targetName = if (item.senderName.isNotBlank()) {
+        item.senderName
+    } else {
+        "อุปกรณ์ปลายทาง"
+    }
 
     Scaffold(
         topBar = {

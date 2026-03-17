@@ -28,10 +28,11 @@ import java.util.Locale
 
 @Composable
 fun FileDetailsContent(file: File) {
-    val extensionLabel = file.extension
-        .takeIf { it.isNotBlank() }
-        ?.uppercase(Locale.ROOT)
-        ?: "UNKNOWN"
+    val extensionLabel = if (file.extension.isNotBlank()) {
+        file.extension.uppercase(Locale.ROOT)
+    } else {
+        "UNKNOWN"
+    }
 
     Column(
         modifier = Modifier

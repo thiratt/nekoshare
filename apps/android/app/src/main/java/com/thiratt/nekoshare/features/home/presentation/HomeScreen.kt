@@ -111,9 +111,9 @@ fun HomeScreen(
     fun updateCurrentTabSearchState(
         update: (TabSearchState) -> TabSearchState
     ) {
-        tabSearchStates = tabSearchStates.toMutableList().apply {
-            this[selectedIndex] = update(this[selectedIndex])
-        }
+        val updatedStates = tabSearchStates.toMutableList()
+        updatedStates[selectedIndex] = update(updatedStates[selectedIndex])
+        tabSearchStates = updatedStates
     }
 
     BackHandler(enabled = isSearchActive) {

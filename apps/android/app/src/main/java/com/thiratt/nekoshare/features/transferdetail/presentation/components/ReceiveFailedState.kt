@@ -47,7 +47,11 @@ fun ReceiveFailedState(
     val fileSizes = remember(item.files) {
         item.files.associateWith(::mockFileSizeBytes)
     }
-    val senderName = item.senderName.takeIf { it.isNotBlank() } ?: "ผู้ส่ง"
+    val senderName = if (item.senderName.isNotBlank()) {
+        item.senderName
+    } else {
+        "ผู้ส่ง"
+    }
 
     Scaffold(
         topBar = {

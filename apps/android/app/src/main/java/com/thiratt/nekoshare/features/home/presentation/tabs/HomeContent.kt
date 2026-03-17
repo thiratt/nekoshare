@@ -96,9 +96,11 @@ fun HomeContent(
     val transferHistoryList = remember { TransferRepository.mockTransfers }
 
     val filterTabs = listOf("ทั้งหมด", "ได้รับ", "กำลังส่ง", "ส่งสำเร็จ", "ล้มเหลว")
-    val activeSelectedFilter = selectedFilter
-        .takeIf { it in filterTabs }
-        ?: filterTabs[0]
+    val activeSelectedFilter = if (selectedFilter in filterTabs) {
+        selectedFilter
+    } else {
+        filterTabs[0]
+    }
 
     LaunchedEffect(gridState) {
         snapshotFlow {
@@ -257,20 +259,21 @@ fun HomeContent(
                 }
             }
 
-            selectedItem?.let { selected ->
+            val currentSelectedItem = selectedItem
+            if (currentSelectedItem != null) {
                 FileDetailSheet(
-                    item = selected,
+                    item = currentSelectedItem,
                     sheetState = sheetState,
                     onDismissRequest = {
                         scope.launch { sheetState.hide() }
                             .invokeOnCompletion {
-                                if (selectedItem?.id == selected.id) {
+                                if (selectedItem?.id == currentSelectedItem.id) {
                                     selectedItem = null
                                 }
                             }
                     },
                     onView = {
-                        val selectedId = selected.id
+                        val selectedId = currentSelectedItem.id
                         scope.launch { sheetState.hide() }.invokeOnCompletion {
                             selectedItem = null
                             onTransferItemClick(selectedId)

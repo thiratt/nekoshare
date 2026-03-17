@@ -39,40 +39,39 @@ class DevicesRepository(context: Context) {
     private val appContext = context.applicationContext
     private val authRepository = AuthRepository(appContext)
 
-    suspend fun fetchDevices(): DevicesLoadResult = withContext(Dispatchers.IO) {
-        val session = authRepository.getSavedSessionSnapshot()
-            ?: return@withContext DevicesLoadResult.Failure("ไม่พบข้อมูลการเข้าสู่ระบบ")
-
-        return@withContext try {
-            val response = executeRequest(
-                method = "GET",
-                path = DEVICES_PATH,
-                bearerToken = session.token
-            )
-
-            val responseJson = response.body
-                ?.takeIf { it.isNotBlank() }
-                ?.let { body -> runCatching { JSONObject(body) }.getOrNull() }
-
-            when {
-                response.code in 200..299 -> {
-                    DevicesLoadResult.Success(
-                        parseDevices(
-                            responseJson = responseJson,
-                            currentDeviceId = session.deviceId
-                        )
+    suspend fun fetchDevices(): DevicesLoadResult {
+        return withContext(Dispatchers.IO) {
+            val session = authRepository.getSavedSessionSnapshot()
+            if (session == null) {
+                DevicesLoadResult.Failure("ไม่พบข้อมูลการเข้าสู่ระบบ")
+            } else {
+                try {
+                    val response = executeRequest(
+                        method = "GET",
+                        path = DEVICES_PATH,
+                        bearerToken = session.token
                     )
-                }
+                    val responseJson = parseJsonBody(response.body)
 
-                response.code == HttpURLConnection.HTTP_UNAUTHORIZED ||
-                    response.code == HttpURLConnection.HTTP_FORBIDDEN -> {
-                    DevicesLoadResult.Failure("เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่")
+                    if (response.code in 200..299) {
+                        DevicesLoadResult.Success(
+                            parseDevices(
+                                responseJson = responseJson,
+                                currentDeviceId = session.deviceId
+                            )
+                        )
+                    } else if (
+                        response.code == HttpURLConnection.HTTP_UNAUTHORIZED ||
+                        response.code == HttpURLConnection.HTTP_FORBIDDEN
+                    ) {
+                        DevicesLoadResult.Failure("เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่")
+                    } else {
+                        DevicesLoadResult.Failure(mapFetchDevicesError(response.code, responseJson))
+                    }
+                } catch (_: Exception) {
+                    DevicesLoadResult.Failure("ไม่สามารถดึงรายการอุปกรณ์ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง")
                 }
-
-                else -> DevicesLoadResult.Failure(mapFetchDevicesError(response.code, responseJson))
             }
-        } catch (_: Exception) {
-            DevicesLoadResult.Failure("ไม่สามารถดึงรายการอุปกรณ์ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง")
         }
     }
 
@@ -83,24 +82,26 @@ class DevicesRepository(context: Context) {
     ): HttpResponse {
         val baseUrl = BuildConfig.API_BASE_URL.removeSuffix("/")
         val url = URL("$baseUrl$path")
-        val connection = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = method
-            connectTimeout = 15_000
-            readTimeout = 15_000
-            doInput = true
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("Authorization", "Bearer $bearerToken")
-        }
+        val connection = url.openConnection() as HttpURLConnection
+
+        connection.requestMethod = method
+        connection.connectTimeout = 15_000
+        connection.readTimeout = 15_000
+        connection.doInput = true
+        connection.setRequestProperty("Accept", "application/json")
+        connection.setRequestProperty("Authorization", "Bearer $bearerToken")
 
         try {
             val responseCode = connection.responseCode
-            val responseBody = readResponseBody(
-                if (responseCode in 200..299) connection.inputStream else connection.errorStream
-            )
+            val responseStream = if (responseCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
 
             return HttpResponse(
                 code = responseCode,
-                body = responseBody
+                body = readResponseBody(responseStream)
             )
         } finally {
             connection.disconnect()
@@ -119,19 +120,33 @@ class DevicesRepository(context: Context) {
         }
     }
 
+    private fun parseJsonBody(body: String?): JSONObject? {
+        if (body.isNullOrBlank()) {
+            return null
+        }
+
+        return try {
+            JSONObject(body)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun parseDevices(
         responseJson: JSONObject?,
         currentDeviceId: String?
     ): List<DeviceItem> {
-        val devicesArray = responseJson
-            ?.optJSONObject("data")
-            ?.optJSONArray("devices")
-            ?: JSONArray()
+        val dataJson = responseJson?.optJSONObject("data")
+        val devicesArray = dataJson?.optJSONArray("devices") ?: JSONArray()
+        val devices = mutableListOf<DeviceItem>()
 
-        val devices = buildList {
-            for (index in 0 until devicesArray.length()) {
-                val item = devicesArray.optJSONObject(index) ?: continue
-                mapDevice(item, currentDeviceId)?.let(::add)
+        for (index in 0 until devicesArray.length()) {
+            val item = devicesArray.optJSONObject(index)
+            if (item != null) {
+                val mappedDevice = mapDevice(item, currentDeviceId)
+                if (mappedDevice != null) {
+                    devices.add(mappedDevice)
+                }
             }
         }
 
@@ -146,15 +161,19 @@ class DevicesRepository(context: Context) {
         deviceJson: JSONObject,
         currentDeviceId: String?
     ): DeviceItem? {
-        val deviceId = deviceJson.optString("id").takeIf { it.isNotBlank() } ?: return null
-        val name = deviceJson.optString("name").takeIf { it.isNotBlank() } ?: return null
-        val platformOs = deviceJson
-            .optJSONObject("platform")
-            ?.optString("os")
-            ?.trim()
-            ?.lowercase()
-            .orEmpty()
-        val lastActiveAt = deviceJson.optString("lastActiveAt").takeIf { it.isNotBlank() }
+        val deviceId = readJsonString(deviceJson, "id")
+        if (deviceId == null) {
+            return null
+        }
+
+        val name = readJsonString(deviceJson, "name")
+        if (name == null) {
+            return null
+        }
+
+        val platformJson = deviceJson.optJSONObject("platform")
+        val platformOs = platformJson?.optString("os")?.trim()?.lowercase().orEmpty()
+        val lastActiveAt = readJsonString(deviceJson, "lastActiveAt")
 
         val type = when (platformOs) {
             "android" -> DeviceType.Android
@@ -163,27 +182,44 @@ class DevicesRepository(context: Context) {
             else -> DeviceType.Other
         }
 
-        val status = when {
-            currentDeviceId != null && deviceId == currentDeviceId -> DeviceStatus.Current
-            isOnline(lastActiveAt) -> DeviceStatus.Online
-            else -> DeviceStatus.Offline
+        val status = if (currentDeviceId != null && deviceId == currentDeviceId) {
+            DeviceStatus.Current
+        } else if (isOnline(lastActiveAt)) {
+            DeviceStatus.Online
+        } else {
+            DeviceStatus.Offline
+        }
+
+        val appVersion = if (status == DeviceStatus.Current && type == DeviceType.Android) {
+            BuildConfig.VERSION_NAME
+        } else {
+            UNKNOWN_VERSION
         }
 
         return DeviceItem(
             id = deviceId,
             name = name,
             appName = getAppName(type),
-            appVersion = if (status == DeviceStatus.Current && type == DeviceType.Android) {
-                BuildConfig.VERSION_NAME
-            } else {
-                UNKNOWN_VERSION
-            },
+            appVersion = appVersion,
             type = type,
             status = status,
             ipAddress = UNKNOWN_IP,
             location = UNKNOWN_LOCATION,
             lastSeen = formatLastSeen(lastActiveAt, status)
         )
+    }
+
+    private fun readJsonString(json: JSONObject?, key: String): String? {
+        if (json == null) {
+            return null
+        }
+
+        val value = json.optString(key)
+        if (value.isBlank()) {
+            return null
+        }
+
+        return value
     }
 
     private fun getAppName(type: DeviceType): String {
@@ -196,7 +232,11 @@ class DevicesRepository(context: Context) {
     }
 
     private fun isOnline(lastActiveAt: String?): Boolean {
-        val lastSeen = parseInstant(lastActiveAt) ?: return false
+        val lastSeen = parseInstant(lastActiveAt)
+        if (lastSeen == null) {
+            return false
+        }
+
         return (System.currentTimeMillis() - lastSeen.toEpochMilli()) < ONLINE_THRESHOLD_MILLIS
     }
 
@@ -208,7 +248,11 @@ class DevicesRepository(context: Context) {
             return "ออนไลน์"
         }
 
-        val lastSeen = parseInstant(lastActiveAt) ?: return "ไม่ทราบ"
+        val lastSeen = parseInstant(lastActiveAt)
+        if (lastSeen == null) {
+            return "ไม่ทราบ"
+        }
+
         val diffMillis = (System.currentTimeMillis() - lastSeen.toEpochMilli()).coerceAtLeast(0L)
         val minutes = diffMillis / 60_000L
         val hours = diffMillis / 3_600_000L
@@ -231,7 +275,11 @@ class DevicesRepository(context: Context) {
             return null
         }
 
-        return runCatching { Instant.parse(value) }.getOrNull()
+        return try {
+            Instant.parse(value)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun mapFetchDevicesError(
@@ -239,7 +287,6 @@ class DevicesRepository(context: Context) {
         responseJson: JSONObject?
     ): String {
         val message = responseJson?.optString("message").orEmpty()
-
         if (message.isNotBlank()) {
             return message
         }

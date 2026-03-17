@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -111,6 +112,101 @@ fun LoginScreen(
     val authRepository = remember(context) { AuthRepository(context.applicationContext) }
     val credentialManager = remember(context) { CredentialManager.create(context) }
 
+    fun submitEmailLogin() {
+        if (isLoading) {
+            return
+        }
+
+        val normalizedEmail = email.trim()
+        if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
+            emailError = "กรุณากรอกอีเมลให้ถูกต้อง"
+            return
+        }
+
+        emailError = null
+        generalError = null
+        isLoading = true
+
+        coroutineScope.launch {
+            when (val result = authRepository.loginWithEmail(normalizedEmail, password)) {
+                is EmailLoginResult.Success -> {
+                    isLoading = false
+                    onLoginClick()
+                }
+
+                is EmailLoginResult.Failure -> {
+                    isLoading = false
+                    generalError = result.message
+                }
+            }
+        }
+    }
+
+    fun signInWithGoogle() {
+        if (isLoading) {
+            return
+        }
+
+        generalError = null
+        emailError = null
+        isLoading = true
+
+        coroutineScope.launch {
+            try {
+                val googleIdOption = GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(false)
+                    .setServerClientId(BuildConfig.GOOGLE_SERVER_CLIENT_ID)
+                    .setAutoSelectEnabled(false)
+                    .build()
+
+                val request = GetCredentialRequest.Builder()
+                    .addCredentialOption(googleIdOption)
+                    .build()
+
+                val result = credentialManager.getCredential(
+                    request = request,
+                    context = context
+                )
+
+                val credential = result.credential
+                val isGoogleCredential =
+                    credential is CustomCredential &&
+                        credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+
+                if (!isGoogleCredential) {
+                    isLoading = false
+                    generalError = GOOGLE_SIGN_IN_FALLBACK
+                } else {
+                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                    val idToken = googleIdTokenCredential.idToken
+
+                    when (val loginResult = authRepository.loginWithGoogleIdToken(idToken)) {
+                        is EmailLoginResult.Success -> {
+                            isLoading = false
+                            onLoginClick()
+                        }
+
+                        is EmailLoginResult.Failure -> {
+                            isLoading = false
+                            generalError = loginResult.message
+                        }
+                    }
+                }
+            } catch (e: NoCredentialException) {
+                isLoading = false
+                generalError = GOOGLE_NO_ACCOUNT_MESSAGE
+            } catch (e: GetCredentialCancellationException) {
+                isLoading = false
+            } catch (e: GetCredentialException) {
+                isLoading = false
+                generalError = getGoogleAuthErrorMessage(e.message.orEmpty()) ?: GOOGLE_SIGN_IN_FALLBACK
+            } catch (e: Exception) {
+                isLoading = false
+                generalError = getGoogleAuthErrorMessage(e.message.orEmpty()) ?: GOOGLE_SIGN_IN_FALLBACK
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -181,7 +277,7 @@ fun LoginScreen(
                     },
                     isError = emailError != null,
                     errorMessage = emailError,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Next
                     )
@@ -200,7 +296,11 @@ fun LoginScreen(
                             Icon(Icons.Rounded.Lock, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         },
                         trailingIcon = {
-                            val icon = if (isPasswordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff
+                            val icon = if (isPasswordVisible) {
+                                Icons.Rounded.Visibility
+                            } else {
+                                Icons.Rounded.VisibilityOff
+                            }
                             IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                                 Icon(imageVector = icon, contentDescription = null)
                             }
@@ -210,7 +310,7 @@ fun LoginScreen(
                         } else {
                             PasswordVisualTransformation()
                         },
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
                         )
@@ -239,36 +339,7 @@ fun LoginScreen(
 
             NekoButton(
                 text = "เข้าสู่ระบบ",
-                onClick = {
-                    if (isLoading) {
-                        return@NekoButton
-                    }
-
-                    val normalizedEmail = email.trim()
-
-                    if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
-                        emailError = "กรุณากรอกอีเมลให้ถูกต้อง"
-                        return@NekoButton
-                    }
-
-                    emailError = null
-                    generalError = null
-                    isLoading = true
-
-                    coroutineScope.launch {
-                        when (val result = authRepository.loginWithEmail(normalizedEmail, password)) {
-                            is EmailLoginResult.Success -> {
-                                isLoading = false
-                                onLoginClick()
-                            }
-
-                            is EmailLoginResult.Failure -> {
-                                isLoading = false
-                                generalError = result.message
-                            }
-                        }
-                    }
-                },
+                onClick = { submitEmailLogin() },
                 fullWidth = true,
                 enabled = email.isNotEmpty() && password.isNotEmpty() && !isLoading
             )
@@ -297,69 +368,7 @@ fun LoginScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SocialButton(
-                    onClick = {
-                        if (isLoading) {
-                            return@SocialButton
-                        }
-
-                        generalError = null
-                        emailError = null
-                        isLoading = true
-
-                        coroutineScope.launch {
-                            try {
-                                val googleIdOption = GetGoogleIdOption.Builder()
-                                    .setFilterByAuthorizedAccounts(false)
-                                    .setServerClientId(BuildConfig.GOOGLE_SERVER_CLIENT_ID)
-                                    .setAutoSelectEnabled(false)
-                                    .build()
-
-                                val request = GetCredentialRequest.Builder()
-                                    .addCredentialOption(googleIdOption)
-                                    .build()
-
-                                val result = credentialManager.getCredential(
-                                    request = request,
-                                    context = context
-                                )
-
-                                val credential = result.credential
-                                if (
-                                    credential is CustomCredential &&
-                                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-                                ) {
-                                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                                    val idToken = googleIdTokenCredential.idToken
-
-                                    when (val loginResult = authRepository.loginWithGoogleIdToken(idToken)) {
-                                        is EmailLoginResult.Success -> {
-                                            isLoading = false
-                                            onLoginClick()
-                                        }
-
-                                        is EmailLoginResult.Failure -> {
-                                            isLoading = false
-                                            generalError = loginResult.message
-                                        }
-                                    }
-                                } else {
-                                    isLoading = false
-                                    generalError = GOOGLE_SIGN_IN_FALLBACK
-                                }
-                            } catch (e: NoCredentialException) {
-                                isLoading = false
-                                generalError = GOOGLE_NO_ACCOUNT_MESSAGE
-                            } catch (e: GetCredentialCancellationException) {
-                                isLoading = false
-                            } catch (e: GetCredentialException) {
-                                isLoading = false
-                                generalError = getGoogleAuthErrorMessage(e.message.orEmpty()) ?: GOOGLE_SIGN_IN_FALLBACK
-                            } catch (e: Exception) {
-                                isLoading = false
-                                generalError = getGoogleAuthErrorMessage(e.message.orEmpty()) ?: GOOGLE_SIGN_IN_FALLBACK
-                            }
-                        }
-                    },
+                    onClick = { signInWithGoogle() },
                     icon = { Text("G", fontWeight = FontWeight.Bold) }
                 )
             }

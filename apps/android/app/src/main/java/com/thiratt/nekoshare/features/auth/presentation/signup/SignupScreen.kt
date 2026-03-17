@@ -121,6 +121,129 @@ fun SignupScreen(
     val authRepository = remember(context) { AuthRepository(context.applicationContext) }
     val credentialManager = remember(context) { CredentialManager.create(context) }
 
+    fun submitSignup() {
+        if (isLoading) {
+            return
+        }
+
+        val normalizedName = name.trim()
+        val normalizedEmail = email.trim()
+
+        nameError = null
+        emailError = null
+        passwordError = null
+        generalError = null
+
+        if (normalizedName.length < 2) {
+            nameError = "กรุณากรอกชื่ออย่างน้อย 2 ตัวอักษร"
+            return
+        }
+
+        if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
+            emailError = "กรุณากรอกอีเมลให้ถูกต้อง"
+            return
+        }
+
+        if (password.length < 8 || password.length > 16) {
+            passwordError = "รหัสผ่านต้องยาว 8-16 ตัวอักษร"
+            return
+        }
+
+        isLoading = true
+
+        coroutineScope.launch {
+            when (
+                val result = authRepository.signUpWithEmail(
+                    name = normalizedName,
+                    email = normalizedEmail,
+                    password = password
+                )
+            ) {
+                is EmailLoginResult.Success -> {
+                    isLoading = false
+                    onCreateAccountClick()
+                }
+
+                is EmailLoginResult.Failure -> {
+                    isLoading = false
+                    generalError = result.message
+                }
+            }
+        }
+    }
+
+    fun signUpWithGoogle() {
+        if (isLoading) {
+            return
+        }
+
+        generalError = null
+        nameError = null
+        emailError = null
+        passwordError = null
+        isLoading = true
+
+        coroutineScope.launch {
+            try {
+                val googleIdOption = GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(false)
+                    .setServerClientId(BuildConfig.GOOGLE_SERVER_CLIENT_ID)
+                    .setAutoSelectEnabled(false)
+                    .build()
+
+                val request = GetCredentialRequest.Builder()
+                    .addCredentialOption(googleIdOption)
+                    .build()
+
+                val result = credentialManager.getCredential(
+                    request = request,
+                    context = context
+                )
+
+                val credential = result.credential
+                val isGoogleCredential =
+                    credential is CustomCredential &&
+                        credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+
+                if (isGoogleCredential) {
+                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                    val idToken = googleIdTokenCredential.idToken
+
+                    when (
+                        val signupResult = authRepository.loginWithGoogleIdToken(
+                            idToken = idToken,
+                            flow = GoogleAuthFlow.Signup
+                        )
+                    ) {
+                        is EmailLoginResult.Success -> {
+                            isLoading = false
+                            onCreateAccountClick()
+                        }
+
+                        is EmailLoginResult.Failure -> {
+                            isLoading = false
+                            generalError = signupResult.message
+                        }
+                    }
+                } else {
+                    isLoading = false
+                    generalError = GOOGLE_SIGN_UP_FALLBACK
+                }
+            } catch (e: NoCredentialException) {
+                isLoading = false
+                generalError = GOOGLE_NO_ACCOUNT_MESSAGE
+            } catch (e: GetCredentialCancellationException) {
+                isLoading = false
+            } catch (e: GetCredentialException) {
+                isLoading = false
+                generalError = getGoogleAuthErrorMessage(e.message.orEmpty()) ?: GOOGLE_SIGN_UP_FALLBACK
+            } catch (e: Exception) {
+                isLoading = false
+                generalError = getGoogleAuthErrorMessage(e.message.orEmpty()) ?: GOOGLE_SIGN_UP_FALLBACK
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -140,7 +263,6 @@ fun SignupScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -150,7 +272,6 @@ fun SignupScreen(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "สร้างบัญชี",
@@ -232,12 +353,20 @@ fun SignupScreen(
                         Icon(Icons.Rounded.Lock, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
                     trailingIcon = {
-                        val icon = if (isPasswordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff
+                        val icon = if (isPasswordVisible) {
+                            Icons.Rounded.Visibility
+                        } else {
+                            Icons.Rounded.VisibilityOff
+                        }
                         IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                             Icon(imageVector = icon, contentDescription = null)
                         }
                     },
-                    visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    visualTransformation = if (isPasswordVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
                     isError = passwordError != null,
                     errorMessage = passwordError,
                     keyboardOptions = KeyboardOptions(
@@ -277,56 +406,7 @@ fun SignupScreen(
 
             NekoButton(
                 text = "สร้างบัญชี",
-                onClick = {
-                    if (isLoading) {
-                        return@NekoButton
-                    }
-
-                    val normalizedName = name.trim()
-                    val normalizedEmail = email.trim()
-
-                    nameError = null
-                    emailError = null
-                    passwordError = null
-                    generalError = null
-
-                    if (normalizedName.length < 2) {
-                        nameError = "กรุณากรอกชื่ออย่างน้อย 2 ตัวอักษร"
-                        return@NekoButton
-                    }
-
-                    if (!Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches()) {
-                        emailError = "กรุณากรอกอีเมลให้ถูกต้อง"
-                        return@NekoButton
-                    }
-
-                    if (password.length < 8 || password.length > 16) {
-                        passwordError = "รหัสผ่านต้องยาว 8-16 ตัวอักษร"
-                        return@NekoButton
-                    }
-
-                    isLoading = true
-
-                    coroutineScope.launch {
-                        when (
-                            val result = authRepository.signUpWithEmail(
-                                name = normalizedName,
-                                email = normalizedEmail,
-                                password = password
-                            )
-                        ) {
-                            is EmailLoginResult.Success -> {
-                                isLoading = false
-                                onCreateAccountClick()
-                            }
-
-                            is EmailLoginResult.Failure -> {
-                                isLoading = false
-                                generalError = result.message
-                            }
-                        }
-                    }
-                },
+                onClick = { submitSignup() },
                 fullWidth = true,
                 enabled = name.isNotBlank() && email.isNotBlank() && password.isNotBlank() && !isLoading
             )
@@ -355,76 +435,7 @@ fun SignupScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SocialButton(
-                    onClick = {
-                        if (isLoading) {
-                            return@SocialButton
-                        }
-
-                        generalError = null
-                        nameError = null
-                        emailError = null
-                        passwordError = null
-                        isLoading = true
-
-                        coroutineScope.launch {
-                            try {
-                                val googleIdOption = GetGoogleIdOption.Builder()
-                                    .setFilterByAuthorizedAccounts(false)
-                                    .setServerClientId(BuildConfig.GOOGLE_SERVER_CLIENT_ID)
-                                    .setAutoSelectEnabled(false)
-                                    .build()
-
-                                val request = GetCredentialRequest.Builder()
-                                    .addCredentialOption(googleIdOption)
-                                    .build()
-
-                                val result = credentialManager.getCredential(
-                                    request = request,
-                                    context = context
-                                )
-
-                                val credential = result.credential
-                                if (
-                                    credential is CustomCredential &&
-                                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-                                ) {
-                                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                                    val idToken = googleIdTokenCredential.idToken
-
-                                    when (
-                                        val signupResult = authRepository.loginWithGoogleIdToken(
-                                            idToken = idToken,
-                                            flow = GoogleAuthFlow.Signup
-                                        )
-                                    ) {
-                                        is EmailLoginResult.Success -> {
-                                            isLoading = false
-                                            onCreateAccountClick()
-                                        }
-
-                                        is EmailLoginResult.Failure -> {
-                                            isLoading = false
-                                            generalError = signupResult.message
-                                        }
-                                    }
-                                } else {
-                                    isLoading = false
-                                    generalError = GOOGLE_SIGN_UP_FALLBACK
-                                }
-                            } catch (e: NoCredentialException) {
-                                isLoading = false
-                                generalError = GOOGLE_NO_ACCOUNT_MESSAGE
-                            } catch (e: GetCredentialCancellationException) {
-                                isLoading = false
-                            } catch (e: GetCredentialException) {
-                                isLoading = false
-                                generalError = getGoogleAuthErrorMessage(e.message.orEmpty()) ?: GOOGLE_SIGN_UP_FALLBACK
-                            } catch (e: Exception) {
-                                isLoading = false
-                                generalError = getGoogleAuthErrorMessage(e.message.orEmpty()) ?: GOOGLE_SIGN_UP_FALLBACK
-                            }
-                        }
-                    },
+                    onClick = { signUpWithGoogle() },
                     icon = { Text("G", fontWeight = FontWeight.Bold) }
                 )
             }
@@ -466,11 +477,13 @@ private fun SocialButton(
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
-            .then(Modifier.border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = CircleShape
-            )),
+            .then(
+                Modifier.border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = CircleShape
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
         icon()

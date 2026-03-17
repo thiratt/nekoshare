@@ -67,101 +67,111 @@ class AuthRepository(context: Context) {
     suspend fun loginWithEmail(
         email: String,
         password: String
-    ): EmailLoginResult = authenticateEmailFlow(
-        path = "/auth/sign-in/email",
-        requestBody = JSONObject()
-            .put("email", email.trim())
-            .put("password", password)
-    ) { responseCode, responseJson ->
-        mapLoginError(responseCode, responseJson)
+    ): EmailLoginResult {
+        val requestBody = JSONObject()
+        requestBody.put("email", email.trim())
+        requestBody.put("password", password)
+
+        return authenticateEmailFlow(
+            path = "/auth/sign-in/email",
+            requestBody = requestBody
+        ) { responseCode, responseJson ->
+            mapLoginError(responseCode, responseJson)
+        }
     }
 
     suspend fun signUpWithEmail(
         name: String,
         email: String,
         password: String
-    ): EmailLoginResult = authenticateEmailFlow(
-        path = "/auth/sign-up/email",
-        requestBody = JSONObject()
-            .put("name", name.trim())
-            .put("username", buildUsername(name, email))
-            .put("email", email.trim())
-            .put("password", password)
-    ) { responseCode, responseJson ->
-        mapSignupError(responseCode, responseJson)
+    ): EmailLoginResult {
+        val requestBody = JSONObject()
+        requestBody.put("name", name.trim())
+        requestBody.put("username", buildUsername(name, email))
+        requestBody.put("email", email.trim())
+        requestBody.put("password", password)
+
+        return authenticateEmailFlow(
+            path = "/auth/sign-up/email",
+            requestBody = requestBody
+        ) { responseCode, responseJson ->
+            mapSignupError(responseCode, responseJson)
+        }
     }
 
     suspend fun loginWithGoogleIdToken(
         idToken: String,
         flow: GoogleAuthFlow = GoogleAuthFlow.Login
-    ): EmailLoginResult = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val response = executeRequest(
-                method = "POST",
-                path = "/auth/mobile/google",
-                requestBody = JSONObject()
-                    .put("idToken", idToken)
-                    .put("flow", flow.queryValue)
-                    .toString()
-            )
+    ): EmailLoginResult {
+        return withContext(Dispatchers.IO) {
+            try {
+                val requestBody = JSONObject()
+                requestBody.put("idToken", idToken)
+                requestBody.put("flow", flow.queryValue)
 
-            val responseJson = response.body
-                ?.takeIf { it.isNotBlank() }
-                ?.let { body -> runCatching { JSONObject(body) }.getOrNull() }
+                val response = executeRequest(
+                    method = "POST",
+                    path = "/auth/mobile/google",
+                    requestBody = requestBody.toString()
+                )
+                val responseJson = parseJsonBody(response.body)
 
-            if (response.code !in 200..299) {
-                return@withContext EmailLoginResult.Failure(mapGoogleAuthError(response.code, responseJson))
+                if (response.code !in 200..299) {
+                    EmailLoginResult.Failure(mapGoogleAuthError(response.code, responseJson))
+                } else {
+                    val session = extractMobileGoogleSession(responseJson)
+                    if (session == null) {
+                        EmailLoginResult.Failure("เซิร์ฟเวอร์ไม่ส่งข้อมูลเซสชันกลับมา")
+                    } else {
+                        finalizeAuthenticatedSession(session)
+                    }
+                }
+            } catch (_: Exception) {
+                EmailLoginResult.Failure("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง")
             }
-
-            val session = extractMobileGoogleSession(responseJson)
-                ?: return@withContext EmailLoginResult.Failure("เซิร์ฟเวอร์ไม่ส่งข้อมูลเซสชันกลับมา")
-
-            finalizeAuthenticatedSession(session)
-        } catch (_: Exception) {
-            EmailLoginResult.Failure("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง")
         }
     }
 
-    suspend fun restoreSession(): SessionRestoreResult = withContext(Dispatchers.IO) {
-        val savedSession = readSavedSession() ?: return@withContext SessionRestoreResult.SignedOut
-
-        return@withContext try {
-            val response = executeRequest(
-                method = "GET",
-                path = "/account/session",
-                bearerToken = savedSession.token
-            )
-
-            when {
-                response.code in 200..299 -> {
-                    val responseJson = response.body
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let(::JSONObject)
-
-                    val dataJson = responseJson?.optJSONObject("data")
-                    val userJson = dataJson?.optJSONObject("user")
-
-                    val refreshedSession = savedSession.copy(
-                        userId = userJson?.optString("id")?.takeIf { it.isNotBlank() } ?: savedSession.userId,
-                        email = userJson?.optString("email")?.takeIf { it.isNotBlank() } ?: savedSession.email,
-                        name = userJson?.optString("name")?.takeIf { it.isNotBlank() } ?: savedSession.name,
-                        deviceId = userJson?.optString("deviceId")?.takeIf { it.isNotBlank() } ?: savedSession.deviceId
+    suspend fun restoreSession(): SessionRestoreResult {
+        return withContext(Dispatchers.IO) {
+            val savedSession = readSavedSession()
+            if (savedSession == null) {
+                SessionRestoreResult.SignedOut
+            } else {
+                try {
+                    val response = executeRequest(
+                        method = "GET",
+                        path = "/account/session",
+                        bearerToken = savedSession.token
                     )
 
-                    saveSession(refreshedSession)
-                    SessionRestoreResult.Authenticated(refreshedSession)
-                }
+                    if (response.code in 200..299) {
+                        val responseJson = parseJsonBody(response.body)
+                        val dataJson = responseJson?.optJSONObject("data")
+                        val userJson = dataJson?.optJSONObject("user")
 
-                response.code == HttpURLConnection.HTTP_UNAUTHORIZED ||
-                    response.code == HttpURLConnection.HTTP_FORBIDDEN -> {
-                    clearSavedSession()
-                    SessionRestoreResult.SignedOut
-                }
+                        val refreshedSession = savedSession.copy(
+                            userId = readJsonString(userJson, "id") ?: savedSession.userId,
+                            email = readJsonString(userJson, "email") ?: savedSession.email,
+                            name = readJsonString(userJson, "name") ?: savedSession.name,
+                            deviceId = readJsonString(userJson, "deviceId") ?: savedSession.deviceId
+                        )
 
-                else -> SessionRestoreResult.Authenticated(savedSession)
+                        saveSession(refreshedSession)
+                        SessionRestoreResult.Authenticated(refreshedSession)
+                    } else if (
+                        response.code == HttpURLConnection.HTTP_UNAUTHORIZED ||
+                        response.code == HttpURLConnection.HTTP_FORBIDDEN
+                    ) {
+                        clearSavedSession()
+                        SessionRestoreResult.SignedOut
+                    } else {
+                        SessionRestoreResult.Authenticated(savedSession)
+                    }
+                } catch (_: Exception) {
+                    SessionRestoreResult.Authenticated(savedSession)
+                }
             }
-        } catch (_: Exception) {
-            SessionRestoreResult.Authenticated(savedSession)
         }
     }
 
@@ -175,39 +185,43 @@ class AuthRepository(context: Context) {
         }
     }
 
-    fun getSavedSessionSnapshot(): SavedAuthSession? = readSavedSession()
+    fun getSavedSessionSnapshot(): SavedAuthSession? {
+        return readSavedSession()
+    }
 
     private suspend fun authenticateEmailFlow(
         path: String,
         requestBody: JSONObject,
         errorMapper: (responseCode: Int, responseJson: JSONObject?) -> String
-    ): EmailLoginResult = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val response = executeRequest(
-                method = "POST",
-                path = path,
-                requestBody = requestBody.toString()
-            )
+    ): EmailLoginResult {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = executeRequest(
+                    method = "POST",
+                    path = path,
+                    requestBody = requestBody.toString()
+                )
+                val responseJson = parseJsonBody(response.body)
 
-            val responseJson = response.body
-                ?.takeIf { it.isNotBlank() }
-                ?.let { body -> runCatching { JSONObject(body) }.getOrNull() }
-
-            if (response.code !in 200..299) {
-                return@withContext EmailLoginResult.Failure(errorMapper(response.code, responseJson))
+                if (response.code !in 200..299) {
+                    EmailLoginResult.Failure(errorMapper(response.code, responseJson))
+                } else {
+                    val session = extractSession(responseJson)
+                    if (session == null) {
+                        EmailLoginResult.Failure("เซิร์ฟเวอร์ไม่ส่งโทเค็นเซสชันกลับมา")
+                    } else {
+                        finalizeAuthenticatedSession(session)
+                    }
+                }
+            } catch (_: Exception) {
+                EmailLoginResult.Failure("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง")
             }
-
-            val session = extractSession(responseJson)
-                ?: return@withContext EmailLoginResult.Failure("เซิร์ฟเวอร์ไม่ส่งโทเค็นเซสชันกลับมา")
-
-            finalizeAuthenticatedSession(session)
-        } catch (_: Exception) {
-            EmailLoginResult.Failure("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง")
         }
     }
 
     private fun finalizeAuthenticatedSession(session: SavedAuthSession): EmailLoginResult {
-        return when (val registrationResult = registerCurrentDevice(session.token)) {
+        val registrationResult = registerCurrentDevice(session.token)
+        return when (registrationResult) {
             is DeviceRegistrationResult.Success -> {
                 val updatedSession = session.copy(
                     deviceId = registrationResult.deviceId ?: session.deviceId
@@ -228,21 +242,21 @@ class AuthRepository(context: Context) {
     ): HttpResponse {
         val baseUrl = BuildConfig.API_BASE_URL.removeSuffix("/")
         val url = URL("$baseUrl$path")
-        val connection = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = method
-            connectTimeout = 15_000
-            readTimeout = 15_000
-            doInput = true
-            doOutput = requestBody != null
-            setRequestProperty("Accept", "application/json")
+        val connection = url.openConnection() as HttpURLConnection
 
-            if (requestBody != null) {
-                setRequestProperty("Content-Type", "application/json")
-            }
+        connection.requestMethod = method
+        connection.connectTimeout = 15_000
+        connection.readTimeout = 15_000
+        connection.doInput = true
+        connection.doOutput = requestBody != null
+        connection.setRequestProperty("Accept", "application/json")
 
-            if (!bearerToken.isNullOrBlank()) {
-                setRequestProperty("Authorization", "Bearer $bearerToken")
-            }
+        if (requestBody != null) {
+            connection.setRequestProperty("Content-Type", "application/json")
+        }
+
+        if (!bearerToken.isNullOrBlank()) {
+            connection.setRequestProperty("Authorization", "Bearer $bearerToken")
         }
 
         try {
@@ -253,13 +267,15 @@ class AuthRepository(context: Context) {
             }
 
             val responseCode = connection.responseCode
-            val responseBody = readResponseBody(
-                if (responseCode in 200..299) connection.inputStream else connection.errorStream
-            )
+            val responseStream = if (responseCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
 
             return HttpResponse(
                 code = responseCode,
-                body = responseBody
+                body = readResponseBody(responseStream)
             )
         } finally {
             connection.disconnect()
@@ -278,16 +294,28 @@ class AuthRepository(context: Context) {
         }
     }
 
+    private fun parseJsonBody(body: String?): JSONObject? {
+        if (body.isNullOrBlank()) {
+            return null
+        }
+
+        return try {
+            JSONObject(body)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun registerCurrentDevice(bearerToken: String): DeviceRegistrationResult {
         return try {
             val localDevice = getOrCreateLocalDeviceIdentity()
+            val platformJson = JSONObject()
+            platformJson.put("os", "android")
+
             val payload = JSONObject()
-                .put("id", localDevice.id)
-                .put("name", localDevice.name)
-                .put(
-                    "platform",
-                    JSONObject().put("os", "android")
-                )
+            payload.put("id", localDevice.id)
+            payload.put("name", localDevice.name)
+            payload.put("platform", platformJson)
 
             val response = executeRequest(
                 method = "POST",
@@ -295,28 +323,23 @@ class AuthRepository(context: Context) {
                 requestBody = payload.toString(),
                 bearerToken = bearerToken
             )
-
-            val responseJson = response.body
-                ?.takeIf { it.isNotBlank() }
-                ?.let { body -> runCatching { JSONObject(body) }.getOrNull() }
+            val responseJson = parseJsonBody(response.body)
 
             if (response.code !in 200..299) {
-                return DeviceRegistrationResult.Failure(
+                DeviceRegistrationResult.Failure(
                     mapDeviceRegistrationError(response.code, responseJson)
                 )
+            } else {
+                DeviceRegistrationResult.Success(extractRegisteredDeviceId(responseJson))
             }
-
-            DeviceRegistrationResult.Success(extractRegisteredDeviceId(responseJson))
         } catch (_: Exception) {
             DeviceRegistrationResult.Failure("ไม่สามารถลงทะเบียนอุปกรณ์ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง")
         }
     }
 
     private fun getOrCreateLocalDeviceIdentity(): LocalDeviceIdentity {
-        val storedId = prefs.getString(KEY_LOCAL_DEVICE_ID, null)
-            ?.takeIf { it.isNotBlank() }
-        val storedName = prefs.getString(KEY_LOCAL_DEVICE_NAME, null)
-            ?.takeIf { it.isNotBlank() }
+        val storedId = readStoredNonBlank(KEY_LOCAL_DEVICE_ID)
+        val storedName = readStoredNonBlank(KEY_LOCAL_DEVICE_NAME)
 
         val localDeviceId = storedId ?: UUID.randomUUID().toString()
         val localDeviceName = storedName ?: buildDefaultDeviceName()
@@ -332,6 +355,15 @@ class AuthRepository(context: Context) {
             id = localDeviceId,
             name = localDeviceName
         )
+    }
+
+    private fun readStoredNonBlank(key: String): String? {
+        val value = prefs.getString(key, null)
+        if (value.isNullOrBlank()) {
+            return null
+        }
+
+        return value
     }
 
     private fun buildDefaultDeviceName(): String {
@@ -362,38 +394,59 @@ class AuthRepository(context: Context) {
     }
 
     private fun extractSession(responseJson: JSONObject?): SavedAuthSession? {
-        val token = responseJson?.optString("token")?.takeIf { it.isNotBlank() } ?: return null
-        val userJson = responseJson.optJSONObject("user")
+        val token = readJsonString(responseJson, "token")
+        if (token == null) {
+            return null
+        }
 
+        val userJson = responseJson?.optJSONObject("user")
         return SavedAuthSession(
             token = token,
-            userId = userJson?.optString("id")?.takeIf { it.isNotBlank() },
-            email = userJson?.optString("email")?.takeIf { it.isNotBlank() },
-            name = userJson?.optString("name")?.takeIf { it.isNotBlank() },
-            deviceId = userJson?.optString("deviceId")?.takeIf { it.isNotBlank() }
+            userId = readJsonString(userJson, "id"),
+            email = readJsonString(userJson, "email"),
+            name = readJsonString(userJson, "name"),
+            deviceId = readJsonString(userJson, "deviceId")
         )
     }
 
     private fun extractMobileGoogleSession(responseJson: JSONObject?): SavedAuthSession? {
-        val dataJson = responseJson?.optJSONObject("data") ?: return null
-        val token = dataJson.optString("token").takeIf { !it.isNullOrBlank() } ?: return null
-        val userJson = dataJson.optJSONObject("user")
+        val dataJson = responseJson?.optJSONObject("data")
+        if (dataJson == null) {
+            return null
+        }
 
+        val token = readJsonString(dataJson, "token")
+        if (token == null) {
+            return null
+        }
+
+        val userJson = dataJson.optJSONObject("user")
         return SavedAuthSession(
             token = token,
-            userId = userJson?.optString("id")?.takeIf { it.isNotBlank() },
-            email = userJson?.optString("email")?.takeIf { it.isNotBlank() },
-            name = userJson?.optString("name")?.takeIf { it.isNotBlank() },
-            deviceId = userJson?.optString("deviceId")?.takeIf { it.isNotBlank() }
+            userId = readJsonString(userJson, "id"),
+            email = readJsonString(userJson, "email"),
+            name = readJsonString(userJson, "name"),
+            deviceId = readJsonString(userJson, "deviceId")
         )
     }
 
     private fun extractRegisteredDeviceId(responseJson: JSONObject?): String? {
-        return responseJson
-            ?.optJSONObject("data")
-            ?.optJSONObject("device")
-            ?.optString("id")
-            ?.takeIf { it.isNotBlank() }
+        val dataJson = responseJson?.optJSONObject("data")
+        val deviceJson = dataJson?.optJSONObject("device")
+        return readJsonString(deviceJson, "id")
+    }
+
+    private fun readJsonString(json: JSONObject?, key: String): String? {
+        if (json == null) {
+            return null
+        }
+
+        val value = json.optString(key)
+        if (value.isBlank()) {
+            return null
+        }
+
+        return value
     }
 
     private fun mapGoogleAuthError(
@@ -413,9 +466,10 @@ class AuthRepository(context: Context) {
         responseJson: JSONObject?
     ): String {
         val message = responseJson?.optString("message").orEmpty()
+        val translatedMessage = translateServerMessage(message)
 
         return when {
-            translateServerMessage(message) != null -> translateServerMessage(message)!!
+            translatedMessage != null -> translatedMessage
             responseCode >= 500 -> "ไม่สามารถลงทะเบียนอุปกรณ์ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง"
             else -> "ไม่สามารถลงทะเบียนอุปกรณ์ได้ในขณะนี้"
         }
@@ -432,7 +486,10 @@ class AuthRepository(context: Context) {
     }
 
     private fun readSavedSession(): SavedAuthSession? {
-        val token = prefs.getString(KEY_TOKEN, null) ?: return null
+        val token = prefs.getString(KEY_TOKEN, null)
+        if (token == null) {
+            return null
+        }
 
         return SavedAuthSession(
             token = token,
@@ -490,12 +547,13 @@ class AuthRepository(context: Context) {
         responseJson: JSONObject?
     ): String {
         val message = responseJson?.optString("message").orEmpty()
+        val translatedMessage = translateServerMessage(message)
 
         return when {
             message.contains("already exists", ignoreCase = true) ||
                 message.contains("already in use", ignoreCase = true) -> "อีเมลนี้ถูกใช้งานแล้ว"
 
-            translateServerMessage(message) != null -> translateServerMessage(message)!!
+            translatedMessage != null -> translatedMessage
             responseCode >= 500 -> "เซิร์ฟเวอร์ขัดข้อง กรุณาลองใหม่ภายหลัง"
             else -> "ไม่สามารถสร้างบัญชีได้ในขณะนี้"
         }
@@ -505,8 +563,10 @@ class AuthRepository(context: Context) {
         responseCode: Int,
         message: String
     ): String {
+        val translatedMessage = translateServerMessage(message)
+
         return when {
-            translateServerMessage(message) != null -> translateServerMessage(message)!!
+            translatedMessage != null -> translatedMessage
             responseCode >= 500 -> "เซิร์ฟเวอร์ขัดข้อง กรุณาลองใหม่ภายหลัง"
             else -> "ไม่สามารถเข้าสู่ระบบได้ในขณะนี้"
         }
