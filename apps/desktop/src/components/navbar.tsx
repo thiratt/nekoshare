@@ -19,7 +19,7 @@ interface DesktopTitlebarProps {
 }
 
 function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
-  const { isMaximized, minimize, toggleMaximize, close } = useNSDesktop();
+  const { isMaximized, isSnapHover, minimize, close } = useNSDesktop();
 
   return (
     <div className="flex items-center w-full h-11 bg-primary dark:bg-background border-b-2">
@@ -63,11 +63,13 @@ function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
         </Button>
 
         <Button
-          className="h-full w-12 rounded-none right-0 focus:ring-0 focus-visible:ring-0 dark:hover:bg-[#373737]"
+          className={cn(
+            "h-full w-12 rounded-none focus:ring-0 focus-visible:ring-0 dark:hover:bg-[#373737] select-none",
+            isSnapHover && "bg-accent text-accent-foreground dark:bg-[#373737]",
+          )}
           variant="ghost"
           size="icon"
           title={isMaximized ? "Restore" : "Maximize"}
-          onClick={toggleMaximize}
           tabIndex={-1}
         >
           {isMaximized ? <TiTabsOutline /> : <LuMaximize />}

@@ -35,6 +35,7 @@ interface NSDesktopContextValue {
   error: Error | null;
   initComplete: boolean;
   isMaximized: boolean;
+  isSnapHover: boolean;
   setFileLocation: (path: string) => Promise<void>;
   clearConfig: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -59,6 +60,7 @@ export function NSDesktopProvider({
 }) {
   const appWindow = getCurrentWindow();
   const [isMaximized, setIsMaximized] = useState(initialMaximized);
+  const [isSnapHover, setIsSnapHover] = useState(false);
   const setGlobalLoading = useSetGlobalLoading();
 
   const config = useDesktopConfig();
@@ -122,7 +124,7 @@ export function NSDesktopProvider({
       }
     };
 
-    runInit();
+    void runInit();
 
     return () => {
       cancelled = true;
@@ -143,7 +145,7 @@ export function NSDesktopProvider({
       });
     };
 
-    setup();
+    void setup();
 
     return () => {
       unsubscribePromise?.then((unsub) => unsub());
@@ -192,13 +194,37 @@ export function NSDesktopProvider({
   }, [storageAdapter]);
 
   useEffect(() => {
-    const unlistenPromise = appWindow.listen("tauri://resize", async () => {
-      const max = await appWindow.isMaximized();
-      setIsMaximized(max);
-    });
+    const unlistenFns: Array<() => void> = [];
+
+    const setup = async () => {
+      unlistenFns.push(
+        await appWindow.listen<boolean>("snap-hover", (event) => {
+          setIsSnapHover(event.payload);
+        }),
+      );
+
+      unlistenFns.push(
+        await appWindow.listen<boolean>("window-maximized", (event) => {
+          setIsMaximized(event.payload);
+        }),
+      );
+
+      unlistenFns.push(
+        await appWindow.listen<{ focused: boolean; maximized: boolean }>(
+          "window-state",
+          (event) => {
+            setIsMaximized(event.payload.maximized);
+          },
+        ),
+      );
+    };
+
+    void setup();
 
     return () => {
-      unlistenPromise.then((unlisten) => unlisten());
+      for (const unlisten of unlistenFns) {
+        unlisten();
+      }
     };
   }, [appWindow]);
 
@@ -211,12 +237,19 @@ export function NSDesktopProvider({
       error,
       initComplete,
       isMaximized,
+      isSnapHover,
       setFileLocation,
       clearConfig,
       refresh,
-      minimize: () => appWindow.minimize(),
-      toggleMaximize: () => appWindow.toggleMaximize(),
-      close: () => appWindow.close(),
+      minimize: () => {
+        void appWindow.minimize();
+      },
+      toggleMaximize: () => {
+        void appWindow.toggleMaximize();
+      },
+      close: () => {
+        void appWindow.close();
+      },
     }),
     [
       config,
@@ -226,6 +259,7 @@ export function NSDesktopProvider({
       error,
       initComplete,
       isMaximized,
+      isSnapHover,
       setFileLocation,
       clearConfig,
       refresh,
