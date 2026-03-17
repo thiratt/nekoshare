@@ -1,4 +1,4 @@
-FROM node:24.11.1-bookworm-slim AS base
+FROM node:24.11.1-alpine3.22 AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
@@ -21,7 +21,7 @@ RUN mkdir -p /prod/server && cp /workspace/apps/server/.package.prod.json /prod/
 WORKDIR /prod/server
 RUN pnpm install --prod --no-frozen-lockfile --config.auto-install-peers=false
 
-FROM node:24.11.1-bookworm-slim AS runner
+FROM node:24.11.1-alpine3.22 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
