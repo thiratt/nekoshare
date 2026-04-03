@@ -12,11 +12,7 @@
     "check": "prettier --write . && eslint --fix"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.0.6",
-    "@tanstack/react-devtools": "^0.8.4",
     "@tanstack/react-router": "^1.140.0",
-    "@tanstack/react-router-devtools": "^1.140.0",
-    "@tanstack/router-plugin": "^1.140.0",
     "@workspace/app-ui": "workspace:*",
     "@workspace/ui": "workspace:*",
     "lucide-react": "^0.545.0",
@@ -26,8 +22,10 @@
     "tailwindcss": "^4.0.6"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.0.6",
     "@tanstack/devtools-vite": "^0.3.12",
     "@tanstack/eslint-config": "^0.3.4",
+    "@tanstack/router-plugin": "^1.140.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
     "@types/node": "^22.10.2",
