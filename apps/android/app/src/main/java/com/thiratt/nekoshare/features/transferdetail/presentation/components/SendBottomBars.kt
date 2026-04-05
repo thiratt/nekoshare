@@ -10,8 +10,10 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -42,6 +44,8 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -122,24 +126,22 @@ internal fun SendDetailBottomBar(
                 exit = fadeOut() + scaleOut(targetScale = 0.6f) + shrinkHorizontally(shrinkTowards = Alignment.End)
             ) {
                 Box(modifier = Modifier.padding(start = 8.dp)) {
-                    IconButton(
+                    CircleActionButton(
                         onClick = onPauseResumeClick,
-                        modifier = Modifier
-                            .size(60.dp)
-                            .shadow(2.dp, CircleShape)
-                            .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
+                        backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentDescription = if (isPaused) "ทำต่อการส่ง" else "หยุดการส่ง"
                     ) {
                         AnimatedContent(
                             targetState = isPaused,
                             transitionSpec = {
                                 (fadeIn() + scaleIn(initialScale = 0.6f)) togetherWith
-                                        (fadeOut() + scaleOut(targetScale = 0.6f))
+                                    (fadeOut() + scaleOut(targetScale = 0.6f))
                             },
                             label = "PauseIconTransition"
                         ) { paused ->
                             Icon(
                                 imageVector = if (paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
-                                contentDescription = if (paused) "ทำต่อการส่ง" else "หยุดการส่ง",
+                                contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -173,6 +175,30 @@ internal fun SendDetailBottomBar(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CircleActionButton(
+    onClick: () -> Unit,
+    backgroundColor: Color,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(60.dp)
+            .shadow(2.dp, CircleShape)
+            .clip(CircleShape)
+            .background(backgroundColor)
+            .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                this.contentDescription = contentDescription
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        content()
     }
 }
 
@@ -236,16 +262,14 @@ private fun ActionCircleButton(
     iconTint: Color,
     onClick: () -> Unit
 ) {
-    IconButton(
+    CircleActionButton(
         onClick = onClick,
-        modifier = Modifier
-            .size(60.dp)
-            .shadow(2.dp, CircleShape)
-            .background(backgroundColor, CircleShape)
+        backgroundColor = backgroundColor,
+        contentDescription = contentDescription
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = contentDescription,
+            contentDescription = null,
             tint = iconTint
         )
     }
