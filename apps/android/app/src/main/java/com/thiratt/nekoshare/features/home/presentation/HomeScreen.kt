@@ -204,6 +204,7 @@ private data class TabSearchState(
 )
 
 private const val HOME_TAB_COUNT = 3
+private val HOME_FAB_CLEARANCE = 64.dp
 
 @Composable
 private fun HomeTabsContent(
@@ -245,7 +246,8 @@ private fun HomeTabsContent(
                     onNotificationsClick = onNotificationsClick,
                     onSettingsClick = onSettingsClick,
                     onFilterSelected = onHomeFilterSelected,
-                    onScrollPositionChange = onHomeScrollPositionChanged
+                    onScrollPositionChange = onHomeScrollPositionChanged,
+                    contentPadding = HOME_FAB_CLEARANCE
                 )
 
                 1 -> FriendsContent(
