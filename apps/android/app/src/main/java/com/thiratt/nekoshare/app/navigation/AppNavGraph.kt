@@ -29,6 +29,7 @@ import com.thiratt.nekoshare.core.navigation.SettingsStorageAndData
 import com.thiratt.nekoshare.core.navigation.Signup
 import com.thiratt.nekoshare.core.navigation.Welcome
 import com.thiratt.nekoshare.core.navigation.rememberSafeNavigator
+import com.thiratt.nekoshare.features.auth.data.AuthRepository
 import com.thiratt.nekoshare.features.auth.presentation.forgotpassword.ForgotPasswordNavEvent
 import com.thiratt.nekoshare.features.auth.presentation.forgotpassword.ForgotPasswordRoute
 import com.thiratt.nekoshare.features.auth.presentation.login.LoginNavEvent
@@ -63,7 +64,6 @@ import com.thiratt.nekoshare.features.transferdetail.model.TransferStatus
 import com.thiratt.nekoshare.features.transferdetail.model.toDetailItem
 import com.thiratt.nekoshare.features.transferdetail.presentation.TransferDetailRoute
 import com.thiratt.nekoshare.core.navigation.TransferItem as TransferItemRoute
-import com.thiratt.nekoshare.features.auth.data.AuthRepository
 
 @Composable
 fun AppNavGraph(
@@ -84,6 +84,7 @@ fun AppNavGraph(
         onBack = { navigator.pop() },
         transitionSpec = { enterTransition togetherWith exitTransition },
         popTransitionSpec = { popEnterTransition togetherWith popExitTransition },
+        predictivePopTransitionSpec = { popEnterTransition togetherWith popExitTransition },
         entryProvider = { key ->
             authNav(key, navigator)
                 ?: homeNav(key, navigator)
