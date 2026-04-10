@@ -1,7 +1,7 @@
 ﻿import { friendRequestSchema } from "./friends.schema";
 import { FriendsService } from "./friends.service";
 
-import { handleControllerError, jsonSuccess } from "@/shared/http";
+import { handleControllerError, HttpServiceError, jsonSuccess } from "@/shared/http";
 import type { AppContext } from "@/shared/http/router";
 
 export function createFriendsController(service: FriendsService) {
@@ -30,6 +30,9 @@ export function createFriendsController(service: FriendsService) {
 			try {
 				const currentUser = c.get("user");
 				const friendId = c.req.param("id");
+				if (!friendId) {
+					throw new HttpServiceError("VALIDATION_ERROR", 400, "Friend ID is required.");
+				}
 				const data = await service.accept(currentUser, friendId);
 
 				return jsonSuccess(c, data);
@@ -42,6 +45,9 @@ export function createFriendsController(service: FriendsService) {
 			try {
 				const currentUser = c.get("user");
 				const friendId = c.req.param("id");
+				if (!friendId) {
+					throw new HttpServiceError("VALIDATION_ERROR", 400, "Friend ID is required.");
+				}
 				const data = await service.reject(currentUser, friendId);
 
 				return jsonSuccess(c, data);
@@ -54,6 +60,9 @@ export function createFriendsController(service: FriendsService) {
 			try {
 				const currentUser = c.get("user");
 				const friendId = c.req.param("id");
+				if (!friendId) {
+					throw new HttpServiceError("VALIDATION_ERROR", 400, "Friend ID is required.");
+				}
 				const data = await service.cancel(currentUser, friendId);
 
 				return jsonSuccess(c, data);
@@ -66,6 +75,9 @@ export function createFriendsController(service: FriendsService) {
 			try {
 				const currentUser = c.get("user");
 				const friendId = c.req.param("id");
+				if (!friendId) {
+					throw new HttpServiceError("VALIDATION_ERROR", 400, "Friend ID is required.");
+				}
 				const data = await service.remove(currentUser, friendId);
 
 				return jsonSuccess(c, data);

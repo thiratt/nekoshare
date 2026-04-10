@@ -1,3 +1,4 @@
+import { env } from "@/config/env";
 import { Logger } from "@/infrastructure/logger";
 import { getRedisClient } from "@/infrastructure/redis";
 import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
@@ -15,7 +16,7 @@ type PublishWsUserEventInput = Omit<WsUserEventPayload, "sourceNodeId">;
 type RedisClient = ReturnType<typeof getRedisClient>;
 
 const WS_USER_EVENTS_CHANNEL = "nekoshare:ws:user-events";
-const SOURCE_NODE_ID = process.env.NODE_ID?.trim() || `node_${process.pid}_${Math.random().toString(36).slice(2, 8)}`;
+const SOURCE_NODE_ID = env.NODE_ID;
 
 let initialized = false;
 let subscriberClient: RedisClient | null = null;

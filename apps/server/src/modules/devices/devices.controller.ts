@@ -1,7 +1,7 @@
 ﻿import { deviceRegistrationSchema, deviceUpdateSchema } from "./devices.schema";
 import { DevicesService } from "./devices.service";
 
-import { handleControllerError, jsonSuccess } from "@/shared/http";
+import { handleControllerError, HttpServiceError, jsonSuccess } from "@/shared/http";
 import type { AppContext } from "@/shared/http/router";
 
 export function createDevicesController(service: DevicesService) {
@@ -30,6 +30,9 @@ export function createDevicesController(service: DevicesService) {
 			try {
 				const session = c.get("session");
 				const deviceId = c.req.param("id");
+				if (!deviceId) {
+					throw new HttpServiceError("VALIDATION_ERROR", 400, "Device ID is required.");
+				}
 				const rawBody = await c.req.json();
 				const body = deviceUpdateSchema.parse(rawBody);
 				const data = await service.update(session, deviceId, body);
@@ -44,6 +47,9 @@ export function createDevicesController(service: DevicesService) {
 			try {
 				const session = c.get("session");
 				const deviceId = c.req.param("id");
+				if (!deviceId) {
+					throw new HttpServiceError("VALIDATION_ERROR", 400, "Device ID is required.");
+				}
 				const data = await service.remove(session, deviceId);
 
 				return jsonSuccess(c, data);

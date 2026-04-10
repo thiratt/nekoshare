@@ -1,3 +1,4 @@
+import { env } from "@/config/env";
 import { Logger } from "@/infrastructure/logger";
 import { getRedisClient } from "@/infrastructure/redis";
 import type { IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
@@ -7,7 +8,7 @@ const ROUTE_DEVICE_PREFIX = "route:device:";
 const ROUTE_TTL_SECONDS = 90;
 const ROUTE_HEARTBEAT_MS = 30_000;
 const ROUTE_TOKEN_DELIMITER = "|";
-const NODE_ID = process.env.NODE_ID?.trim() || `node_${process.pid}_${Math.random().toString(36).slice(2, 8)}`;
+const NODE_ID = env.NODE_ID;
 
 const COMPARE_AND_DELETE_SCRIPT = `
 if redis.call("GET", KEYS[1]) == ARGV[1] then
