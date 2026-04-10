@@ -14,19 +14,22 @@ RUN pnpm install --frozen-lockfile --filter server...
 FROM deps AS build
 COPY apps/server apps/server
 COPY packages/contracts packages/contracts
+COPY packages/eslint-config packages/eslint-config
 RUN pnpm -C apps/server build
-
-FROM build AS prod-deps
-RUN mkdir -p /prod/server && cp /workspace/apps/server/.package.prod.json /prod/server/package.json
-WORKDIR /prod/server
-RUN pnpm install --prod --no-frozen-lockfile --config.auto-install-peers=false
+RUN if [ -f /workspace/apps/server/.package.prod.json ]; then \
+      mkdir -p /prod/server && \
+      cp /workspace/apps/server/.package.prod.json /prod/server/package.json && \
+      cd /prod/server && \
+      pnpm install --prod --no-frozen-lockfile --config.auto-install-peers=false; \
+    else \
+      pnpm --filter server deploy --prod --legacy /prod/server; \
+    fi
 
 FROM node:24.11.1-alpine3.22 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY --from=prod-deps /prod/server/node_modules ./node_modules
-COPY --from=prod-deps /prod/server/package.json ./package.json
+COPY --from=build /prod/server ./
 COPY --from=build /workspace/apps/server/dist ./dist
 COPY --from=build /workspace/apps/server/drizzle ./drizzle
 

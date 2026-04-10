@@ -16,6 +16,8 @@ COPY packages/typescript-config/package.json packages/typescript-config/package.
 RUN pnpm install --frozen-lockfile --filter web...
 
 FROM deps AS build
+ARG WEB_API_BASE_URL
+ARG WEB_WS_BASE_URL
 COPY apps/web apps/web
 COPY packages/app-ui packages/app-ui
 COPY packages/ui packages/ui
@@ -23,11 +25,11 @@ COPY packages/contracts packages/contracts
 COPY packages/nk-websocket packages/nk-websocket
 COPY packages/eslint-config packages/eslint-config
 COPY packages/typescript-config packages/typescript-config
-RUN pnpm -C apps/web build
+RUN VITE_API_BASE_URL="$WEB_API_BASE_URL" VITE_WS_BASE_URL="$WEB_WS_BASE_URL" pnpm -C apps/web build
 
-FROM nginx:1.29.6-alpine3.23-slim AS runner
+FROM nginxinc/nginx-unprivileged:1.29-alpine-slim AS runner
 COPY apps/web/docker/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /workspace/apps/web/dist /usr/share/nginx/html
 
-EXPOSE 80
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]

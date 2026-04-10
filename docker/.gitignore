@@ -1,1 +1,4 @@
-.env.dev
+.env
+.env.*
+!.env.example
+!.env.dev.example
