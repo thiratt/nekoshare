@@ -12,11 +12,11 @@ import { env } from "@/config/env";
 import { Logger } from "@/infrastructure/logger";
 
 const poolConnection = mysql.createPool({
-	host: env.DB_HOST,
-	user: env.DB_USER,
-	password: env.DB_PASSWORD,
-	database: env.DB_NAME,
-	port: env.DB_PORT,
+	host: env.DATABASE.host,
+	port: env.DATABASE.port,
+	user: env.DATABASE.user,
+	...(env.DATABASE.password === undefined ? {} : { password: env.DATABASE.password }),
+	database: env.DATABASE.database,
 });
 
 const db = drizzle(poolConnection, { schema, mode: "default" });

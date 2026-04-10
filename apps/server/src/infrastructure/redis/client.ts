@@ -10,10 +10,12 @@ let redisClient: RedisClient | null = null;
 function buildClient(): RedisClient {
 	const client = createClient({
 		socket: {
-			host: env.REDIS_HOST,
-			port: env.REDIS_PORT,
+			host: env.REDIS.host,
+			port: env.REDIS.port,
 		},
-		password: env.REDIS_PASSWORD,
+		database: env.REDIS.database,
+		...(env.REDIS.username === undefined ? {} : { username: env.REDIS.username }),
+		...(env.REDIS.password === undefined ? {} : { password: env.REDIS.password }),
 	});
 
 	client.on("error", (error) => {

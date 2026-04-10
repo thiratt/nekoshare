@@ -13,13 +13,17 @@ import {
 } from "./config";
 import { accountSchemaOptions, userSchemaOptions } from "./schema";
 
+import { env } from "@/config/env";
+
 export const auth = betterAuth({
 	appName: "Nekoshare",
+	baseURL: env.BETTER_AUTH_URL,
 	basePath: "auth",
 	database: databaseOptions,
 	databaseHooks: databaseHookOptions,
 	emailAndPassword: emailAndPasswordOptions,
 	socialProviders: socialProvidersOptions,
+	secret: env.BETTER_AUTH_SECRET,
 	session: sessionOptions,
 	plugins: pluginsOptions,
 	trustedOrigins: trustedOriginsOptions,

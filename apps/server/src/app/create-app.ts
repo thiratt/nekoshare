@@ -17,16 +17,7 @@ import { onError } from "@/shared/errors/hono";
 
 const CORS_CONFIG = {
 	origin: (origin: string) => {
-		const allowedOrigins = [
-			"http://localhost:7787",
-			"http://127.0.0.1:7787",
-			"http://localhost:7786",
-			"http://127.0.0.1:7786",
-			"http://tauri.localhost",
-			"tauri://localhost",
-		];
-
-		if (allowedOrigins.includes(origin) || !origin) {
+		if (env.ALLOWED_ORIGINS.includes(origin) || !origin) {
 			return origin;
 		}
 
