@@ -9,11 +9,14 @@ interface AuthErrorLike {
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   access_denied: "คุณยกเลิกการเข้าสู่ระบบด้วย Google",
   account_already_linked_to_different_user:
-    "บัญชี Google นี้ถูกเชื่อมกับผู้ใช้อื่นอยู่แล้ว",
+    "บัญชี Google นี้เชื่อมกับสมาชิกคนอื่นอยู่แล้ว",
   account_not_linked: "บัญชี Google นี้ยังไม่ได้เชื่อมกับบัญชีของคุณ",
   email_already_exists: "อีเมลนี้ถูกใช้งานแล้ว",
+  email_delivery_unavailable:
+    "ระบบส่งอีเมลยังไม่พร้อมใช้งาน กรุณาลองใหม่อีกครั้งภายหลัง",
   email_doesnt_match: "อีเมลของบัญชี Google ไม่ตรงกับบัญชีที่ต้องการเชื่อม",
   email_not_found: "ไม่พบอีเมลจากบัญชี Google นี้",
+  email_not_verified: "อีเมลของบัญชี Google นี้ยังไม่ได้ยืนยัน",
   failed_to_create_user: "ไม่สามารถสร้างบัญชีผู้ใช้ได้ในขณะนี้",
   google_login_cancelled: "คุณยกเลิกการเข้าสู่ระบบด้วย Google",
   invalid_code:
@@ -21,18 +24,25 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   invalid_credentials: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
   invalid_email: "รูปแบบอีเมลไม่ถูกต้อง",
   invalid_email_or_password: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+  invalid_or_expired_challenge:
+    "ลิงก์ยืนยันหมดอายุหรือไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง",
   invalid_password: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
-  invalid_token: "เซสชันการเข้าสู่ระบบหมดอายุ กรุณาลองใหม่อีกครั้ง",
+  invalid_token: "เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง",
+  link_provider_email_sent:
+    "เราได้ส่งอีเมลยืนยันเพื่อเชื่อม Google กับบัญชีนี้แล้ว",
   no_callback_url: "ไม่พบปลายทางหลังเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง",
   no_code: "ไม่ได้รับรหัสยืนยันจาก Google กรุณาลองใหม่อีกครั้ง",
-  oauth_failed: "ไม่สามารถดำเนินการเข้าสู่ระบบด้วย Google ได้ในขณะนี้",
+  oauth_failed: "ไม่สามารถดำเนินการต่อด้วย Google ได้ในขณะนี้",
   oauth_provider_not_found: "ไม่พบผู้ให้บริการเข้าสู่ระบบที่ต้องการ",
   password_too_short: "รหัสผ่านสั้นเกินไป",
-  session_not_found: "เซสชันการเข้าสู่ระบบหมดอายุ กรุณาลองใหม่อีกครั้ง",
+  provider_requires_manual_link:
+    "บัญชีนี้ต้องเชื่อมจากภายในระบบที่ล็อกอินอยู่เท่านั้น",
+  session_not_found: "เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง",
+  setup_password_email_sent: "เราได้ส่งอีเมลเพื่อตั้งรหัสผ่านให้คุณแล้ว",
   signup_disabled: "ไม่พบบัญชีนี้ กรุณาสมัครสมาชิกก่อน",
   state_mismatch: "เซสชันการเข้าสู่ระบบหมดอายุ กรุณาลองใหม่อีกครั้ง",
-  token_expired: "เซสชันการเข้าสู่ระบบหมดอายุ กรุณาลองใหม่อีกครั้ง",
-  unable_to_create_user: "ไม่พบบัญชีนี้ กรุณาสมัครสมาชิกก่อน",
+  token_expired: "เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง",
+  unable_to_create_user: "ไม่สามารถสร้างบัญชีผู้ใช้ได้ในขณะนี้",
   unable_to_get_user_info: "ไม่สามารถดึงข้อมูลผู้ใช้จาก Google ได้ในขณะนี้",
   unable_to_link_account: "ไม่สามารถเชื่อมบัญชี Google ได้ในขณะนี้",
   user_already_exists: "บัญชีนี้มีอยู่แล้ว กรุณาใช้อีเมลหรือชื่อผู้ใช้อื่น",

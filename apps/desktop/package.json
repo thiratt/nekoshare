@@ -9,7 +9,7 @@
     "build:w": "vite build && tsc",
     "serve": "vite preview",
     "test": "vitest run",
-    "lint": "eslint",
+    "lint": "eslint . --max-warnings 0",
     "format": "prettier",
     "check": "prettier --write . && eslint --fix"
   },

@@ -7,7 +7,11 @@ import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import type { TSignupSchema } from "@workspace/app-ui/types/schema";
 
 import { useGoogleAuthProgress } from "@/context/GoogleAuthProgressContext";
-import { authClient, invalidateSessionCache } from "@/lib/auth";
+import {
+  continueDesktopEmailSignUp,
+  exchangeDesktopAuthResultToken,
+} from "@/lib/app-auth";
+import { invalidateSessionCache } from "@/lib/auth";
 import { bootstrapAuthenticatedDesktopSession } from "@/lib/auth-bootstrap";
 import { getThaiAuthErrorMessage } from "@/lib/auth-error";
 import {
@@ -29,7 +33,12 @@ function RouteComponent() {
   const onGoogle = async () => {
     try {
       showGoogleAuthProgress();
-      await signInWithGoogle("signup");
+      const result = await signInWithGoogle("signup");
+      if (result.status === "action_required") {
+        toast.info(result.message);
+        return;
+      }
+
       invalidateSessionCache();
       setGlobalLoading(true);
       await bootstrapAuthenticatedDesktopSession();
@@ -50,16 +59,28 @@ function RouteComponent() {
 
   const onSubmit = async (data: TSignupSchema) => {
     try {
-      const result = await authClient.signUp.email({
+      const result = await continueDesktopEmailSignUp({
         email: data.email,
-        password: data.password,
         name: data.username,
+        password: data.password,
       });
 
-      if (result.error) {
-        throw result.error;
+      if (result.status === "action_required") {
+        toast.info(getThaiAuthErrorMessage(result.code, result.message));
+        return;
       }
 
+      if (result.status === "terminal_error") {
+        toast.error(
+          getThaiAuthErrorMessage(
+            result.code,
+            "ไม่สามารถสร้างบัญชีได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง",
+          ),
+        );
+        return;
+      }
+
+      await exchangeDesktopAuthResultToken(result.resultToken.token);
       invalidateSessionCache();
       setGlobalLoading(true);
       await bootstrapAuthenticatedDesktopSession();

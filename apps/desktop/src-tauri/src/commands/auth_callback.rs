@@ -103,6 +103,70 @@ fn success_page_html() -> String {
     .join("")
 }
 
+fn is_action_required_error(error: &str) -> bool {
+    matches!(error, "link_provider_email_sent" | "setup_password_email_sent")
+        || error.ends_with("_email_sent")
+}
+
+fn action_required_copy(error: &str) -> (&'static str, &'static str) {
+    match error {
+        "link_provider_email_sent" => (
+            "Check your email",
+            "We sent a confirmation email to finish linking this sign-in method.",
+        ),
+        "setup_password_email_sent" => (
+            "Check your email",
+            "We sent a secure email so you can set a password for this account.",
+        ),
+        _ => (
+            "Check your email",
+            "We sent an email with the next step for this sign-in request.",
+        ),
+    }
+}
+
+fn action_required_page_html(error: &str) -> String {
+    let escaped_error = escape_html(error);
+    let (title, description) = action_required_copy(error);
+    [
+        "<!doctype html>",
+        "<html lang=\"en\">",
+        "<head>",
+        "<meta charset=\"utf-8\" />",
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />",
+        "<title>",
+        title,
+        "</title>",
+        "<style>",
+        ":root{color-scheme:light;font-family:\"Segoe UI\",Arial,sans-serif;background:#f5efe5;color:#1f2937;}",
+        "body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at top,rgba(208,177,144,.28),transparent 40%),linear-gradient(180deg,#fbf7f1 0%,#f1e6d6 100%);}",
+        "main{width:min(480px,calc(100vw - 32px));padding:32px 28px;border-radius:24px;background:rgba(255,255,255,.92);box-shadow:0 24px 80px rgba(74,55,40,.15);border:1px solid rgba(125,89,58,.1);}",
+        "h1{margin:0 0 12px;font-size:28px;line-height:1.15;}",
+        "p{margin:0;line-height:1.6;color:#4b5563;}",
+        ".stack{display:grid;gap:14px;}",
+        ".detail{margin-top:16px;font-size:13px;color:#6b7280;}",
+        "</style>",
+        "</head>",
+        "<body>",
+        "<main class=\"stack\">",
+        "<h1>",
+        title,
+        "</h1>",
+        "<p>",
+        description,
+        "</p>",
+        "<p>Return to the app after you complete the step from your email.</p>",
+        "<p class=\"detail\">Status: ",
+        &escaped_error,
+        "</p>",
+        "</main>",
+        "<script>window.setTimeout(()=>window.close(),300);</script>",
+        "</body>",
+        "</html>",
+    ]
+    .join("")
+}
+
 fn error_page_html(error: &str) -> String {
     let escaped_error = escape_html(error);
     [
@@ -144,6 +208,7 @@ fn invalid_request_page_html() -> &'static str {
 
 fn callback_page_html(payload: &GoogleAuthCallbackPayload) -> String {
     match payload.error.as_deref() {
+        Some(error) if is_action_required_error(error) => action_required_page_html(error),
         Some(error) => error_page_html(error),
         None => success_page_html(),
     }

@@ -2,30 +2,37 @@ import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { config } from "@workspace/app-ui/lib/config";
-import { xfetch } from "@workspace/app-ui/lib/xfetch";
 
+import { exchangeDesktopAuthResultToken } from "@/lib/app-auth";
 import { getThaiAuthErrorMessage } from "@/lib/auth-error";
 
 export type GoogleAuthFlow = "login" | "signup";
 
+export type GoogleAuthResult =
+  | {
+      status: "action_required";
+      message: string;
+    }
+  | {
+      status: "signed_in";
+    };
+
+const ACTION_REQUIRED_CODES = new Set([
+  "link_provider_email_sent",
+  "setup_password_email_sent",
+]);
 const GOOGLE_AUTH_CANCELLED_MESSAGE = "คุณยกเลิกการเข้าสู่ระบบด้วย Google";
 const GOOGLE_AUTH_ERROR_FALLBACK =
-  "ไม่สามารถดำเนินการเข้าสู่ระบบด้วย Google ได้ในขณะนี้";
-
-interface AuthErrorResponse {
-  code?: string;
-  error?: string;
-  message?: string;
-}
+  "ไม่สามารถดำเนินการต่อด้วย Google ได้ในขณะนี้";
 
 interface GoogleAuthCallbackServerStartResponse {
-  serverId: string;
   callbackUrl: string;
+  serverId: string;
 }
 
 interface GoogleAuthCallbackPayload {
-  token?: string;
   error?: string;
+  token?: string;
 }
 
 let cancelPendingGoogleAuth: (() => Promise<void>) | null = null;
@@ -42,10 +49,13 @@ function createDesktopGoogleStartUrl(
   attempt: string,
   callbackUrl: string,
 ): string {
-  const startUrl = new URL("/auth/desktop/google/start", config.apiBaseUrl);
-  startUrl.searchParams.set("flow", flow);
+  const startUrl = new URL(
+    "/auth/app/provider/google/desktop/start",
+    config.apiBaseUrl,
+  );
   startUrl.searchParams.set("attempt", attempt);
   startUrl.searchParams.set("callback_url", callbackUrl);
+  startUrl.searchParams.set("flow", flow);
   return startUrl.toString();
 }
 
@@ -76,29 +86,6 @@ export function isGoogleAuthCancelledError(
   return error instanceof GoogleAuthCancelledError;
 }
 
-async function readAuthErrorMessage(response: Response): Promise<string> {
-  const payload = (await response
-    .json()
-    .catch(() => null)) as AuthErrorResponse | null;
-
-  if (payload?.code) {
-    return toGoogleAuthErrorMessage(payload.code);
-  }
-
-  if (payload?.error) {
-    return toGoogleAuthErrorMessage(payload.error);
-  }
-
-  if (
-    typeof payload?.message === "string" &&
-    payload.message.trim().length > 0
-  ) {
-    return getThaiAuthErrorMessage(payload.message, GOOGLE_AUTH_ERROR_FALLBACK);
-  }
-
-  return `คำขอไม่สำเร็จ (สถานะ ${response.status})`;
-}
-
 async function startGoogleAuthCallbackServer(
   attempt: string,
 ): Promise<GoogleAuthCallbackServerStartResponse> {
@@ -123,7 +110,7 @@ async function startGoogleAuthCallbackServer(
     throw new Error("ไม่สามารถอ่านที่อยู่ callback สำหรับ Google ได้");
   }
 
-  return { serverId, callbackUrl };
+  return { callbackUrl, serverId };
 }
 
 async function waitForGoogleAuthCallback(
@@ -132,7 +119,6 @@ async function waitForGoogleAuthCallback(
   const payload = await invoke<unknown>("ns_wait_google_auth_callback_server", {
     serverId,
   });
-
   if (!payload || typeof payload !== "object") {
     throw new Error("ข้อมูล callback จาก Google ไม่ถูกต้อง");
   }
@@ -150,7 +136,7 @@ async function waitForGoogleAuthCallback(
     throw new Error("ข้อมูล callback จาก Google ไม่ครบถ้วน");
   }
 
-  return { token, error };
+  return { error, token };
 }
 
 async function cancelGoogleAuthCallbackServer(serverId: string): Promise<void> {
@@ -167,28 +153,15 @@ export async function cancelPendingGoogleAuthSignIn(): Promise<void> {
   await cancel();
 }
 
-async function exchangeGoogleOneTimeToken(token: string): Promise<void> {
-  const response = await xfetch("auth/one-time-token/verify", {
-    method: "POST",
-    body: { token },
-    operation: "Google sign-in token exchange",
-  });
-
-  if (!response.ok) {
-    throw new Error(await readAuthErrorMessage(response));
-  }
-
-  await response.json().catch(() => null);
-}
-
-export async function signInWithGoogle(flow: GoogleAuthFlow): Promise<void> {
+export async function signInWithGoogle(
+  flow: GoogleAuthFlow,
+): Promise<GoogleAuthResult> {
   const attempt = crypto.randomUUID();
-  const { serverId, callbackUrl } =
+  const { callbackUrl, serverId } =
     await startGoogleAuthCallbackServer(attempt);
   const redirectUrl = createDesktopGoogleStartUrl(flow, attempt, callbackUrl);
   const callbackPromise = waitForGoogleAuthCallback(serverId).catch((error) => {
     const normalizedError = toError(error, GOOGLE_AUTH_ERROR_FALLBACK);
-
     if (normalizedError.message === GOOGLE_AUTH_CANCELLED_MESSAGE) {
       throw new GoogleAuthCancelledError();
     }
@@ -205,6 +178,16 @@ export async function signInWithGoogle(flow: GoogleAuthFlow): Promise<void> {
     const callbackPayload = await callbackPromise;
 
     if (callbackPayload.error) {
+      if (ACTION_REQUIRED_CODES.has(callbackPayload.error)) {
+        return {
+          message: getThaiAuthErrorMessage(
+            callbackPayload.error,
+            "เราได้ส่งอีเมลสำหรับดำเนินการต่อให้แล้ว",
+          ),
+          status: "action_required",
+        };
+      }
+
       throw new Error(toGoogleAuthErrorMessage(callbackPayload.error));
     }
 
@@ -212,7 +195,8 @@ export async function signInWithGoogle(flow: GoogleAuthFlow): Promise<void> {
       throw new Error(GOOGLE_AUTH_ERROR_FALLBACK);
     }
 
-    await exchangeGoogleOneTimeToken(callbackPayload.token);
+    await exchangeDesktopAuthResultToken(callbackPayload.token);
+    return { status: "signed_in" };
   } catch (error) {
     if (!isGoogleAuthCancelledError(error)) {
       await cancelGoogleAuthCallbackServer(serverId).catch(() => undefined);

@@ -7,7 +7,11 @@ import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import type { TLoginSchema } from "@workspace/app-ui/types/schema";
 
 import { useGoogleAuthProgress } from "@/context/GoogleAuthProgressContext";
-import { authClient, invalidateSessionCache } from "@/lib/auth";
+import {
+  continueDesktopEmailSignIn,
+  exchangeDesktopAuthResultToken,
+} from "@/lib/app-auth";
+import { invalidateSessionCache } from "@/lib/auth";
 import { bootstrapAuthenticatedDesktopSession } from "@/lib/auth-bootstrap";
 import { getThaiAuthErrorMessage } from "@/lib/auth-error";
 import {
@@ -29,7 +33,12 @@ function RouteComponent() {
   const onGoogle = async () => {
     try {
       showGoogleAuthProgress();
-      await signInWithGoogle("login");
+      const result = await signInWithGoogle("login");
+      if (result.status === "action_required") {
+        toast.info(result.message);
+        return;
+      }
+
       invalidateSessionCache();
       setGlobalLoading(true);
       await bootstrapAuthenticatedDesktopSession();
@@ -53,15 +62,27 @@ function RouteComponent() {
 
   const onSubmit = async (data: TLoginSchema) => {
     try {
-      const result = await authClient.signIn.email({
+      const result = await continueDesktopEmailSignIn({
         email: data.identifier,
         password: data.password,
       });
 
-      if (result.error) {
-        throw result.error;
+      if (result.status === "action_required") {
+        toast.info(getThaiAuthErrorMessage(result.code, result.message));
+        return;
       }
 
+      if (result.status === "terminal_error") {
+        toast.error(
+          getThaiAuthErrorMessage(
+            result.code,
+            "ไม่สามารถเข้าสู่ระบบได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง",
+          ),
+        );
+        return;
+      }
+
+      await exchangeDesktopAuthResultToken(result.resultToken.token);
       invalidateSessionCache();
       setGlobalLoading(true);
       await bootstrapAuthenticatedDesktopSession();
