@@ -1,17 +1,32 @@
 import { generateRandomString } from "better-auth/crypto";
-import { handleOAuthUserInfo } from "better-auth/oauth2";
 import { z } from "zod";
+
+import {
+	buildCallbackRedirectURL,
+	completePasswordSetup,
+	consumeAuthChallenge,
+	getPasswordSetupPageHtml,
+	getPublicBaseURL,
+	getStatusPageHtml,
+	type ProviderAccountPayload,
+	resolveAuthenticatedGoogleLink,
+	resolveEmailSignIn,
+	resolveEmailSignUp,
+	resolveGoogleContinue,
+	resolvePasswordHelp,
+} from "./lib/app-auth";
 
 import { env } from "@/config/env";
 import { Logger } from "@/infrastructure/logger";
 import { auth } from "@/modules/auth/lib";
 import { HttpServiceError } from "@/shared/http";
-import { handleControllerError, jsonError, jsonSuccess } from "@/shared/http";
+import { handleControllerError, jsonSuccess } from "@/shared/http";
 import type { AppContext } from "@/shared/http/router";
+import { error, success } from "@/types";
 
-const DESKTOP_GOOGLE_VERIFICATION_PREFIX = "desktop-google-oauth:";
-const GOOGLE_CALLBACK_PATH = "/auth/callback/google";
+const DESKTOP_GOOGLE_STATE_PREFIX = "desktop-google-oauth:";
 const DESKTOP_GOOGLE_STATE_TTL_MS = 10 * 60 * 1000;
+const GOOGLE_APP_CALLBACK_PATH = "/auth/app/provider/google/callback";
 const GOOGLE_TOKEN_INFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 
 type DesktopAuthFlow = "login" | "signup";
@@ -23,9 +38,49 @@ interface DesktopGoogleStatePayload {
 	flow: DesktopAuthFlow;
 }
 
-const mobileGoogleAuthBodySchema = z.object({
+interface GoogleIdentityProfile {
+	email: string;
+	emailVerified: boolean;
+	id: string;
+	image?: string;
+	name: string;
+}
+
+const appEmailSignInBodySchema = z.object({
+	callbackURL: z.string().url().optional(),
+	email: z.string().email(),
+	password: z.string().min(1),
+});
+
+const appEmailSignUpBodySchema = z.object({
+	callbackURL: z.string().url().optional(),
+	email: z.string().email(),
+	name: z.string().trim().min(1),
+	password: z.string().min(1),
+	username: z.string().trim().min(1).optional(),
+});
+
+const appPasswordHelpBodySchema = z.object({
+	callbackURL: z.string().url().optional(),
+	email: z.string().email(),
+});
+
+const appResultExchangeBodySchema = z.object({
+	token: z.string().min(1),
+});
+
+const appGoogleContinueBodySchema = z.object({
+	callbackURL: z.string().url().optional(),
 	idToken: z.string().min(1),
-	flow: z.enum(["login", "signup"]).default("login"),
+});
+
+const appGoogleLinkBodySchema = z.object({
+	idToken: z.string().min(1),
+});
+
+const passwordSetupBodySchema = z.object({
+	newPassword: z.string().min(1),
+	token: z.string().min(1),
 });
 
 const googleTokenInfoSchema = z.object({
@@ -39,16 +94,73 @@ const googleTokenInfoSchema = z.object({
 	sub: z.string().min(1),
 });
 
-interface GoogleIdentityProfile {
-	email: string;
-	emailVerified: boolean;
-	id: string;
-	image?: string;
-	name: string;
+function createDesktopLoopbackRedirect(
+	callbackUrl: string,
+	params: {
+		attempt?: string;
+		error?: string;
+		flow: DesktopAuthFlow;
+		token?: string;
+	},
+) {
+	const redirectUrl = new URL(callbackUrl);
+	redirectUrl.searchParams.set("flow", params.flow);
+
+	if (params.attempt) {
+		redirectUrl.searchParams.set("attempt", params.attempt);
+	} else {
+		redirectUrl.searchParams.delete("attempt");
+	}
+
+	if (params.token) {
+		redirectUrl.searchParams.set("token", params.token);
+	} else {
+		redirectUrl.searchParams.delete("token");
+	}
+
+	if (params.error) {
+		redirectUrl.searchParams.set("error", params.error);
+	} else {
+		redirectUrl.searchParams.delete("error");
+	}
+
+	return redirectUrl.toString();
 }
 
 function getDesktopAuthFlow(c: AppContext): DesktopAuthFlow {
 	return c.req.query("flow") === "signup" ? "signup" : "login";
+}
+
+function getDesktopGoogleStateKey(state: string): string {
+	return `${DESKTOP_GOOGLE_STATE_PREFIX}${state}`;
+}
+
+function getDesktopGoogleStartCallbackUrl(c: AppContext, baseUrl?: string): string {
+	if (baseUrl) {
+		return new URL(GOOGLE_APP_CALLBACK_PATH, baseUrl).toString();
+	}
+
+	const forwardedProto = c.req.header("x-forwarded-proto");
+	const forwardedHost = c.req.header("x-forwarded-host");
+	if (forwardedProto && forwardedHost) {
+		return `${forwardedProto}://${forwardedHost}${GOOGLE_APP_CALLBACK_PATH}`;
+	}
+
+	return new URL(GOOGLE_APP_CALLBACK_PATH, c.req.url).toString();
+}
+
+function getPublicBaseUrlFromContext(): string {
+	return getPublicBaseURL();
+}
+
+function jsonWithHeaders(body: unknown, status: number, headers: Headers) {
+	const responseHeaders = new Headers(headers);
+	responseHeaders.set("content-type", "application/json; charset=utf-8");
+
+	return new Response(JSON.stringify(body), {
+		headers: responseHeaders,
+		status,
+	});
 }
 
 function normalizeDesktopAuthError(error: unknown): string {
@@ -67,6 +179,7 @@ function normalizeDesktopAuthError(error: unknown): string {
 		if (typeof candidate.code === "string" && candidate.code.trim().length > 0) {
 			return candidate.code.trim();
 		}
+
 		if (typeof candidate.error === "string" && candidate.error.trim().length > 0) {
 			return candidate.error.trim();
 		}
@@ -74,9 +187,11 @@ function normalizeDesktopAuthError(error: unknown): string {
 		if (typeof candidate.body?.code === "string" && candidate.body.code.trim().length > 0) {
 			return candidate.body.code.trim();
 		}
+
 		if (typeof candidate.body?.error === "string" && candidate.body.error.trim().length > 0) {
 			return candidate.body.error.trim();
 		}
+
 		if (typeof candidate.body?.message === "string" && candidate.body.message.trim().length > 0) {
 			return candidate.body.message.trim().replace(/\s+/g, "_").toLowerCase();
 		}
@@ -89,22 +204,71 @@ function normalizeDesktopAuthError(error: unknown): string {
 	return "oauth_failed";
 }
 
-function getAuthErrorStatus(errorCode: string) {
-	switch (errorCode) {
-		case "signup_disabled":
-		case "user_not_found":
-			return 404 as const;
-		case "account_not_linked":
-		case "account_already_linked_to_different_user":
-			return 409 as const;
-		case "invalid_token":
-		case "token_expired":
+function respondWithDesktopAuthRedirect(
+	c: AppContext,
+	params: {
+		attempt?: string;
+		callbackUrl?: string;
+		error?: string;
+		flow: DesktopAuthFlow;
+		token?: string;
+	},
+) {
+	if (!params.callbackUrl) {
+		return c.json(
+			{
+				error: "desktop_callback_missing",
+				message: "Desktop auth callback URL is missing or invalid.",
+			},
+			400,
+		);
+	}
+
+	return c.redirect(createDesktopLoopbackRedirect(params.callbackUrl, params));
+}
+
+function toProviderAccount(
+	profile: GoogleIdentityProfile,
+	params: Partial<ProviderAccountPayload> = {},
+): ProviderAccountPayload {
+	return {
+		accountId: profile.id,
+		email: profile.email,
+		emailVerified: profile.emailVerified,
+		idToken: params.idToken,
+		image: profile.image,
+		name: profile.name,
+		providerId: "google",
+		...params,
+	};
+}
+
+function terminalFlowFromHttpError(error: HttpServiceError) {
+	switch (error.code) {
 		case "email_not_verified":
-			return 401 as const;
-		case "oauth_provider_not_found":
-			return 503 as const;
+			return {
+				code: "email_not_verified",
+				message: error.message,
+				status: "terminal_error",
+			} as const;
+		case "invalid_token":
+			return {
+				code: "invalid_token",
+				message: error.message,
+				status: "terminal_error",
+			} as const;
+		case "token_expired":
+			return {
+				code: "token_expired",
+				message: error.message,
+				status: "terminal_error",
+			} as const;
 		default:
-			return 400 as const;
+			return {
+				code: "oauth_failed",
+				message: error.message,
+				status: "terminal_error",
+			} as const;
 	}
 }
 
@@ -157,179 +321,309 @@ async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdentityProfi
 	};
 }
 
-function normalizeDesktopCallbackUrl(input?: string): string | undefined {
-	if (!input) {
-		return undefined;
+async function readPasswordSetupSubmission(c: AppContext) {
+	const contentType = c.req.header("content-type") || "";
+	if (contentType.includes("application/json")) {
+		return {
+			isJson: true,
+			payload: passwordSetupBodySchema.parse(await c.req.json()),
+		};
 	}
 
-	try {
-		const callbackUrl = new URL(input);
-		if (callbackUrl.protocol !== "http:") {
-			return undefined;
-		}
-
-		const hostname = callbackUrl.hostname.toLowerCase();
-		if (hostname !== "127.0.0.1" && hostname !== "localhost" && hostname !== "::1") {
-			return undefined;
-		}
-
-		if (!callbackUrl.port) {
-			return undefined;
-		}
-
-		return callbackUrl.toString();
-	} catch {
-		return undefined;
-	}
-}
-
-function createDesktopLoopbackRedirect(
-	callbackUrl: string,
-	params: {
-		flow: DesktopAuthFlow;
-		attempt?: string;
-		token?: string;
-		error?: string;
-	},
-) {
-	const redirectUrl = new URL(callbackUrl);
-	redirectUrl.searchParams.set("flow", params.flow);
-
-	if (params.attempt) {
-		redirectUrl.searchParams.set("attempt", params.attempt);
-	}
-
-	if (params.token) {
-		redirectUrl.searchParams.set("token", params.token);
-	} else {
-		redirectUrl.searchParams.delete("token");
-	}
-
-	if (params.error) {
-		redirectUrl.searchParams.set("error", params.error);
-	} else {
-		redirectUrl.searchParams.delete("error");
-	}
-
-	return redirectUrl.toString();
-}
-
-function respondWithDesktopAuthRedirect(
-	c: AppContext,
-	params: {
-		callbackUrl?: string;
-		flow: DesktopAuthFlow;
-		attempt?: string;
-		token?: string;
-		error?: string;
-	},
-) {
-	if (!params.callbackUrl) {
-		return c.json(
-			{
-				error: "desktop_callback_missing",
-				message: "Desktop auth callback URL is missing or invalid.",
-			},
-			400,
-		);
-	}
-
-	return c.redirect(createDesktopLoopbackRedirect(params.callbackUrl, params));
-}
-
-function getDesktopGoogleStateKey(state: string): string {
-	return `${DESKTOP_GOOGLE_VERIFICATION_PREFIX}${state}`;
-}
-
-function getGoogleCallbackUrl(c: AppContext, baseUrl?: string): string {
-	if (baseUrl) {
-		return new URL(GOOGLE_CALLBACK_PATH, baseUrl).toString();
-	}
-
-	const forwardedProto = c.req.header("x-forwarded-proto");
-	const forwardedHost = c.req.header("x-forwarded-host");
-	if (forwardedProto && forwardedHost) {
-		return `${forwardedProto}://${forwardedHost}${GOOGLE_CALLBACK_PATH}`;
-	}
-
-	return new URL(GOOGLE_CALLBACK_PATH, c.req.url).toString();
+	const formData = await c.req.raw.formData();
+	return {
+		isJson: false,
+		payload: passwordSetupBodySchema.parse({
+			newPassword: formData.get("newPassword"),
+			token: formData.get("token"),
+		}),
+	};
 }
 
 export const authController = {
 	handle(c: AppContext) {
 		return auth.handler(c.req.raw);
 	},
-	async handleMobileGoogleAuth(c: AppContext) {
+	async handleAppChallengeConsume(c: AppContext) {
+		const token = c.req.query("token");
+		if (!token) {
+			return c.html(getStatusPageHtml("Invalid request", "A verification token is required."), 400);
+		}
+
+		const result = await consumeAuthChallenge(token);
+
+		if (result.kind === "render_setup_password_form") {
+			return c.html(getPasswordSetupPageHtml(result.email, token));
+		}
+
+		if (result.kind === "error") {
+			if (result.callbackURL) {
+				return c.redirect(
+					buildCallbackRedirectURL(result.callbackURL, { error: "invalid_or_expired_challenge" }),
+				);
+			}
+
+			return c.html(getStatusPageHtml(result.title, result.message), 400);
+		}
+
+		if (result.callbackURL && result.redirectToken) {
+			return c.redirect(buildCallbackRedirectURL(result.callbackURL, { token: result.redirectToken }));
+		}
+
+		if (result.callbackURL && !result.redirectToken) {
+			return c.redirect(buildCallbackRedirectURL(result.callbackURL, { error: "oauth_failed" }));
+		}
+
+		return c.html(getStatusPageHtml(result.title, result.message));
+	},
+	async handleAppEmailSignIn(c: AppContext) {
 		try {
-			const payload = mobileGoogleAuthBodySchema.parse(await c.req.json());
-			const profile = await verifyGoogleIdToken(payload.idToken);
-			const authContext = await auth.$context;
-			const provider = authContext.socialProviders.find((entry) => entry.id === "google");
-
-			if (!provider) {
-				return jsonError(c, "oauth_provider_not_found", "Google sign-in is not available right now.", 503);
-			}
-
-			const oauthResult = await handleOAuthUserInfo(
-				{
-					context: authContext,
-					redirect: (url: string) => c.redirect(url),
-					request: c.req.raw,
-				} as never,
-				{
-					userInfo: {
-						email: profile.email,
-						emailVerified: profile.emailVerified,
-						id: profile.id,
-						image: profile.image,
-						name: profile.name,
-					},
-					account: {
-						accountId: profile.id,
-						idToken: payload.idToken,
-						providerId: provider.id,
-					},
-					callbackURL: "/",
-					disableSignUp: (provider.disableImplicitSignUp && payload.flow !== "signup") || !!provider.disableSignUp,
-				} as never,
-			);
-
-			if (oauthResult.error || !oauthResult.data?.session.token || !oauthResult.data.user) {
-				const errorCode = normalizeDesktopAuthError(oauthResult.error ?? "session_not_found");
-				return jsonError(c, errorCode, errorCode, getAuthErrorStatus(errorCode));
-			}
-
-			return jsonSuccess(c, {
-				token: oauthResult.data.session.token,
-				user: oauthResult.data.user,
+			const payload = appEmailSignInBodySchema.parse(await c.req.json());
+			const result = await resolveEmailSignIn({
+				callbackURL: payload.callbackURL,
+				email: payload.email,
+				password: payload.password,
+				publicBaseURL: getPublicBaseUrlFromContext(),
 			});
+
+			return jsonSuccess(c, result);
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				return handleControllerError(c, error, { withValidation: true });
+			}
+
+			Logger.warn("Auth", "Failed to resolve app email sign-in", error);
+			return jsonSuccess(c, {
+				code: "oauth_failed",
+				message: "Unable to complete sign-in right now.",
+				status: "terminal_error",
+			});
+		}
+	},
+	async handleAppEmailSignUp(c: AppContext) {
+		try {
+			const payload = appEmailSignUpBodySchema.parse(await c.req.json());
+			const result = await resolveEmailSignUp({
+				callbackURL: payload.callbackURL,
+				email: payload.email,
+				name: payload.name,
+				password: payload.password,
+				publicBaseURL: getPublicBaseUrlFromContext(),
+				username: payload.username,
+			});
+
+			return jsonSuccess(c, result);
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				return handleControllerError(c, error, { withValidation: true });
+			}
+
+			Logger.warn("Auth", "Failed to resolve app email sign-up", error);
+			return jsonSuccess(c, {
+				code: "oauth_failed",
+				message: "Unable to complete sign-up right now.",
+				status: "terminal_error",
+			});
+		}
+	},
+	async handleAppGoogleContinue(c: AppContext) {
+		try {
+			const payload = appGoogleContinueBodySchema.parse(await c.req.json());
+			const profile = await verifyGoogleIdToken(payload.idToken);
+			const result = await resolveGoogleContinue(toProviderAccount(profile, { idToken: payload.idToken }), {
+				callbackURL: payload.callbackURL,
+				publicBaseURL: getPublicBaseUrlFromContext(),
+			});
+
+			return jsonSuccess(c, result);
 		} catch (error) {
 			if (error instanceof HttpServiceError) {
-				return handleControllerError(c, error);
+				return jsonSuccess(c, terminalFlowFromHttpError(error));
 			}
 
 			if (error instanceof z.ZodError) {
 				return handleControllerError(c, error, { withValidation: true });
 			}
 
-			Logger.warn("Auth", "Failed to complete mobile Google auth", error);
-			return jsonError(c, "oauth_failed", "Unable to sign in with Google right now.", 500);
+			Logger.warn("Auth", "Failed to resolve app Google continue flow", error);
+			return jsonSuccess(c, {
+				code: "oauth_failed",
+				message: "Unable to continue with Google right now.",
+				status: "terminal_error",
+			});
+		}
+	},
+	async handleAppGoogleLink(c: AppContext) {
+		try {
+			const session = await auth.api.getSession({ headers: c.req.raw.headers });
+			if (!session?.user) {
+				return c.json(error("UNAUTHORIZED", "Please login to continue"), 401);
+			}
+
+			const payload = appGoogleLinkBodySchema.parse(await c.req.json());
+			const profile = await verifyGoogleIdToken(payload.idToken);
+			const result = await resolveAuthenticatedGoogleLink(
+				session.user.id,
+				toProviderAccount(profile, { idToken: payload.idToken }),
+			);
+
+			return jsonSuccess(c, result);
+		} catch (error) {
+			if (error instanceof HttpServiceError) {
+				return jsonSuccess(c, terminalFlowFromHttpError(error));
+			}
+
+			if (error instanceof z.ZodError) {
+				return handleControllerError(c, error, { withValidation: true });
+			}
+
+			Logger.warn("Auth", "Failed to resolve authenticated Google link", error);
+			return jsonSuccess(c, {
+				code: "oauth_failed",
+				message: "Unable to link Google right now.",
+				status: "terminal_error",
+			});
+		}
+	},
+	async handleAppPasswordHelp(c: AppContext) {
+		try {
+			const payload = appPasswordHelpBodySchema.parse(await c.req.json());
+			const result = await resolvePasswordHelp({
+				callbackURL: payload.callbackURL,
+				email: payload.email,
+				publicBaseURL: getPublicBaseUrlFromContext(),
+			});
+
+			return jsonSuccess(c, result);
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				return handleControllerError(c, error, { withValidation: true });
+			}
+
+			Logger.warn("Auth", "Failed to resolve password help flow", error);
+			return jsonSuccess(c, {
+				code: "oauth_failed",
+				message: "Unable to start password help right now.",
+				status: "terminal_error",
+			});
+		}
+	},
+	async handleAppPasswordSetup(c: AppContext) {
+		try {
+			const { isJson, payload } = await readPasswordSetupSubmission(c);
+			const result = await completePasswordSetup(payload.token, payload.newPassword);
+
+			if (result.kind === "error") {
+				if (isJson) {
+					return c.json(error("PASSWORD_SETUP_FAILED", result.message), 400);
+				}
+
+				if (result.renderForm && result.email) {
+					return c.html(getPasswordSetupPageHtml(result.email, payload.token, result.message), 400);
+				}
+
+				return c.html(getStatusPageHtml(result.title, result.message), 400);
+			}
+
+			if (result.callbackURL && result.redirectToken) {
+				return c.redirect(buildCallbackRedirectURL(result.callbackURL, { token: result.redirectToken }));
+			}
+
+			if (result.callbackURL && !result.redirectToken) {
+				return c.redirect(buildCallbackRedirectURL(result.callbackURL, { error: "oauth_failed" }));
+			}
+
+			if (isJson) {
+				return jsonSuccess(c, { status: true });
+			}
+
+			return c.html(getStatusPageHtml(result.title, result.message));
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				return handleControllerError(c, error, { withValidation: true });
+			}
+
+			Logger.warn("Auth", "Failed to complete password setup flow", error);
+			return c.html(getStatusPageHtml("Unable to save password", "Please try again later."), 500);
+		}
+	},
+	async handleAppResultExchange(c: AppContext) {
+		try {
+			const payload = appResultExchangeBodySchema.parse(await c.req.json());
+			const authResponse = await auth.api.verifyOneTimeToken({
+				asResponse: true,
+				body: { token: payload.token },
+				headers: c.req.raw.headers,
+			});
+
+			const responsePayload = (await authResponse.json().catch(() => null)) as
+				| { error?: string; message?: string }
+				| {
+						session: { token: string };
+						user: { email: string; id: string; image?: string | null; name: string };
+				  }
+				| null;
+
+			if (!authResponse.ok) {
+				const errorPayload = responsePayload as { error?: string; message?: string } | null;
+
+				return jsonWithHeaders(
+					error(
+						typeof errorPayload?.error === "string" ? errorPayload.error : "invalid_token",
+						typeof errorPayload?.message === "string" ? errorPayload.message : "Invalid or expired token.",
+					),
+					authResponse.status,
+					authResponse.headers,
+				);
+			}
+
+			const data = responsePayload as {
+				session: { token: string };
+				user: { email: string; id: string; image?: string | null; name: string };
+			};
+
+			return jsonWithHeaders(
+				success({
+					token: data.session.token,
+					user: {
+						email: data.user.email,
+						id: data.user.id,
+						image: data.user.image ?? null,
+						name: data.user.name,
+					},
+				}),
+				authResponse.status,
+				authResponse.headers,
+			);
+		} catch (err) {
+			if (err instanceof z.ZodError) {
+				return handleControllerError(c, err, { withValidation: true });
+			}
+
+			Logger.warn("Auth", "Failed to exchange auth result token", err);
+			return c.json(error("invalid_token", "Invalid or expired token."), 400);
 		}
 	},
 	async handleDesktopGoogleStart(c: AppContext) {
 		const flow = getDesktopAuthFlow(c);
 		const attempt = c.req.query("attempt") ?? undefined;
-		const callbackUrl = normalizeDesktopCallbackUrl(c.req.query("callback_url") ?? undefined);
-		if (!callbackUrl) {
-			return respondWithDesktopAuthRedirect(c, {
-				callbackUrl,
-				flow,
-				attempt,
-				error: "desktop_callback_missing",
-			});
-		}
+		const callbackUrl = c.req.query("callback_url") ?? undefined;
 
 		try {
+			if (!callbackUrl) {
+				throw new Error("desktop_callback_missing");
+			}
+
+			const normalizedCallbackURL = new URL(callbackUrl);
+			if (normalizedCallbackURL.protocol !== "http:" || !normalizedCallbackURL.port) {
+				throw new Error("desktop_callback_missing");
+			}
+
+			const hostname = normalizedCallbackURL.hostname.toLowerCase();
+			if (!["127.0.0.1", "localhost", "::1"].includes(hostname)) {
+				throw new Error("desktop_callback_missing");
+			}
+
 			const authContext = await auth.$context;
 			const provider = authContext.socialProviders.find((entry) => entry.id === "google");
 			if (!provider) {
@@ -338,22 +632,22 @@ export const authController = {
 
 			const state = generateRandomString(32);
 			const codeVerifier = generateRandomString(128);
-			const redirectURI = getGoogleCallbackUrl(c, authContext.baseURL);
+			const redirectURI = getDesktopGoogleStartCallbackUrl(c, authContext.baseURL);
 			const authorizationUrl = await provider.createAuthorizationURL({
-				state,
 				codeVerifier,
 				redirectURI,
+				state,
 			});
 
 			await authContext.internalAdapter.createVerificationValue({
+				expiresAt: new Date(Date.now() + DESKTOP_GOOGLE_STATE_TTL_MS),
 				identifier: getDesktopGoogleStateKey(state),
 				value: JSON.stringify({
 					attempt,
-					callbackUrl,
+					callbackUrl: normalizedCallbackURL.toString(),
 					codeVerifier,
 					flow,
 				} satisfies DesktopGoogleStatePayload),
-				expiresAt: new Date(Date.now() + DESKTOP_GOOGLE_STATE_TTL_MS),
 			});
 
 			return c.redirect(authorizationUrl.toString());
@@ -361,10 +655,10 @@ export const authController = {
 			Logger.warn("Auth", "Failed to start desktop Google OAuth flow", error);
 
 			return respondWithDesktopAuthRedirect(c, {
-				callbackUrl,
-				flow,
 				attempt,
+				callbackUrl,
 				error: normalizeDesktopAuthError(error),
+				flow,
 			});
 		}
 	},
@@ -375,48 +669,44 @@ export const authController = {
 		}
 
 		const authContext = await auth.$context;
-		const stateKey = getDesktopGoogleStateKey(state);
-		const storedState = await authContext.internalAdapter.findVerificationValue(stateKey);
+		const storedState = await authContext.internalAdapter.findVerificationValue(getDesktopGoogleStateKey(state));
 		if (!storedState) {
 			return auth.handler(c.req.raw);
 		}
 
-		await authContext.internalAdapter.deleteVerificationByIdentifier(stateKey);
+		await authContext.internalAdapter.deleteVerificationByIdentifier(getDesktopGoogleStateKey(state));
 
-		let flow: DesktopAuthFlow = "login";
 		let attempt: string | undefined;
 		let callbackUrl: string | undefined;
 		let codeVerifier = "";
+		let flow: DesktopAuthFlow = "login";
 
 		try {
 			const payload = JSON.parse(storedState.value) as Partial<DesktopGoogleStatePayload>;
-			flow = payload.flow === "signup" ? "signup" : "login";
 			attempt = typeof payload.attempt === "string" ? payload.attempt : undefined;
-			callbackUrl = normalizeDesktopCallbackUrl(
-				typeof payload.callbackUrl === "string" ? payload.callbackUrl : undefined,
-			);
+			callbackUrl = typeof payload.callbackUrl === "string" ? payload.callbackUrl : undefined;
 			codeVerifier = typeof payload.codeVerifier === "string" ? payload.codeVerifier : "";
+			flow = payload.flow === "signup" ? "signup" : "login";
 		} catch (error) {
 			Logger.warn("Auth", "Failed to parse stored desktop Google state", error);
 		}
 
-		if (!codeVerifier || storedState.expiresAt < new Date()) {
+		if (!callbackUrl || !codeVerifier || storedState.expiresAt < new Date()) {
 			return respondWithDesktopAuthRedirect(c, {
-				callbackUrl,
-				flow,
 				attempt,
+				callbackUrl,
 				error: "state_mismatch",
+				flow,
 			});
 		}
 
-		const callbackError = c.req.query("error");
-
-		if (callbackError) {
+		const providerError = c.req.query("error");
+		if (providerError) {
 			return respondWithDesktopAuthRedirect(c, {
-				callbackUrl,
-				flow,
 				attempt,
-				error: callbackError,
+				callbackUrl,
+				error: providerError,
+				flow,
 			});
 		}
 
@@ -427,76 +717,72 @@ export const authController = {
 				throw new Error("oauth_failed");
 			}
 
-			const redirectURI = getGoogleCallbackUrl(c, authContext.baseURL);
+			const redirectURI = getDesktopGoogleStartCallbackUrl(c, authContext.baseURL);
 			const tokens = await provider.validateAuthorizationCode({
 				code,
 				codeVerifier,
 				redirectURI,
 			});
 			if (!tokens?.idToken) {
-				throw new Error("unable_to_get_user_info");
+				throw new Error("invalid_token");
 			}
 
 			const userInfo = await provider.getUserInfo(tokens);
 			if (!userInfo?.user?.email) {
-				throw new Error("unable_to_get_user_info");
+				throw new Error("email_not_found");
 			}
 
-			const oauthResult = await handleOAuthUserInfo(
-				{
-					context: authContext,
-					redirect: (url: string) => c.redirect(url),
-					request: c.req.raw,
-				} as never,
-				{
-					userInfo: {
-						...userInfo.user,
-						email: userInfo.user.email,
-						emailVerified: userInfo.user.emailVerified || false,
+			const result = await resolveGoogleContinue(
+				toProviderAccount(
+					{
+						email: userInfo.user.email.toLowerCase(),
+						emailVerified: Boolean(userInfo.user.emailVerified),
 						id: String(userInfo.user.id),
 						image: userInfo.user.image,
-						name: userInfo.user.name || "",
+						name: userInfo.user.name || userInfo.user.email.split("@")[0] || "Google User",
 					},
-					account: {
-						providerId: provider.id,
-						accountId: String(userInfo.user.id),
+					{
 						accessToken: tokens.accessToken,
-						refreshToken: tokens.refreshToken,
-						idToken: tokens.idToken,
 						accessTokenExpiresAt: tokens.accessTokenExpiresAt,
+						idToken: tokens.idToken,
+						refreshToken: tokens.refreshToken,
 						refreshTokenExpiresAt: tokens.refreshTokenExpiresAt,
 						scope: tokens.scopes?.join(" "),
 					},
-					callbackURL: "/",
-					disableSignUp: (provider.disableImplicitSignUp && flow !== "signup") || !!provider.disableSignUp,
-				} as never,
+				),
+				{
+					publicBaseURL: getPublicBaseUrlFromContext(),
+				},
 			);
 
-			if (oauthResult.error || !oauthResult.data?.session.token) {
-				throw new Error(oauthResult.error ?? "session_not_found");
+			if (result.status === "signed_in") {
+				return respondWithDesktopAuthRedirect(c, {
+					attempt,
+					callbackUrl,
+					flow,
+					token: result.resultToken.token,
+				});
 			}
 
-			const result = await auth.api.generateOneTimeToken({
-				headers: new Headers({
-					authorization: `Bearer ${oauthResult.data.session.token}`,
-				}),
-			});
-
+			const errorCode = result.status === "action_required" ? result.code : result.code;
 			return respondWithDesktopAuthRedirect(c, {
-				callbackUrl,
-				flow,
 				attempt,
-				token: result.token,
+				callbackUrl,
+				error: errorCode,
+				flow,
 			});
 		} catch (error) {
 			Logger.warn("Auth", "Failed to complete desktop Google OAuth callback", error);
 
 			return respondWithDesktopAuthRedirect(c, {
-				callbackUrl,
-				flow,
 				attempt,
+				callbackUrl,
 				error: normalizeDesktopAuthError(error),
+				flow,
 			});
 		}
+	},
+	async handleMobileGoogleAuth(c: AppContext) {
+		return await authController.handleAppGoogleContinue(c);
 	},
 };

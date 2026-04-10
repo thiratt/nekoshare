@@ -1,6 +1,9 @@
 import type { BetterAuthOptions } from "better-auth";
 
 const accountSchemaOptions: BetterAuthOptions["account"] = {
+	accountLinking: {
+		enabled: false,
+	},
 	fields: {
 		password: "password_hash",
 	},

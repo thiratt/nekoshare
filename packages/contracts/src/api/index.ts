@@ -1,5 +1,17 @@
 export type { ApiErrorResponse, ApiResponse, ApiSuccessResponse, PaginatedResponse } from "./common";
 export type {
+	AuthActionRequiredCode,
+	AuthChallengeAction,
+	AuthFlowActionRequired,
+	AuthFlowResult,
+	AuthFlowSignedIn,
+	AuthFlowTerminalError,
+	AuthResultExchangeResponse,
+	AuthResultToken,
+	AuthTerminalErrorCode,
+	AuthUserSummary,
+} from "./auth";
+export type {
 	ApiDateTime,
 	Device,
 	DeviceListResponse,

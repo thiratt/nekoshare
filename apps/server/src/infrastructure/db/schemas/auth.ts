@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { boolean, index,mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, index, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
 	id: varchar("id", { length: 36 }).primaryKey(),
@@ -41,8 +41,8 @@ export const accounts = mysqlTable(
 	"accounts",
 	{
 		id: varchar("id", { length: 36 }).primaryKey(),
-		accountId: text("account_id").notNull(),
-		providerId: text("provider_id").notNull(),
+		accountId: varchar("account_id", { length: 255 }).notNull(),
+		providerId: varchar("provider_id", { length: 255 }).notNull(),
 		userId: varchar("user_id", { length: 36 })
 			.notNull()
 			.references(() => users.id, { onDelete: "cascade" }),
@@ -58,7 +58,10 @@ export const accounts = mysqlTable(
 			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
 	},
-	(table) => [index("accounts_userId_idx").on(table.userId)],
+	(table) => [
+		index("accounts_userId_idx").on(table.userId),
+		uniqueIndex("accounts_provider_account_uidx").on(table.providerId, table.accountId),
+	],
 );
 
 export const verifications = mysqlTable(
