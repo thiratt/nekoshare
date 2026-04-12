@@ -3,6 +3,7 @@ import { bearer, customSession, oneTimeToken, username } from "better-auth/plugi
 import { eq } from "drizzle-orm";
 import type { BetterAuthOptions } from "better-auth";
 
+import { createEmailVerificationEmailHtml, sendAuthEmail } from "./email";
 import { hashPassword, verifyPassword } from "./password-hash";
 import { cacheDeviceIdBySessionId, collectTrustedOrigins, readCachedDeviceIdBySessionId } from "./utils";
 
@@ -42,6 +43,21 @@ const emailAndPasswordOptions: BetterAuthOptions["emailAndPassword"] = {
 		verify: async ({ hash, password }) => await verifyPassword(hash, password),
 	},
 	requireEmailVerification: false,
+};
+
+const emailVerificationOptions: BetterAuthOptions["emailVerification"] = {
+	sendVerificationEmail: async ({ user, url }) => {
+		const sent = await sendAuthEmail({
+			html: createEmailVerificationEmailHtml(user.email, url),
+			subject: "Verify your new Nekoshare email",
+			text: `Open this link to verify your new Nekoshare email: ${url}`,
+			to: user.email,
+		});
+
+		if (!sent) {
+			throw new Error("email_delivery_unavailable");
+		}
+	},
 };
 
 const socialProvidersOptions: BetterAuthOptions["socialProviders"] = {
@@ -126,6 +142,7 @@ export {
 	databaseOptions,
 	db, // for convenience
 	emailAndPasswordOptions,
+	emailVerificationOptions,
 	loggerOptions,
 	pluginsOptions,
 	sessionOptions,

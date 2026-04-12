@@ -20,6 +20,14 @@ type RedisConfig = {
 	database: number;
 };
 
+type R2UserProfileConfig = {
+	accessKeyId: string;
+	accountId: string;
+	bucket: string;
+	publicBaseUrl: string;
+	secretAccessKey: string;
+};
+
 const HTTP_PORT = 7780;
 const TCP_SOCKET_PORT = 7781;
 
@@ -245,6 +253,38 @@ function readOptionalEmailConfig() {
 	};
 }
 
+function readOptionalR2UserProfileConfig(): R2UserProfileConfig | undefined {
+	const accountId = readEnvVar("CLOUDFLARE_ACCOUNT_ID");
+	const accessKeyId = readEnvVar("R2_ACCESS_KEY_ID");
+	const secretAccessKey = readRawEnvVar("R2_SECRET_ACCESS_KEY");
+	const bucket = readEnvVar("R2_USER_PROFILE_BUCKET") ?? "user-profile";
+	const publicBaseUrl = readEnvVar("R2_USER_PROFILE_PUBLIC_BASE_URL");
+	const hasAnyR2CredentialConfig = accountId || accessKeyId || secretAccessKey;
+
+	if (!hasAnyR2CredentialConfig) {
+		return undefined;
+	}
+
+	const missing = [
+		["CLOUDFLARE_ACCOUNT_ID", accountId],
+		["R2_ACCESS_KEY_ID", accessKeyId],
+		["R2_SECRET_ACCESS_KEY", secretAccessKey],
+		["R2_USER_PROFILE_PUBLIC_BASE_URL", publicBaseUrl],
+	].flatMap(([name, value]) => (value ? [] : [name]));
+
+	if (missing.length > 0) {
+		throw new Error(`Missing required R2 environment variable(s): ${missing.join(", ")}`);
+	}
+
+	return {
+		accessKeyId: accessKeyId!,
+		accountId: accountId!,
+		bucket,
+		publicBaseUrl: normalizeHttpOrigin(publicBaseUrl!, "R2_USER_PROFILE_PUBLIC_BASE_URL"),
+		secretAccessKey: secretAccessKey!,
+	};
+}
+
 const NODE_ENV = getNodeEnv();
 const DATABASE = getDatabaseConfig();
 const REDIS = getRedisConfig();
@@ -254,6 +294,7 @@ const DEPLOYMENT_ALLOWED_ORIGINS = parseOriginList("APP_ALLOWED_ORIGINS");
 const DEFAULT_ALLOWED_ORIGINS =
 	NODE_ENV === "production" ? [...TAURI_ALLOWED_ORIGINS] : [...LOCAL_DEV_ALLOWED_ORIGINS, ...TAURI_ALLOWED_ORIGINS];
 const { RESEND_API_KEY, RESEND_FROM_EMAIL } = readOptionalEmailConfig();
+const R2_USER_PROFILE = readOptionalR2UserProfileConfig();
 
 const env = {
 	NODE_ENV,
@@ -275,6 +316,7 @@ const env = {
 	]),
 	RESEND_API_KEY,
 	RESEND_FROM_EMAIL,
+	R2_USER_PROFILE,
 } as const;
 
 export { env };

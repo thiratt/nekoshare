@@ -4,6 +4,10 @@ import { createRouter } from "@/shared/http/router";
 
 type AuthController = Pick<
 	typeof authController,
+	| "handleAccountSetPassword"
+	| "handleAccountAvatarRead"
+	| "handleAccountAvatarUpload"
+	| "handleAccountStatus"
 	| "handle"
 	| "handleAppChallengeConsume"
 	| "handleAppEmailSignIn"
@@ -21,6 +25,10 @@ type AuthController = Pick<
 export function createAuthRouter(controller: AuthController) {
 	const app = createRouter();
 
+	app.get("/account/avatar", controller.handleAccountAvatarRead);
+	app.post("/account/avatar", controller.handleAccountAvatarUpload);
+	app.get("/account/status", controller.handleAccountStatus);
+	app.post("/account/set-password", controller.handleAccountSetPassword);
 	app.post("/app/email/sign-in", controller.handleAppEmailSignIn);
 	app.post("/app/email/sign-up", controller.handleAppEmailSignUp);
 	app.post("/app/password/help", controller.handleAppPasswordHelp);

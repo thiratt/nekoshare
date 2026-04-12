@@ -15,6 +15,14 @@ import {
 	resolveGoogleContinue,
 	resolvePasswordHelp,
 } from "./lib/app-auth";
+import {
+	createSignedUserProfileAvatarReadUrl,
+	deleteUserProfileAvatar,
+	isUserProfileAvatarContentType,
+	isUserProfileAvatarStorageConfigured,
+	uploadUserProfileAvatar,
+	USER_PROFILE_AVATAR_MAX_BYTES,
+} from "./lib/user-profile-avatar-storage";
 
 import { env } from "@/config/env";
 import { Logger } from "@/infrastructure/logger";
@@ -81,6 +89,10 @@ const appGoogleLinkBodySchema = z.object({
 const passwordSetupBodySchema = z.object({
 	newPassword: z.string().min(1),
 	token: z.string().min(1),
+});
+
+const accountSetPasswordBodySchema = z.object({
+	newPassword: z.string().min(1),
 });
 
 const googleTokenInfoSchema = z.object({
@@ -161,6 +173,86 @@ function jsonWithHeaders(body: unknown, status: number, headers: Headers) {
 		headers: responseHeaders,
 		status,
 	});
+}
+
+function copySetCookieHeaders(source: Headers, target: Headers): void {
+	const headersWithGetSetCookie = source as Headers & { getSetCookie?: () => string[] };
+	const setCookieValues = headersWithGetSetCookie.getSetCookie?.() ?? [];
+
+	if (setCookieValues.length > 0) {
+		for (const value of setCookieValues) {
+			target.append("set-cookie", value);
+		}
+		return;
+	}
+
+	const setCookie = source.get("set-cookie");
+	if (setCookie) {
+		target.append("set-cookie", setCookie);
+	}
+}
+
+function getAccountStatusErrorContent(kind: string, errorCode?: string) {
+	const normalizedKind = kind.trim().toLowerCase();
+	const normalizedCode = errorCode?.trim().toLowerCase();
+
+	if (normalizedKind === "email-change") {
+		if (!normalizedCode) {
+			return {
+				message: "Your new email has been verified. You can close this page and return to Nekoshare.",
+				status: 200,
+				title: "Email updated",
+			};
+		}
+
+		switch (normalizedCode) {
+			case "invalid_token":
+				return {
+					message: "This verification link is invalid.",
+					status: 400,
+					title: "Unable to verify email",
+				};
+			case "token_expired":
+				return {
+					message:
+						"This verification link has expired. Please request a new email change from account settings.",
+					status: 400,
+					title: "Verification link expired",
+				};
+			case "invalid_user":
+				return {
+					message: "This verification link belongs to a different signed-in user.",
+					status: 400,
+					title: "Unable to verify email",
+				};
+			case "user_not_found":
+				return {
+					message: "The account for this verification link could not be found.",
+					status: 404,
+					title: "Account not found",
+				};
+			default:
+				return {
+					message: "We could not verify your new email. Please try again from account settings.",
+					status: 400,
+					title: "Unable to verify email",
+				};
+		}
+	}
+
+	if (!normalizedCode) {
+		return {
+			message: "The request finished successfully. You can close this page and return to Nekoshare.",
+			status: 200,
+			title: "Done",
+		};
+	}
+
+	return {
+		message: "This request could not be completed.",
+		status: 400,
+		title: "Unable to continue",
+	};
 }
 
 function normalizeDesktopAuthError(error: unknown): string {
@@ -343,6 +435,122 @@ async function readPasswordSetupSubmission(c: AppContext) {
 export const authController = {
 	handle(c: AppContext) {
 		return auth.handler(c.req.raw);
+	},
+	async handleAccountSetPassword(c: AppContext) {
+		try {
+			const payload = accountSetPasswordBodySchema.parse(await c.req.json());
+			return await auth.api.setPassword({
+				asResponse: true,
+				body: payload,
+				headers: c.req.raw.headers,
+			});
+		} catch (err) {
+			if (err instanceof z.ZodError) {
+				return handleControllerError(c, err, { withValidation: true });
+			}
+
+			Logger.warn("Auth", "Failed to complete account set-password request", err);
+			return c.json(error("SET_PASSWORD_FAILED", "Unable to save password right now."), 500);
+		}
+	},
+	handleAccountStatus(c: AppContext) {
+		const kind = c.req.query("kind") ?? "default";
+		const errorCode = c.req.query("error") ?? undefined;
+		const statusContent = getAccountStatusErrorContent(kind, errorCode);
+
+		return c.html(
+			getStatusPageHtml(statusContent.title, statusContent.message),
+			statusContent.status as 200 | 400 | 404,
+		);
+	},
+	async handleAccountAvatarUpload(c: AppContext) {
+		if (!isUserProfileAvatarStorageConfigured()) {
+			return c.json(error("AVATAR_STORAGE_NOT_CONFIGURED", "Avatar storage is not configured."), 503);
+		}
+
+		const session = await auth.api.getSession({ headers: c.req.raw.headers });
+		if (!session?.user) {
+			return c.json(error("UNAUTHORIZED", "Please login to continue"), 401);
+		}
+
+		const contentType = c.req.header("content-type")?.split(";")[0]?.trim().toLowerCase();
+		if (!isUserProfileAvatarContentType(contentType)) {
+			return c.json(error("UNSUPPORTED_AVATAR_TYPE", "Avatar image must be WebP, PNG, or JPEG."), 415);
+		}
+
+		const contentLength = Number(c.req.header("content-length") ?? "0");
+		if (Number.isFinite(contentLength) && contentLength > USER_PROFILE_AVATAR_MAX_BYTES) {
+			return c.json(error("AVATAR_TOO_LARGE", "Avatar image must be 5 MB or smaller."), 413);
+		}
+
+		try {
+			const body = Buffer.from(await c.req.arrayBuffer());
+			if (body.byteLength === 0) {
+				return c.json(error("AVATAR_EMPTY", "Avatar image is empty."), 400);
+			}
+
+			if (body.byteLength > USER_PROFILE_AVATAR_MAX_BYTES) {
+				return c.json(error("AVATAR_TOO_LARGE", "Avatar image must be 5 MB or smaller."), 413);
+			}
+
+			const upload = await uploadUserProfileAvatar({
+				body,
+				contentType,
+			});
+			const updateResponse = await auth.api.updateUser({
+				asResponse: true,
+				body: { image: upload.imageUrl },
+				headers: c.req.raw.headers,
+			});
+
+			if (!updateResponse.ok) {
+				await deleteUserProfileAvatar(upload.objectKey).catch((deleteError) => {
+					Logger.warn("Auth", "Failed to clean up uploaded avatar after user update failure", deleteError);
+				});
+
+				const failurePayload = await updateResponse.json().catch(() => null);
+				const errorPayload =
+					failurePayload && typeof failurePayload === "object" && !Array.isArray(failurePayload)
+						? (failurePayload as { code?: string; error?: string; message?: string })
+						: {};
+
+				return c.json(
+					error(
+						errorPayload.code ?? errorPayload.error ?? "AVATAR_PROFILE_UPDATE_FAILED",
+						errorPayload.message ?? "Unable to save avatar right now.",
+					),
+					updateResponse.status as 400 | 401 | 403 | 500,
+				);
+			}
+
+			const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
+			copySetCookieHeaders(updateResponse.headers, headers);
+
+			return new Response(JSON.stringify(upload), {
+				headers,
+				status: 200,
+			});
+		} catch (err) {
+			Logger.warn("Auth", "Failed to upload account avatar", err);
+			return c.json(error("AVATAR_UPLOAD_FAILED", "Unable to upload avatar right now."), 500);
+		}
+	},
+	async handleAccountAvatarRead(c: AppContext) {
+		if (!isUserProfileAvatarStorageConfigured()) {
+			return c.json(error("AVATAR_STORAGE_NOT_CONFIGURED", "Avatar storage is not configured."), 503);
+		}
+
+		const objectKey = c.req.query("key");
+		if (!objectKey) {
+			return c.json(error("AVATAR_KEY_REQUIRED", "Avatar key is required."), 400);
+		}
+
+		try {
+			return c.redirect(await createSignedUserProfileAvatarReadUrl(objectKey));
+		} catch (err) {
+			Logger.warn("Auth", "Failed to create signed avatar read URL", err);
+			return c.json(error("AVATAR_READ_FAILED", "Unable to load avatar right now."), 500);
+		}
 	},
 	async handleAppChallengeConsume(c: AppContext) {
 		const token = c.req.query("token");

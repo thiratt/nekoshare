@@ -22,6 +22,12 @@ const userSchemaOptions: BetterAuthOptions["user"] = {
 			defaultValue: () => new Date(),
 		},
 	},
+	changeEmail: {
+		enabled: true,
+	},
+	deleteUser: {
+		enabled: true,
+	},
 };
 
 export { accountSchemaOptions, userSchemaOptions };
