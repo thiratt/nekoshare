@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { useSetGlobalLoading } from "@workspace/app-ui/context/nekoshare";
@@ -48,8 +49,37 @@ const NSDesktopContext = createContext<NSDesktopContextValue | null>(null);
 
 const INIT_TIMEOUT_MS = 3000;
 const CONFIG_KEY = "appConfig";
+const SNAP_LAYOUT_TARGET_SELECTOR = '[data-desktop-window-control="maximize"]';
 
 const getStoreActions = () => useDesktopStore.getState();
+
+function isSnapLayoutTargetInteractive(): boolean {
+  const target = document.querySelector<HTMLElement>(
+    SNAP_LAYOUT_TARGET_SELECTOR,
+  );
+  if (!target) return false;
+
+  const style = window.getComputedStyle(target);
+  if (
+    style.display === "none" ||
+    style.visibility === "hidden" ||
+    style.pointerEvents === "none" ||
+    target.matches(":disabled") ||
+    target.getAttribute("aria-disabled") === "true"
+  ) {
+    return false;
+  }
+
+  const rect = target.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return false;
+
+  const hitTarget = document.elementFromPoint(
+    rect.left + rect.width / 2,
+    rect.top + rect.height / 2,
+  );
+
+  return hitTarget?.closest(SNAP_LAYOUT_TARGET_SELECTOR) === target;
+}
 
 export function NSDesktopProvider({
   initialMaximized,
@@ -172,6 +202,75 @@ export function NSDesktopProvider({
   useFileWatcher(parentPath, handleParentDirChange, {
     enabled: !!parentPath && status === "ready",
   });
+
+  useEffect(() => {
+    let animationFrameId: number | null = null;
+    let lastEnabled: boolean | null = null;
+    let disposed = false;
+
+    const setSnapLayoutEnabled = (enabled: boolean) => {
+      if (!enabled) {
+        setIsSnapHover(false);
+      }
+
+      void invoke("set_snap_layout_enabled", { enabled }).catch((error) => {
+        console.error("Failed to update snap layout state", error);
+      });
+    };
+
+    const syncSnapLayoutState = () => {
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+
+      animationFrameId = window.requestAnimationFrame(() => {
+        animationFrameId = null;
+        if (disposed) return;
+
+        const enabled = isSnapLayoutTargetInteractive();
+        if (lastEnabled === enabled) return;
+
+        lastEnabled = enabled;
+        setSnapLayoutEnabled(enabled);
+      });
+    };
+
+    const observer = new MutationObserver(syncSnapLayoutState);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: [
+        "aria-disabled",
+        "aria-hidden",
+        "aria-modal",
+        "class",
+        "data-state",
+        "data-slot",
+        "hidden",
+        "style",
+      ],
+      childList: true,
+      subtree: true,
+    });
+
+    window.addEventListener("resize", syncSnapLayoutState);
+    window.addEventListener("scroll", syncSnapLayoutState, true);
+    window.addEventListener("transitionend", syncSnapLayoutState, true);
+    syncSnapLayoutState();
+
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      window.removeEventListener("resize", syncSnapLayoutState);
+      window.removeEventListener("scroll", syncSnapLayoutState, true);
+      window.removeEventListener("transitionend", syncSnapLayoutState, true);
+
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+
+      setSnapLayoutEnabled(true);
+    };
+  }, []);
 
   const setFileLocation = useCallback(
     async (path: string): Promise<void> => {

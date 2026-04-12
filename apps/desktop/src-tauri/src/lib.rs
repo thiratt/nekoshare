@@ -3,7 +3,7 @@ use tokio::sync::mpsc;
 use state::GlobalState;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use tauri::{App, Emitter, Manager, WebviewWindow};
+use tauri::{App, Emitter, Manager, State, WebviewWindow};
 
 mod commands;
 mod config;
@@ -88,6 +88,7 @@ pub fn run() {
             commands::socket::socket_server_start,
             commands::socket::socket_server_stop,
             commands::socket::socket_server_has_active_connection,
+            set_snap_layout_enabled,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -95,6 +96,7 @@ pub fn run() {
 
 fn setup_app(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let transfer_history_service = TransferHistoryService::new()?;
+    app.manage(SnapLayouts::default());
 
     GlobalState::new()
         .register(DeviceManager::new().expect("Failed to initialize DeviceManager"))
@@ -127,8 +129,6 @@ fn setup_app(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(target_os = "windows")]
     {
-        app.manage(SnapLayouts::default());
-
         if let Some(window) = app.get_webview_window("main") {
             install_snap_overlay(app, &window)?;
         }
@@ -219,6 +219,24 @@ fn install_snap_overlay<R: tauri::Runtime>(
             },
         );
     })
+}
+
+#[tauri::command]
+fn set_snap_layout_enabled(
+    window: WebviewWindow,
+    layouts: State<'_, SnapLayouts>,
+    enabled: bool,
+) -> Result<(), String> {
+    let layouts = layouts
+        .0
+        .lock()
+        .map_err(|_| "snap layout state is poisoned".to_string())?;
+
+    if let Some(handle) = layouts.get(window.label()) {
+        handle.set_enabled(enabled).map_err(|err| err.to_string())?;
+    }
+
+    Ok(())
 }
 
 fn init_logging(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {

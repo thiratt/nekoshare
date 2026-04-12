@@ -58,6 +58,7 @@ function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
           title="Minimize"
           onClick={minimize}
           tabIndex={-1}
+          data-desktop-window-control="minimize"
         >
           <LuMinus />
         </Button>
@@ -71,6 +72,7 @@ function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
           size="icon"
           title={isMaximized ? "Restore" : "Maximize"}
           tabIndex={-1}
+          data-desktop-window-control="maximize"
         >
           {isMaximized ? <TiTabsOutline /> : <LuMaximize />}
         </Button>
@@ -82,6 +84,7 @@ function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
           title="Close"
           onClick={close}
           tabIndex={-1}
+          data-desktop-window-control="close"
         >
           <LuX />
         </Button>

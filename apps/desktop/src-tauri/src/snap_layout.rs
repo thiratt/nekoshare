@@ -66,6 +66,7 @@ type EventCallback = Arc<Mutex<Box<dyn FnMut(MaxButtonEvent) + Send + 'static>>>
 
 struct SnapLayoutState {
     config: SnapLayoutConfig,
+    enabled: bool,
     is_mouse_over: bool,
     callback: EventCallback,
 }
@@ -120,6 +121,10 @@ impl SnapLayoutHandle {
     fn overlay_hwnd(&self) -> HWND {
         HWND(self.overlay as *mut c_void)
     }
+
+    pub fn set_enabled(&self, enabled: bool) -> Result<()> {
+        unsafe { set_overlay_enabled(self.parent_hwnd(), self.overlay_hwnd(), enabled) }
+    }
 }
 
 impl Drop for SnapLayoutHandle {
@@ -171,6 +176,7 @@ where
         hwnd_key(overlay),
         SnapLayoutState {
             config,
+            enabled: true,
             is_mouse_over: false,
             callback: Arc::new(Mutex::new(Box::new(callback))),
         },
@@ -215,12 +221,19 @@ unsafe fn create_overlay_window(parent: HWND) -> Result<HWND> {
 }
 
 unsafe fn update_overlay_position(parent: HWND, overlay: HWND) {
-    let config = {
+    let state = {
         let guard = states().lock().unwrap();
-        guard.get(&hwnd_key(overlay)).map(|s| s.config)
+        guard.get(&hwnd_key(overlay)).map(|s| (s.config, s.enabled))
     };
 
-    let Some(config) = config else { return };
+    let Some((config, enabled)) = state else {
+        return;
+    };
+
+    if !enabled {
+        let _ = SetWindowPos(overlay, Some(HWND_TOP), 0, 0, 0, 0, SWP_ASYNCWINDOWPOS);
+        return;
+    }
 
     let mut rect = RECT::default();
     if GetClientRect(parent, &mut rect).is_err() {
@@ -264,6 +277,40 @@ fn use_hand_cursor(overlay: HWND) -> bool {
         .get(&hwnd_key(overlay))
         .map(|s| s.config.hand_cursor)
         .unwrap_or(false)
+}
+
+fn is_enabled(overlay: HWND) -> bool {
+    let guard = states().lock().unwrap();
+    guard
+        .get(&hwnd_key(overlay))
+        .map(|s| s.enabled)
+        .unwrap_or(false)
+}
+
+unsafe fn set_overlay_enabled(parent: HWND, overlay: HWND, enabled: bool) -> Result<()> {
+    let leave_callback = {
+        let mut guard = states().lock().unwrap();
+        let Some(state) = guard.get_mut(&hwnd_key(overlay)) else {
+            return Ok(());
+        };
+
+        if state.enabled == enabled {
+            return Ok(());
+        }
+
+        state.enabled = enabled;
+
+        if !enabled && state.is_mouse_over {
+            state.is_mouse_over = false;
+            Some(Arc::clone(&state.callback))
+        } else {
+            None
+        }
+    };
+
+    update_overlay_position(parent, overlay);
+    emit(leave_callback, MaxButtonEvent::MouseLeave);
+    Ok(())
 }
 
 fn set_mouse_over(overlay: HWND, mouse_over: bool) -> Option<EventCallback> {
@@ -310,6 +357,10 @@ unsafe extern "system" fn overlay_window_proc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
+    if !is_enabled(hwnd) {
+        return DefWindowProcW(hwnd, msg, wparam, lparam);
+    }
+
     match msg {
         WM_NCHITTEST => {
             return LRESULT(HTMAXBUTTON as isize);
