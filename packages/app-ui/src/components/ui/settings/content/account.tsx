@@ -29,10 +29,9 @@ import { Input } from "@workspace/ui/components/input";
 import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { Slider } from "@workspace/ui/components/slider";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import { useToast } from "@workspace/ui/hooks/use-toast";
-import { cn } from "@workspace/ui/lib/utils";
 
+import { NTabs } from "@workspace/app-ui/components/ntab";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import {
 	authClient,
@@ -79,11 +78,6 @@ const INITIAL_DIALOG_STATE: DialogState = {
 	changePassword: false,
 	twoFaAuthentication: false,
 };
-
-const TAB_ANIMATION_CLASSES = cn(
-	"data-[state='active']:animate-in data-[state='active']:fade-in data-[state='active']:zoom-in-[.97] data-[state='active']:slide-in-from-bottom-6 data-[state='active']:duration-300",
-	"data-[state='inactive']:animate-out data-[state='inactive']:fade-out data-[state='inactive']:zoom-out-[.97] data-[state='inactive']:slide-out-to-bottom-6 data-[state='inactive']:duration-100",
-);
 
 const ACCOUNT_FIELD_WIDTH_CLASS = "w-full max-w-md";
 const ACCOUNT_AVATAR_CROP_SOURCE_MAX_SIZE = 2048;
@@ -183,11 +177,7 @@ async function createOptimizedAvatarSourceUrl(file: File): Promise<string> {
 		try {
 			const bitmap = await createImageBitmap(file);
 			try {
-				const optimizedUrl = await createOptimizedAvatarSourceFromCanvasSource(
-					bitmap,
-					bitmap.width,
-					bitmap.height,
-				);
+				const optimizedUrl = await createOptimizedAvatarSourceFromCanvasSource(bitmap, bitmap.width, bitmap.height);
 				if (optimizedUrl) {
 					return optimizedUrl;
 				}
@@ -524,24 +514,14 @@ const AvatarDialog = memo(function AvatarDialog({
 								>
 									ย้อนกลับ
 								</Button>
-								<Button
-									type="button"
-									disabled={!cropAreaPixels || isSaving || isPreparingImage}
-									onClick={handleSave}
-								>
+								<Button type="button" disabled={!cropAreaPixels || isSaving || isPreparingImage} onClick={handleSave}>
 									{isSaving && <LuLoader className="size-4 animate-spin" aria-hidden="true" />}
 									บันทึก
 								</Button>
 							</div>
 						</DialogFooter>
 
-						<input
-							ref={fileInputRef}
-							type="file"
-							accept="image/*"
-							className="hidden"
-							onChange={handleSelectFile}
-						/>
+						<input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleSelectFile} />
 					</div>
 				) : (
 					<>
@@ -581,21 +561,10 @@ const AvatarDialog = memo(function AvatarDialog({
 							</Button>
 						</div>
 
-						<input
-							ref={fileInputRef}
-							type="file"
-							accept="image/*"
-							className="hidden"
-							onChange={handleSelectFile}
-						/>
+						<input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleSelectFile} />
 
 						<DialogFooter className="gap-2">
-							<Button
-								type="button"
-								variant="outline"
-								disabled={isSaving}
-								onClick={() => onOpenChange(false)}
-							>
+							<Button type="button" variant="outline" disabled={isSaving} onClick={() => onOpenChange(false)}>
 								ปิด
 							</Button>
 						</DialogFooter>
@@ -649,7 +618,11 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 		resolver: zodResolver(changeEmailSchema),
 	});
 	const changePasswordForm = useForm<ChangePasswordFormValues>({
-		defaultValues: { confirmPassword: "", currentPassword: "", newPassword: "" },
+		defaultValues: {
+			confirmPassword: "",
+			currentPassword: "",
+			newPassword: "",
+		},
 		resolver: zodResolver(changePasswordSchema),
 	});
 	const setPasswordForm = useForm<SetPasswordFormValues>({
@@ -679,9 +652,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 			[key]: open,
 		}));
 		setDialogStack((previous) =>
-			open
-				? [...previous.filter((openKey) => openKey !== key), key]
-				: previous.filter((openKey) => openKey !== key),
+			open ? [...previous.filter((openKey) => openKey !== key), key] : previous.filter((openKey) => openKey !== key),
 		);
 	}, []);
 
@@ -751,7 +722,11 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 
 	useEffect(() => {
 		if (!dialogs.changePassword) {
-			changePasswordForm.reset({ confirmPassword: "", currentPassword: "", newPassword: "" });
+			changePasswordForm.reset({
+				confirmPassword: "",
+				currentPassword: "",
+				newPassword: "",
+			});
 			setPasswordForm.reset({ confirmPassword: "", newPassword: "" });
 		}
 	}, [changePasswordForm, dialogs.changePassword, setPasswordForm]);
@@ -846,9 +821,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 			}
 
 			if (result.error) {
-				throw new Error(
-					getAccountActionErrorMessage(result.error, "ไม่สามารถอัปโหลดรูปโปรไฟล์ได้ กรุณาลองอีกครั้ง"),
-				);
+				throw new Error(getAccountActionErrorMessage(result.error, "ไม่สามารถอัปโหลดรูปโปรไฟล์ได้ กรุณาลองอีกครั้ง"));
 			}
 
 			if (options.signal?.aborted) {
@@ -865,15 +838,15 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 		const currentEmail = user?.email?.trim().toLowerCase() ?? "";
 
 		if (nextEmail === currentEmail) {
-			emailForm.setError("newEmail", { message: "อีเมลใหม่ต้องไม่ตรงกับอีเมลปัจจุบัน" });
+			emailForm.setError("newEmail", {
+				message: "อีเมลใหม่ต้องไม่ตรงกับอีเมลปัจจุบัน",
+			});
 			return;
 		}
 
 		const result = await changeEmail({ newEmail: nextEmail });
 		if (result.error) {
-			toast.error(
-				getAccountActionErrorMessage(result.error, "ไม่สามารถเริ่มการเปลี่ยนอีเมลได้ กรุณาลองอีกครั้ง"),
-			);
+			toast.error(getAccountActionErrorMessage(result.error, "ไม่สามารถเริ่มการเปลี่ยนอีเมลได้ กรุณาลองอีกครั้ง"));
 			return;
 		}
 
@@ -894,7 +867,11 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 			return;
 		}
 
-		changePasswordForm.reset({ confirmPassword: "", currentPassword: "", newPassword: "" });
+		changePasswordForm.reset({
+			confirmPassword: "",
+			currentPassword: "",
+			newPassword: "",
+		});
 		setDialogOpen("changePassword", false);
 		toast.success("เปลี่ยนรหัสผ่านเรียบร้อยแล้ว");
 	});
@@ -933,242 +910,237 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 
 	return (
 		<div className="space-y-2 rounded-full">
-			<Tabs defaultValue="general">
-				<TabsList className="gap-1">
-					<TabsTrigger value="general">ทั่วไป</TabsTrigger>
-					<TabsTrigger value="security">ความปลอดภัย</TabsTrigger>
-				</TabsList>
-
-				<ScrollArea className="h-[calc(100vh-14rem)]">
-					<TabsContent className={cn("space-y-4", TAB_ANIMATION_CLASSES)} value="general">
-						<Card>
-							<CardHeader className="flex flex-row justify-between space-y-0 gap-4">
-								<div className="flex flex-col">
-									<CardTitle>รูปโปรไฟล์</CardTitle>
-									<CardDescription>
-										นี่คือรูปโปรไฟล์ของคุณ
-										<br />
-										คลิกที่รูปเพื่ออัปโหลดรูปใหม่จากไฟล์ในอุปกรณ์ของคุณ
-									</CardDescription>
-								</div>
-
-								<div className="shrink-0">
-									{isPending ? (
-										<Skeleton className="size-25 rounded-full" />
-									) : (
-										<button
-											type="button"
-											className="group relative size-24 overflow-hidden rounded-full transition-all duration-200 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-											aria-label="เปลี่ยนรูปโปรไฟล์"
-											onClick={() => setDialogOpen("avatar", true)}
-										>
-											<Avatar className="h-full w-full">
-												<AvatarImage
-													src={user?.image ?? undefined}
-													alt={`รูปโปรไฟล์ของ ${user?.name ?? "ผู้ใช้"}`}
-												/>
-												<AvatarFallback className="text-lg">{userInitials}</AvatarFallback>
-											</Avatar>
-
-											<div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
-												<LuCamera size={30} className="text-white" aria-hidden="true" />
+			<NTabs
+				defaultValue="general"
+				listClassName="gap-1"
+				items={[
+					{
+						value: "general",
+						label: "ทั่วไป",
+						content: (
+							<ScrollArea className="h-[calc(100vh-14rem)]">
+								<div className="space-y-4">
+									<Card>
+										<CardHeader className="flex flex-row justify-between space-y-0 gap-4">
+											<div className="flex flex-col">
+												<CardTitle>รูปโปรไฟล์</CardTitle>
+												<CardDescription>
+													นี่คือรูปโปรไฟล์ของคุณ
+													<br />
+													คลิกที่รูปเพื่ออัปโหลดรูปใหม่จากไฟล์ในอุปกรณ์ของคุณ
+												</CardDescription>
 											</div>
-											<span className="sr-only">เปลี่ยนรูปโปรไฟล์</span>
-										</button>
-									)}
+
+											<div className="shrink-0">
+												{isPending ? (
+													<Skeleton className="size-25 rounded-full" />
+												) : (
+													<button
+														type="button"
+														className="group relative size-24 overflow-hidden rounded-full transition-all duration-200 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+														aria-label="เปลี่ยนรูปโปรไฟล์"
+														onClick={() => setDialogOpen("avatar", true)}
+													>
+														<Avatar className="h-full w-full">
+															<AvatarImage
+																src={user?.image ?? undefined}
+																alt={`รูปโปรไฟล์ของ ${user?.name ?? "ผู้ใช้"}`}
+															/>
+															<AvatarFallback className="text-lg">{userInitials}</AvatarFallback>
+														</Avatar>
+
+														<div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+															<LuCamera size={30} className="text-white" aria-hidden="true" />
+														</div>
+														<span className="sr-only">เปลี่ยนรูปโปรไฟล์</span>
+													</button>
+												)}
+											</div>
+										</CardHeader>
+										<CardFooter className="border-t text-sm text-muted-foreground">
+											รูปโปรไฟล์เป็นตัวเลือก แต่แนะนำให้เพิ่มไว้เพื่อให้ผู้อื่นจดจำคุณได้ง่าย
+										</CardFooter>
+									</Card>
+
+									<Form {...displayNameForm}>
+										<form onSubmit={handleSaveDisplayName}>
+											<Card>
+												<CardHeader>
+													<CardTitle>ชื่อที่แสดง</CardTitle>
+													<CardDescription>ชื่อที่แสดงจะปรากฏในโปรไฟล์และการแจ้งเตือนต่าง ๆ ของคุณ</CardDescription>
+												</CardHeader>
+												<CardContent>
+													<FormField
+														control={displayNameForm.control}
+														name="displayName"
+														render={({ field }) => (
+															<FormItem className={ACCOUNT_FIELD_WIDTH_CLASS}>
+																<FormControl>
+																	<Input
+																		{...field}
+																		maxLength={ACCOUNT_DISPLAY_NAME_MAX_LENGTH}
+																		autoComplete="name"
+																		disabled={isPending || displayNameForm.formState.isSubmitting}
+																		placeholder="ชื่อของคุณ"
+																	/>
+																</FormControl>
+																<FormMessage />
+															</FormItem>
+														)}
+													/>
+												</CardContent>
+												<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+													<p className="text-sm text-muted-foreground">ใช้ชื่อที่ผู้อื่นจดจำคุณได้ง่ายใน NekoShare</p>
+													<Button
+														type="submit"
+														disabled={
+															isPending ||
+															displayNameForm.formState.isSubmitting ||
+															!displayNameValue?.trim() ||
+															displayNameValue.trim() === (user?.name ?? "")
+														}
+													>
+														{displayNameForm.formState.isSubmitting && (
+															<LuLoader className="animate-spin" aria-hidden="true" />
+														)}
+														บันทึก
+													</Button>
+												</CardFooter>
+											</Card>
+										</form>
+									</Form>
+
+									<Form {...usernameForm}>
+										<form onSubmit={handleSaveUsername}>
+											<Card>
+												<CardHeader>
+													<CardTitle>ชื่อผู้ใช้งาน</CardTitle>
+													<CardDescription>
+														ชื่อผู้ใช้งานช่วยให้ผู้อื่นค้นหาคุณได้ง่ายขึ้น และใช้สำหรับการยืนยันบางขั้นตอนของบัญชี
+													</CardDescription>
+												</CardHeader>
+												<CardContent>
+													<FormField
+														control={usernameForm.control}
+														name="username"
+														render={({ field }) => (
+															<FormItem className={ACCOUNT_FIELD_WIDTH_CLASS}>
+																<FormControl>
+																	<Input
+																		{...field}
+																		maxLength={ACCOUNT_USERNAME_MAX_LENGTH}
+																		autoComplete="username"
+																		disabled={isPending || usernameForm.formState.isSubmitting}
+																		placeholder="username"
+																	/>
+																</FormControl>
+																<FormDescription></FormDescription>
+																<FormMessage />
+															</FormItem>
+														)}
+													/>
+												</CardContent>
+												<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+													<p className="text-sm text-muted-foreground">
+														ใช้ได้เฉพาะตัวอักษรภาษาอังกฤษ ตัวเลข จุด และขีดล่าง ความยาวสูงสุด{" "}
+														{ACCOUNT_USERNAME_MAX_LENGTH} ตัวอักษร
+													</p>
+													<Button
+														type="submit"
+														disabled={
+															isPending ||
+															usernameForm.formState.isSubmitting ||
+															!usernameValue?.trim() ||
+															usernameValue.trim() === (username ?? "")
+														}
+													>
+														{usernameForm.formState.isSubmitting && (
+															<LuLoader className="mr-2 size-4 animate-spin" aria-hidden="true" />
+														)}
+														บันทึก
+													</Button>
+												</CardFooter>
+											</Card>
+										</form>
+									</Form>
+
+									<Card>
+										<CardHeader>
+											<CardTitle>อีเมล</CardTitle>
+											<CardDescription>
+												อีเมลนี้ใช้สำหรับเข้าสู่ระบบ รับการแจ้งเตือนเกี่ยวกับบัญชี และยืนยันการเปลี่ยนแปลงสำคัญ
+											</CardDescription>
+										</CardHeader>
+										<CardContent>
+											<Input className={ACCOUNT_FIELD_WIDTH_CLASS} value={user?.email ?? ""} readOnly tabIndex={-1} />
+										</CardContent>
+										<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+											<p className="text-sm text-muted-foreground">
+												เมื่อเปลี่ยนอีเมล เราจะส่งลิงก์ยืนยันไปยังอีเมลใหม่ก่อนใช้งานจริง
+											</p>
+											<Button type="button" onClick={() => setDialogOpen("changeEmail", true)}>
+												เปลี่ยนอีเมล
+											</Button>
+										</CardFooter>
+									</Card>
+
+									<Card className="bg-destructive/5 dark:bg-destructive/20">
+										<CardHeader className="text-destructive">
+											<CardTitle>ลบบัญชี</CardTitle>
+											<CardDescription className="text-muted-foreground">
+												การลบบัญชีจะลบข้อมูลที่เกี่ยวข้องกับบัญชีนี้อย่างถาวร และไม่สามารถกู้คืนได้
+											</CardDescription>
+										</CardHeader>
+										<CardContent>
+											<p className="text-sm text-muted-foreground">
+												ก่อนดำเนินการ กรุณาตรวจสอบให้แน่ใจว่าคุณได้สำรองข้อมูลที่ต้องการเก็บไว้แล้ว
+											</p>
+										</CardContent>
+										<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+											<p className="text-sm text-muted-foreground">การดำเนินการนี้ไม่สามารถย้อนกลับได้</p>
+											<Button variant="destructive" type="button" onClick={() => setDialogOpen("deleteAccount", true)}>
+												ลบบัญชี
+											</Button>
+										</CardFooter>
+									</Card>
 								</div>
-							</CardHeader>
-							<CardFooter className="border-t text-sm text-muted-foreground">
-								รูปโปรไฟล์เป็นตัวเลือก แต่แนะนำให้เพิ่มไว้เพื่อให้ผู้อื่นจดจำคุณได้ง่าย
-							</CardFooter>
-						</Card>
-
-						<Form {...displayNameForm}>
-							<form onSubmit={handleSaveDisplayName}>
-								<Card>
-									<CardHeader>
-										<CardTitle>ชื่อที่แสดง</CardTitle>
-										<CardDescription>
-											ชื่อที่แสดงจะปรากฏในโปรไฟล์และการแจ้งเตือนต่าง ๆ ของคุณ
-										</CardDescription>
-									</CardHeader>
-									<CardContent>
-										<FormField
-											control={displayNameForm.control}
-											name="displayName"
-											render={({ field }) => (
-												<FormItem className={ACCOUNT_FIELD_WIDTH_CLASS}>
-													<FormControl>
-														<Input
-															{...field}
-															maxLength={ACCOUNT_DISPLAY_NAME_MAX_LENGTH}
-															autoComplete="name"
-															disabled={
-																isPending || displayNameForm.formState.isSubmitting
-															}
-															placeholder="ชื่อของคุณ"
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-									</CardContent>
-									<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-										<p className="text-sm text-muted-foreground">
-											ใช้ชื่อที่ผู้อื่นจดจำคุณได้ง่ายใน NekoShare
-										</p>
-										<Button
-											type="submit"
-											disabled={
-												isPending ||
-												displayNameForm.formState.isSubmitting ||
-												!displayNameValue?.trim() ||
-												displayNameValue.trim() === (user?.name ?? "")
-											}
-										>
-											{displayNameForm.formState.isSubmitting && (
-												<LuLoader className="animate-spin" aria-hidden="true" />
-											)}
-											บันทึก
-										</Button>
-									</CardFooter>
-								</Card>
-							</form>
-						</Form>
-
-						<Form {...usernameForm}>
-							<form onSubmit={handleSaveUsername}>
-								<Card>
-									<CardHeader>
-										<CardTitle>ชื่อผู้ใช้งาน</CardTitle>
-										<CardDescription>
-											ชื่อผู้ใช้งานช่วยให้ผู้อื่นค้นหาคุณได้ง่ายขึ้น
-											และใช้สำหรับการยืนยันบางขั้นตอนของบัญชี
-										</CardDescription>
-									</CardHeader>
-									<CardContent>
-										<FormField
-											control={usernameForm.control}
-											name="username"
-											render={({ field }) => (
-												<FormItem className={ACCOUNT_FIELD_WIDTH_CLASS}>
-													<FormControl>
-														<Input
-															{...field}
-															maxLength={ACCOUNT_USERNAME_MAX_LENGTH}
-															autoComplete="username"
-															disabled={isPending || usernameForm.formState.isSubmitting}
-															placeholder="username"
-														/>
-													</FormControl>
-													<FormDescription></FormDescription>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-									</CardContent>
-									<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-										<p className="text-sm text-muted-foreground">
-											ใช้ได้เฉพาะตัวอักษรภาษาอังกฤษ ตัวเลข จุด และขีดล่าง ความยาวสูงสุด{" "}
-											{ACCOUNT_USERNAME_MAX_LENGTH} ตัวอักษร
-										</p>
-										<Button
-											type="submit"
-											disabled={
-												isPending ||
-												usernameForm.formState.isSubmitting ||
-												!usernameValue?.trim() ||
-												usernameValue.trim() === (username ?? "")
-											}
-										>
-											{usernameForm.formState.isSubmitting && (
-												<LuLoader className="mr-2 size-4 animate-spin" aria-hidden="true" />
-											)}
-											บันทึก
-										</Button>
-									</CardFooter>
-								</Card>
-							</form>
-						</Form>
-
-						<Card>
-							<CardHeader>
-								<CardTitle>อีเมล</CardTitle>
-								<CardDescription>
-									อีเมลนี้ใช้สำหรับเข้าสู่ระบบ รับการแจ้งเตือนเกี่ยวกับบัญชี
-									และยืนยันการเปลี่ยนแปลงสำคัญ
-								</CardDescription>
-							</CardHeader>
-							<CardContent>
-								<Input
-									className={ACCOUNT_FIELD_WIDTH_CLASS}
-									value={user?.email ?? ""}
-									readOnly
-									tabIndex={-1}
-								/>
-							</CardContent>
-							<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-								<p className="text-sm text-muted-foreground">
-									เมื่อเปลี่ยนอีเมล เราจะส่งลิงก์ยืนยันไปยังอีเมลใหม่ก่อนใช้งานจริง
-								</p>
-								<Button type="button" onClick={() => setDialogOpen("changeEmail", true)}>
-									เปลี่ยนอีเมล
-								</Button>
-							</CardFooter>
-						</Card>
-
-						<Card className="bg-destructive/5 dark:bg-destructive/20">
-							<CardHeader className="text-destructive">
-								<CardTitle>ลบบัญชี</CardTitle>
-								<CardDescription className="text-muted-foreground">
-									การลบบัญชีจะลบข้อมูลที่เกี่ยวข้องกับบัญชีนี้อย่างถาวร และไม่สามารถกู้คืนได้
-								</CardDescription>
-							</CardHeader>
-							<CardContent>
-								<p className="text-sm text-muted-foreground">
-									ก่อนดำเนินการ กรุณาตรวจสอบให้แน่ใจว่าคุณได้สำรองข้อมูลที่ต้องการเก็บไว้แล้ว
-								</p>
-							</CardContent>
-							<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-								<p className="text-sm text-muted-foreground">การดำเนินการนี้ไม่สามารถย้อนกลับได้</p>
-								<Button
-									variant="destructive"
-									type="button"
-									onClick={() => setDialogOpen("deleteAccount", true)}
-								>
-									ลบบัญชี
-								</Button>
-							</CardFooter>
-						</Card>
-					</TabsContent>
-
-					<TabsContent className={cn("space-y-4", TAB_ANIMATION_CLASSES)} value="security">
-						<Card>
-							<CardHeader>
-								<CardTitle>รหัสผ่าน</CardTitle>
-								<CardDescription>
-									ดูแลความปลอดภัยของบัญชีด้วยรหัสผ่านที่เดายาก และอัปเดตเมื่อจำเป็น
-								</CardDescription>
-							</CardHeader>
-							<CardContent>
-								<p className="text-sm text-muted-foreground">
-									รหัสผ่านต้องมีอย่างน้อย {ACCOUNT_PASSWORD_MIN_LENGTH} ตัวอักษร และไม่เกิน{" "}
-									{ACCOUNT_PASSWORD_MAX_LENGTH} ตัวอักษร
-								</p>
-							</CardContent>
-							<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-								<p className="text-sm text-muted-foreground">
-									หากคุณเข้าสู่ระบบด้วย social account อย่างเดียว สามารถตั้งรหัสผ่านเพิ่มได้จากหน้านี้
-								</p>
-								<Button type="button" onClick={() => setDialogOpen("changePassword", true)}>
-									จัดการรหัสผ่าน
-								</Button>
-							</CardFooter>
-						</Card>
-					</TabsContent>
-				</ScrollArea>
-			</Tabs>
+							</ScrollArea>
+						),
+					},
+					{
+						value: "security",
+						label: "ความปลอดภัย",
+						content: (
+							<ScrollArea className="h-[calc(100vh-14rem)]">
+								<div className="space-y-4">
+									<Card>
+										<CardHeader>
+											<CardTitle>รหัสผ่าน</CardTitle>
+											<CardDescription>
+												ดูแลความปลอดภัยของบัญชีด้วยรหัสผ่านที่เดายาก และอัปเดตเมื่อจำเป็น
+											</CardDescription>
+										</CardHeader>
+										<CardContent>
+											<p className="text-sm text-muted-foreground">
+												รหัสผ่านต้องมีอย่างน้อย {ACCOUNT_PASSWORD_MIN_LENGTH} ตัวอักษร และไม่เกิน{" "}
+												{ACCOUNT_PASSWORD_MAX_LENGTH} ตัวอักษร
+											</p>
+										</CardContent>
+										<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+											<p className="text-sm text-muted-foreground">
+												หากคุณเข้าสู่ระบบด้วย social account อย่างเดียว สามารถตั้งรหัสผ่านเพิ่มได้จากหน้านี้
+											</p>
+											<Button type="button" onClick={() => setDialogOpen("changePassword", true)}>
+												จัดการรหัสผ่าน
+											</Button>
+										</CardFooter>
+									</Card>
+								</div>
+							</ScrollArea>
+						),
+					},
+				]}
+			/>
 
 			<AvatarDialog
 				open={dialogs.avatar}
@@ -1449,11 +1421,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 										<FormItem>
 											<FormLabel>พิมพ์ชื่อผู้ใช้ {deleteConfirmationName || "-"}</FormLabel>
 											<FormControl>
-												<Input
-													{...field}
-													autoComplete="off"
-													disabled={deleteAccountForm.formState.isSubmitting}
-												/>
+												<Input {...field} autoComplete="off" disabled={deleteAccountForm.formState.isSubmitting} />
 											</FormControl>
 											<FormMessage />
 										</FormItem>
@@ -1515,11 +1483,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									>
 										ยกเลิก
 									</Button>
-									<Button
-										type="submit"
-										variant="destructive"
-										disabled={deleteAccountForm.formState.isSubmitting}
-									>
+									<Button type="submit" variant="destructive" disabled={deleteAccountForm.formState.isSubmitting}>
 										{deleteAccountForm.formState.isSubmitting && (
 											<LuLoader className="mr-2 size-4 animate-spin" aria-hidden="true" />
 										)}
