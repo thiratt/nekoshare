@@ -20,36 +20,28 @@ export function SettingsUI() {
 	const { router, setMode, setGlobalLoading, runBeforeSignOut } = useNekoShare();
 	const [activeCategory, setActiveCategory] = useState<SettingCategory>("account");
 	const [confirmLogout, setConfirmLogout] = useState(false);
+	const [hasNestedDialogOpen, setHasNestedDialogOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
-	const [isEscapeEnabled, setIsEscapeEnabled] = useState(true);
 
 	const filteredCategories = searchQuery
 		? SETTING_CATEGORIES.filter((category) => category.label.toLowerCase().includes(searchQuery.toLowerCase()))
 		: SETTING_CATEGORIES;
+	const isEscapeEnabled = !confirmLogout && !hasNestedDialogOpen;
 
 	const handleClose = useCallback(() => setMode("home"), [setMode]);
 	const clearSearch = useCallback(() => setSearchQuery(""), []);
 	const handleCategorySelect = useCallback((id: SettingCategory) => setActiveCategory(id), []);
 
-	const handleDialogActive = useCallback((value: boolean) => {
-		if (!value) {
-			setIsEscapeEnabled(false);
-		} else {
-			const timeoutId = setTimeout(() => setIsEscapeEnabled(true), 100);
-			return () => clearTimeout(timeoutId);
-		}
+	const handleDialogActive = useCallback((hasOpenDialog: boolean) => {
+		setHasNestedDialogOpen(hasOpenDialog);
 	}, []);
 
 	const handleLogoutClick = useCallback(() => {
-		setIsEscapeEnabled(false);
 		setConfirmLogout(true);
 	}, []);
 
 	const handleLogoutDialogChange = useCallback((open: boolean) => {
 		setConfirmLogout(open);
-		if (!open) {
-			setTimeout(() => setIsEscapeEnabled(true), 100);
-		}
 	}, []);
 
 	const onLogout = useCallback(async () => {
@@ -73,7 +65,6 @@ export function SettingsUI() {
 				fetchOptions: {
 					onSuccess: () => {
 						invalidateSessionCache();
-						setIsEscapeEnabled(false);
 						setMode("home");
 						router.navigate({ to: "/login" });
 					},
@@ -88,6 +79,10 @@ export function SettingsUI() {
 		if (!isEscapeEnabled) return;
 
 		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.defaultPrevented) {
+				return;
+			}
+
 			if (e.key === "Escape") {
 				e.preventDefault();
 				setMode("home");
