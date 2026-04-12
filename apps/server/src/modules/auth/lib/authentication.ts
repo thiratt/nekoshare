@@ -2,7 +2,6 @@ import { betterAuth } from "better-auth";
 
 import {
 	advancedOptions,
-	databaseHookOptions,
 	databaseOptions,
 	emailAndPasswordOptions,
 	emailVerificationOptions,
@@ -21,7 +20,6 @@ export const auth = betterAuth({
 	baseURL: env.BETTER_AUTH_URL,
 	basePath: "auth",
 	database: databaseOptions,
-	databaseHooks: databaseHookOptions,
 	emailAndPassword: emailAndPasswordOptions,
 	emailVerification: emailVerificationOptions,
 	socialProviders: socialProvidersOptions,

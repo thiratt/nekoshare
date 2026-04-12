@@ -15,6 +15,13 @@
       "when": 1775646003252,
       "tag": "0001_silly_dormammu",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1776011643756,
+      "tag": "0002_cynical_warlock",
+      "breakpoints": true
     }
   ]
 }

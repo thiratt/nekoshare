@@ -15,6 +15,8 @@ export const users = mysqlTable("users", {
 	username: varchar("username", { length: 255 }).unique(),
 	displayUsername: text("display_username"),
 	role: mysqlEnum(["admin", "user"]).default("user").notNull(),
+	theme: mysqlEnum("theme", ["light", "dark", "system"]).default("system").notNull(),
+	language: mysqlEnum("language", ["en", "th"]).default("th").notNull(),
 	lastActiveAt: timestamp("last_active_at", { fsp: 3 }).defaultNow().notNull(),
 });
 

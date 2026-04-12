@@ -9,7 +9,6 @@ import { cacheDeviceIdBySessionId, collectTrustedOrigins, readCachedDeviceIdBySe
 
 import { env } from "@/config/env";
 import { db } from "@/infrastructure/db";
-import { userPreference } from "@/infrastructure/db/schemas";
 import { Logger } from "@/infrastructure/logger";
 
 const RESERVED_USERNAMES = ["admin", "dev", "system", "root", "nekoshare"] as const;
@@ -18,23 +17,6 @@ const databaseOptions: BetterAuthOptions["database"] = drizzleAdapter(db, {
 	provider: "mysql",
 	usePlural: true,
 });
-
-const databaseHookOptions: BetterAuthOptions["databaseHooks"] = {
-	user: {
-		create: {
-			after: async (user) => {
-				try {
-					await db.insert(userPreference).values({
-						userId: user.id,
-						updatedAt: new Date(),
-					});
-				} catch (err) {
-					Logger.error("Auth", `Failed to create user preference for user ${user.id}`, err);
-				}
-			},
-		},
-	},
-};
 
 const emailAndPasswordOptions: BetterAuthOptions["emailAndPassword"] = {
 	enabled: true,
@@ -138,7 +120,6 @@ const sessionOptions: BetterAuthOptions["session"] = {
 
 export {
 	advancedOptions,
-	databaseHookOptions,
 	databaseOptions,
 	db, // for convenience
 	emailAndPasswordOptions,

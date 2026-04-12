@@ -26,7 +26,6 @@ const requiredTables = [
 	"sessions",
 	"accounts",
 	"verifications",
-	"user_settings",
 	"devices",
 	"friends",
 	"public_share",

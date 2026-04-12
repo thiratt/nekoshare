@@ -57,18 +57,6 @@ const friends = mysqlTable(
 	],
 );
 
-const userSettings = mysqlTable("user_settings", {
-	userId: varchar("user_id", { length: 36 })
-		.primaryKey()
-		.references(() => users.id, { onDelete: "cascade" }),
-	theme: mysqlEnum("theme", ["light", "dark", "system"]).default("system").notNull(),
-	language: mysqlEnum("language", ["en", "th"]).default("th").notNull(),
-	updatedAt: timestamp("updated_at", { fsp: 3 })
-		.defaultNow()
-		.$onUpdate(() => new Date())
-		.notNull(),
-});
-
 const notifications = mysqlTable(
 	"notifications",
 	{
@@ -135,10 +123,9 @@ const transferMetrics = mysqlTable(
 	(table) => [index("transfer_metrics_sender_id_idx").on(table.senderId)],
 );
 
-const userRelations = relations(users, ({ many, one }) => ({
+const userRelations = relations(users, ({ many }) => ({
 	sessions: many(sessions),
 	accounts: many(accounts),
-	preference: one(userSettings),
 	devices: many(devices),
 	publicShares: many(publicShare),
 	sentTransfers: many(transferMetrics),
@@ -148,13 +135,6 @@ const userRelations = relations(users, ({ many, one }) => ({
 	friendHighLinks: many(friends, { relationName: "friendHigh" }),
 	friendRequestedLinks: many(friends, { relationName: "friendRequestedBy" }),
 	friendBlockedLinks: many(friends, { relationName: "friendBlockedBy" }),
-}));
-
-const userSettingsRelations = relations(userSettings, ({ one }) => ({
-	user: one(users, {
-		fields: [userSettings.userId],
-		references: [users.id],
-	}),
 }));
 
 const deviceRelations = relations(devices, ({ one }) => ({
@@ -245,9 +225,5 @@ export {
 	transferMetrics as transferHistory,
 	transferMetrics,
 	transferMetricsRelations,
-	// Backward-compatible aliases for existing imports.
-	userSettings as userPreference,
 	userRelations,
-	userSettings,
-	userSettingsRelations,
 };

@@ -16,6 +16,16 @@ const userSchemaOptions: BetterAuthOptions["user"] = {
 			required: true,
 			defaultValue: "user",
 		},
+		theme: {
+			type: ["light", "dark", "system"],
+			required: true,
+			defaultValue: "system",
+		},
+		language: {
+			type: ["en", "th"],
+			required: true,
+			defaultValue: "th",
+		},
 		lastActiveAt: {
 			type: "date",
 			required: true,
