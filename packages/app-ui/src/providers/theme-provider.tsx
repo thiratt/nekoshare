@@ -9,6 +9,8 @@ const initialState: ThemeProviderState = {
 	theme: "system",
 	setTheme: () => null,
 	setSyncThemeFromAccount: () => null,
+	setAccountThemeSyncPaused: () => null,
+	accountThemeSyncPaused: false,
 	syncThemeFromAccount: true,
 };
 
@@ -35,6 +37,7 @@ export function ThemeProvider({
 		const stored = localStorage.getItem(SYNC_STORAGE_KEY);
 		return stored === null ? true : stored !== "false";
 	});
+	const [accountThemeSyncPaused, setAccountThemeSyncPausedState] = useState(false);
 
 	useEffect(() => {
 		const root = window.document.documentElement;
@@ -104,12 +107,25 @@ export function ThemeProvider({
 		setSyncThemeFromAccountState(enabled);
 	}, []);
 
+	const setAccountThemeSyncPaused = useCallback((paused: boolean) => {
+		setAccountThemeSyncPausedState(paused);
+	}, []);
+
 	const value = useMemo<ThemeProviderState>(() => ({
 		theme,
 		setTheme,
 		setSyncThemeFromAccount,
+		setAccountThemeSyncPaused,
+		accountThemeSyncPaused,
 		syncThemeFromAccount,
-	}), [setSyncThemeFromAccount, setTheme, syncThemeFromAccount, theme]);
+	}), [
+		accountThemeSyncPaused,
+		setAccountThemeSyncPaused,
+		setSyncThemeFromAccount,
+		setTheme,
+		syncThemeFromAccount,
+		theme,
+	]);
 
 	return (
 		<ThemeProviderContext.Provider {...props} value={value}>
@@ -129,14 +145,19 @@ function normalizeTheme(value?: string | null): Theme | null {
 }
 
 export function useAccountThemeSync(accountTheme?: string | null): void {
-	const { setTheme, syncThemeFromAccount, theme } = useTheme();
+	const { accountThemeSyncPaused, setTheme, syncThemeFromAccount, theme } = useTheme();
 	const normalizedAccountTheme = normalizeTheme(accountTheme);
 
 	useEffect(() => {
-		if (!syncThemeFromAccount || !normalizedAccountTheme || normalizedAccountTheme === theme) {
+		if (
+			accountThemeSyncPaused ||
+			!syncThemeFromAccount ||
+			!normalizedAccountTheme ||
+			normalizedAccountTheme === theme
+		) {
 			return;
 		}
 
 		setTheme(normalizedAccountTheme);
-	}, [normalizedAccountTheme, setTheme, syncThemeFromAccount, theme]);
+	}, [accountThemeSyncPaused, normalizedAccountTheme, setTheme, syncThemeFromAccount, theme]);
 }

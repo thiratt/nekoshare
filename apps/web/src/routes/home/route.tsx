@@ -12,7 +12,11 @@ import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
-import { getCachedSession } from "@workspace/app-ui/lib/auth";
+import {
+  authClient,
+  getCachedSession,
+  type SessionUser,
+} from "@workspace/app-ui/lib/auth";
 import { useAccountThemeSync, useTheme } from "@workspace/app-ui/providers/theme-provider";
 
 import { WebTitlebar } from "@/components/navbar";
@@ -45,9 +49,11 @@ function RouteComponent() {
   const { setGlobalLoading, setMode, toggleNotification, notificationStatus } =
     useNekoShare();
   const { user } = Route.useRouteContext();
+  const { data: sessionData } = authClient.useSession();
+  const sessionUser = sessionData?.user as SessionUser | undefined;
 
-  useAccountLanguageSync(user?.language);
-  useAccountThemeSync(user?.theme);
+  useAccountLanguageSync(sessionUser?.language ?? user?.language);
+  useAccountThemeSync(sessionUser?.theme ?? user?.theme);
 
   const titlebarHelperActions = useMemo(
     () => [

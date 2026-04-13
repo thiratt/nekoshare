@@ -41,7 +41,7 @@ import { DesktopTitlebar } from "@/components/navbar";
 import { SetupApplicationUI } from "@/components/setup";
 import { useNSDesktop } from "@/context/NSDesktopContext";
 import { useTauriFileDrop } from "@/hooks/use-tauri-file-drop";
-import { getCachedSession } from "@/lib/auth";
+import { authClient, getCachedSession, type SessionUser } from "@/lib/auth";
 import {
   type TransferProgressEvent,
   useTransferStore,
@@ -147,10 +147,12 @@ function RouteComponent() {
     setMode,
   } = useNekoShareDesktop();
   const { user } = Route.useRouteContext();
+  const { data: sessionData } = authClient.useSession();
+  const sessionUser = sessionData?.user as SessionUser | undefined;
   const userId = user?.id ?? null;
   const userDeviceId = user?.deviceId ?? null;
-  useAccountLanguageSync(user?.language);
-  useAccountThemeSync(user?.theme);
+  useAccountLanguageSync(sessionUser?.language ?? user?.language);
+  useAccountThemeSync(sessionUser?.theme ?? user?.theme);
   const { theme, setTheme } = useTheme();
   const { send } = useNekoSocket();
   const { devices } = useDevices();

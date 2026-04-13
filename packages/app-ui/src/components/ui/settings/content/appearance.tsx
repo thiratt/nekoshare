@@ -11,7 +11,7 @@ import { cn } from "@workspace/ui/lib/utils";
 
 import { EnglishFlagSvg } from "@workspace/app-ui/components/svgs/english";
 import { ThaiFlagSvg } from "@workspace/app-ui/components/svgs/thai";
-import { authClient, updateUserAppearance } from "@workspace/app-ui/lib/auth";
+import { authClient, invalidateSessionCache, updateUserAppearance } from "@workspace/app-ui/lib/auth";
 import { useTheme } from "@workspace/app-ui/providers/theme-provider";
 import type { Language, LanguageOption } from "@workspace/app-ui/types/settings";
 import type { Theme } from "@workspace/app-ui/types/theme";
@@ -97,7 +97,6 @@ interface LocalThemeButtonProps {
 	option: LocalThemeOption;
 	isSelected: boolean;
 	onThemeSelect: (theme: Theme) => void;
-	disabled?: boolean;
 	className?: string;
 	role?: string;
 	"aria-checked"?: boolean;
@@ -108,32 +107,25 @@ const ThemeButton = memo(function ThemeButton({
 	option,
 	isSelected,
 	onThemeSelect,
-	disabled = false,
 	className,
 	...props
 }: LocalThemeButtonProps) {
 	const { id, icon: Icon, bgClass, iconClass } = option;
 
 	const handleClick = useCallback(() => {
-		if (disabled) {
-			return;
-		}
-
 		onThemeSelect(id);
-	}, [disabled, onThemeSelect, id]);
+	}, [onThemeSelect, id]);
 
 	return (
 		<button
 			type="button"
 			className={cn(
 				"group cursor-pointer relative w-16 h-16 border-2 border-foreground rounded-full transition-all",
-				"disabled:cursor-not-allowed disabled:opacity-50",
 				"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
 				bgClass,
 				className,
 			)}
 			onClick={handleClick}
-			disabled={disabled}
 			aria-label={label}
 			aria-pressed={isSelected}
 			{...props}
@@ -149,7 +141,14 @@ const ThemeButton = memo(function ThemeButton({
 export const SettingAppearanceContent = memo(function SettingAppearanceContent({
 	onUnsavedChange,
 }: SettingAppearanceContentProps) {
-	const { setSyncThemeFromAccount, setTheme, syncThemeFromAccount, theme } = useTheme();
+	const {
+		accountThemeSyncPaused,
+		setAccountThemeSyncPaused,
+		setSyncThemeFromAccount,
+		setTheme,
+		syncThemeFromAccount,
+		theme,
+	} = useTheme();
 	const { data: sessionData, refetch } = authClient.useSession();
 	const { toast } = useToast();
 	const {
@@ -167,33 +166,61 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent({
 	const [savedTheme, setSavedTheme] = useState<Theme>(theme);
 	const [draftTheme, setDraftTheme] = useState<Theme>(theme);
 	const [draftSyncThemeFromAccount, setDraftSyncThemeFromAccount] = useState(syncThemeFromAccount);
+	const [savedLanguage, setSavedLanguage] = useState<Language>(language);
 	const [draftLanguage, setDraftLanguage] = useState<Language>(language);
 	const [draftSyncLanguageFromAccount, setDraftSyncLanguageFromAccount] = useState(syncLanguageFromAccount);
 	const [isSaving, setIsSaving] = useState(false);
 
+	const hasUnsavedTheme = draftTheme !== savedTheme;
+	const hasUnsavedThemeSync = draftSyncThemeFromAccount !== syncThemeFromAccount;
+	const hasUnsavedLanguageValue = draftLanguage !== savedLanguage;
+	const hasUnsavedLanguageSync = draftSyncLanguageFromAccount !== syncLanguageFromAccount;
+	const hasUnsavedLanguage = hasUnsavedLanguageValue || hasUnsavedLanguageSync;
+	const hasChanges = hasUnsavedTheme || hasUnsavedThemeSync || hasUnsavedLanguage;
+
 	useEffect(() => {
-		if (draftTheme === savedTheme && savedTheme !== theme) {
+		if (!hasUnsavedTheme && savedTheme !== theme) {
 			setSavedTheme(theme);
 			setDraftTheme(theme);
 		}
-	}, [draftTheme, savedTheme, theme]);
+	}, [hasUnsavedTheme, savedTheme, theme]);
 
 	useEffect(() => {
-		setDraftSyncThemeFromAccount(syncThemeFromAccount);
-	}, [syncThemeFromAccount]);
+		if (!hasUnsavedThemeSync && draftSyncThemeFromAccount !== syncThemeFromAccount) {
+			setDraftSyncThemeFromAccount(syncThemeFromAccount);
+		}
+	}, [draftSyncThemeFromAccount, hasUnsavedThemeSync, syncThemeFromAccount]);
 
 	useEffect(() => {
-		setDraftLanguage(language);
-	}, [language]);
+		if (!hasUnsavedLanguageValue && savedLanguage !== language) {
+			setSavedLanguage(language);
+			setDraftLanguage(language);
+		}
+	}, [hasUnsavedLanguageValue, language, savedLanguage]);
 
 	useEffect(() => {
-		setDraftSyncLanguageFromAccount(syncLanguageFromAccount);
-	}, [syncLanguageFromAccount]);
+		if (!hasUnsavedLanguageSync && draftSyncLanguageFromAccount !== syncLanguageFromAccount) {
+			setDraftSyncLanguageFromAccount(syncLanguageFromAccount);
+		}
+	}, [draftSyncLanguageFromAccount, hasUnsavedLanguageSync, syncLanguageFromAccount]);
 
-	const hasUnsavedTheme = draftTheme !== savedTheme;
-	const hasUnsavedThemeSync = draftSyncThemeFromAccount !== syncThemeFromAccount;
-	const hasUnsavedLanguage = draftLanguage !== language || draftSyncLanguageFromAccount !== syncLanguageFromAccount;
-	const hasChanges = hasUnsavedTheme || hasUnsavedThemeSync || hasUnsavedLanguage;
+	useEffect(() => {
+		const shouldPauseAccountThemeSync = syncThemeFromAccount && hasUnsavedTheme;
+		if (accountThemeSyncPaused !== shouldPauseAccountThemeSync) {
+			setAccountThemeSyncPaused(shouldPauseAccountThemeSync);
+		}
+	}, [
+		accountThemeSyncPaused,
+		hasUnsavedTheme,
+		setAccountThemeSyncPaused,
+		syncThemeFromAccount,
+	]);
+
+	useEffect(() => {
+		return () => {
+			setAccountThemeSyncPaused(false);
+		};
+	}, [setAccountThemeSyncPaused]);
 
 	const discardChanges = useCallback(() => {
 		if (hasUnsavedTheme) {
@@ -202,9 +229,16 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent({
 
 		setDraftTheme(savedTheme);
 		setDraftSyncThemeFromAccount(syncThemeFromAccount);
-		setDraftLanguage(language);
+		setDraftLanguage(savedLanguage);
 		setDraftSyncLanguageFromAccount(syncLanguageFromAccount);
-	}, [hasUnsavedTheme, language, savedTheme, setTheme, syncLanguageFromAccount, syncThemeFromAccount]);
+	}, [
+		hasUnsavedTheme,
+		savedLanguage,
+		savedTheme,
+		setTheme,
+		syncLanguageFromAccount,
+		syncThemeFromAccount,
+	]);
 
 	useEffect(() => {
 		onUnsavedChange?.(hasChanges, discardChanges);
@@ -212,46 +246,36 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent({
 
 	const handleThemeChange = useCallback(
 		(newTheme: Theme) => {
-			if (draftSyncThemeFromAccount) {
-				return;
+			const shouldPauseAccountThemeSync = syncThemeFromAccount && newTheme !== savedTheme;
+			if (accountThemeSyncPaused !== shouldPauseAccountThemeSync) {
+				setAccountThemeSyncPaused(shouldPauseAccountThemeSync);
 			}
 
 			setDraftTheme(newTheme);
 			setTheme(newTheme, { persist: false });
 		},
-		[draftSyncThemeFromAccount, setTheme],
+		[accountThemeSyncPaused, savedTheme, setAccountThemeSyncPaused, setTheme, syncThemeFromAccount],
 	);
 
 	const handleThemeSyncToggle = useCallback(
 		(checked: boolean) => {
 			setDraftSyncThemeFromAccount(checked);
-			if (checked && userTheme) {
-				setDraftTheme(userTheme);
-				setTheme(userTheme, { persist: false });
-			}
 		},
-		[setTheme, userTheme],
+		[],
 	);
 
 	const handleLanguageChange = useCallback(
 		(value: string) => {
-			if (draftSyncLanguageFromAccount) {
-				return;
-			}
-
 			setDraftLanguage(value as Language);
 		},
-		[draftSyncLanguageFromAccount],
+		[],
 	);
 
 	const handleSyncToggle = useCallback(
 		(checked: boolean) => {
 			setDraftSyncLanguageFromAccount(checked);
-			if (checked && userLanguage) {
-				setDraftLanguage(userLanguage);
-			}
 		},
-		[userLanguage],
+		[],
 	);
 
 	const handleSaveTheme = useCallback(async () => {
@@ -262,26 +286,30 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent({
 		setIsSaving(true);
 
 		try {
-			const shouldUpdateAccount = draftSyncThemeFromAccount && !!sessionData?.user && userTheme !== draftTheme;
-			const result = shouldUpdateAccount ? await updateUserAppearance({ theme: draftTheme }) : null;
+			const nextTheme = draftTheme;
+			const shouldUpdateAccount =
+				draftSyncThemeFromAccount && !!sessionData?.user && userTheme !== nextTheme;
+			const result = shouldUpdateAccount ? await updateUserAppearance({ theme: nextTheme }) : null;
 			if (result?.error) {
 				toast.error(t("settings.appearance.theme.saveError"));
 				return;
 			}
 
 			if (shouldUpdateAccount) {
+				invalidateSessionCache();
 				await refetch();
-			}
-
-			if (theme !== draftTheme || hasUnsavedTheme) {
-				setTheme(draftTheme);
 			}
 
 			if (syncThemeFromAccount !== draftSyncThemeFromAccount) {
 				setSyncThemeFromAccount(draftSyncThemeFromAccount);
 			}
 
-			setSavedTheme(draftTheme);
+			if (theme !== nextTheme || hasUnsavedTheme || hasUnsavedThemeSync) {
+				setTheme(nextTheme);
+			}
+
+			setSavedTheme(nextTheme);
+			setDraftTheme(nextTheme);
 			toast.success(t("settings.appearance.theme.saveSuccess"));
 		} catch (error) {
 			console.error("Failed to save theme settings:", error);
@@ -293,6 +321,7 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent({
 		draftSyncThemeFromAccount,
 		draftTheme,
 		hasUnsavedTheme,
+		hasUnsavedThemeSync,
 		isSaving,
 		refetch,
 		sessionData?.user,
@@ -313,13 +342,20 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent({
 		setIsSaving(true);
 
 		try {
-			if (draftSyncLanguageFromAccount && sessionData?.user && userLanguage !== draftLanguage) {
-				const result = await updateUserAppearance({ language: draftLanguage });
+			const nextLanguage = draftLanguage;
+			const shouldUpdateAccount =
+				draftSyncLanguageFromAccount &&
+				!!sessionData?.user &&
+				userLanguage !== nextLanguage;
+
+			if (shouldUpdateAccount) {
+				const result = await updateUserAppearance({ language: nextLanguage });
 				if (result.error) {
 					toast.error(t("settings.appearance.language.saveError"));
 					return;
 				}
 
+				invalidateSessionCache();
 				await refetch();
 			}
 
@@ -327,10 +363,12 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent({
 				setSyncLanguageFromAccount(draftSyncLanguageFromAccount);
 			}
 
-			if (language !== draftLanguage) {
-				await setLanguage(draftLanguage);
+			if (language !== nextLanguage || hasUnsavedLanguageSync) {
+				await setLanguage(nextLanguage);
 			}
 
+			setSavedLanguage(nextLanguage);
+			setDraftLanguage(nextLanguage);
 			toast.success(t("settings.appearance.language.saveSuccess"));
 		} catch (error) {
 			console.error("Failed to save language settings:", error);
@@ -341,6 +379,7 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent({
 	}, [
 		draftLanguage,
 		draftSyncLanguageFromAccount,
+		hasUnsavedLanguageSync,
 		isSaving,
 		language,
 		refetch,
@@ -377,7 +416,6 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent({
 								option={option}
 								isSelected={draftTheme === option.id}
 								onThemeSelect={handleThemeChange}
-								disabled={draftSyncThemeFromAccount}
 								role="radio"
 								aria-checked={draftTheme === option.id}
 							/>
@@ -403,12 +441,8 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent({
 					<CardDescription>{t("settings.appearance.language.description")}</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					<Select
-						value={draftLanguage}
-						onValueChange={handleLanguageChange}
-						disabled={draftSyncLanguageFromAccount}
-					>
-						<SelectTrigger className="w-full max-w-xs" disabled={draftSyncLanguageFromAccount}>
+					<Select value={draftLanguage} onValueChange={handleLanguageChange}>
+						<SelectTrigger className="w-full max-w-xs">
 							<SelectValue>
 								{selectedLanguage && (
 									<span className="flex gap-1">

@@ -10,5 +10,7 @@ export type ThemeProviderState = {
 	theme: Theme;
 	setTheme: (theme: Theme, options?: { persist?: boolean }) => void;
 	setSyncThemeFromAccount: (enabled: boolean) => void;
+	setAccountThemeSyncPaused: (paused: boolean) => void;
+	accountThemeSyncPaused: boolean;
 	syncThemeFromAccount: boolean;
 };
