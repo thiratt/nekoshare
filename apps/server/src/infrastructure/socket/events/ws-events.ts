@@ -28,6 +28,22 @@ export function createWsDevicesEvents(): DevicesEventsPort {
 				Logger.error("WebSocket", "Failed to broadcast DEVICE_ADDED", error);
 			}
 		},
+		emitDeviceRemoved(userId, dto) {
+			try {
+				const payload = JSON.stringify(dto);
+				sendJsonToSessions(userId, PacketType.DEVICE_REMOVED, payload);
+			} catch (error) {
+				Logger.error("WebSocket", "Failed to broadcast DEVICE_REMOVED", error);
+			}
+		},
+		emitDeviceUpdated(userId, dto) {
+			try {
+				const payload = JSON.stringify(dto);
+				sendJsonToSessions(userId, PacketType.DEVICE_UPDATED, payload);
+			} catch (error) {
+				Logger.error("WebSocket", "Failed to broadcast DEVICE_UPDATED", error);
+			}
+		},
 	};
 }
 

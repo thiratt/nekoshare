@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/infrastructure/db";
-import { device } from "@/infrastructure/db/schemas";
+import { device, sessions } from "@/infrastructure/db/schemas";
 
 export type DeviceRecord = typeof device.$inferSelect;
 
@@ -27,6 +27,12 @@ export const devicesRepository = {
 	findByIdAndUser(deviceId: string, userId: string) {
 		return db.query.device.findFirst({
 			where: and(eq(device.id, deviceId), eq(device.userId, userId)),
+		});
+	},
+
+	findBySessionId(sessionId: string) {
+		return db.query.device.findFirst({
+			where: eq(device.currentSessionId, sessionId),
 		});
 	},
 
@@ -57,5 +63,9 @@ export const devicesRepository = {
 
 	async deleteById(deviceId: string) {
 		await db.delete(device).where(eq(device.id, deviceId));
+	},
+
+	async deleteSessionById(sessionId: string) {
+		await db.delete(sessions).where(eq(sessions.id, sessionId));
 	},
 };

@@ -19,12 +19,15 @@ type MySqlErrorLike = {
 };
 
 export type DeviceAddedPayload = ReturnType<typeof mapDeviceToDto>;
+export type DeviceRemovedPayload = { fingerprint: string | null; id: string; terminatedBy: string };
+export type DeviceUpdatedPayload = { id: string; name: string };
 
 export interface DevicesRepositoryPort {
 	findByUserId(userId: string): Promise<DeviceRecord[]>;
 	findByUserAndFingerprint(userId: string, fingerprint: string): Promise<DeviceRecord | undefined>;
 	findById(deviceId: string): Promise<DeviceRecord | undefined>;
 	findByIdAndUser(deviceId: string, userId: string): Promise<DeviceRecord | undefined>;
+	findBySessionId(sessionId: string): Promise<DeviceRecord | undefined>;
 	updateById(
 		deviceId: string,
 		values: {
@@ -45,10 +48,13 @@ export interface DevicesRepositoryPort {
 		lastActiveAt: Date;
 	}): Promise<void>;
 	deleteById(deviceId: string): Promise<void>;
+	deleteSessionById(sessionId: string): Promise<void>;
 }
 
 export interface DevicesEventsPort {
 	emitDeviceAdded(userId: string, dto: DeviceAddedPayload): void;
+	emitDeviceRemoved(userId: string, payload: DeviceRemovedPayload): void;
+	emitDeviceUpdated(userId: string, payload: DeviceUpdatedPayload): void;
 }
 
 export class DevicesServiceError extends HttpServiceError {
@@ -174,6 +180,10 @@ export class DevicesService {
 			throw new DevicesServiceError("INTERNAL_ERROR", 500, "Failed to retrieve updated device");
 		}
 
+		if (body.name) {
+			this.events.emitDeviceUpdated(session.userId, { id: updatedDevice.id, name: updatedDevice.deviceName });
+		}
+
 		return {
 			device: mapDeviceToDto(updatedDevice),
 		};
@@ -185,7 +195,22 @@ export class DevicesService {
 			throw new DevicesServiceError("NOT_FOUND", 404, "Device not found");
 		}
 
+		let actorDeviceName = "Unknown Device";
+		const actorDevice = await this.repository.findBySessionId(session.id);
+		if (actorDevice) {
+			actorDeviceName = actorDevice.deviceName;
+		}
+
 		await this.repository.deleteById(deviceId);
+		if (existingDevice.currentSessionId) {
+			await this.repository.deleteSessionById(existingDevice.currentSessionId);
+		}
+
+		this.events.emitDeviceRemoved(session.userId, {
+			id: existingDevice.id,
+			fingerprint: existingDevice.fingerprint || null,
+			terminatedBy: actorDeviceName,
+		});
 
 		return {
 			deleted: true,

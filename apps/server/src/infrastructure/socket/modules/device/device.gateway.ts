@@ -1,23 +1,15 @@
-import { wsSessionManager } from "@/infrastructure/socket/transport/ws/connection";
+import { sendJsonToSessions } from "@/infrastructure/socket/modules/friend/friend.gateway";
 import { PacketType } from "@workspace/contracts/ws";
 
 export function broadcastDeviceUpdated(userId: string, payload: { id: string; name: string }): void {
-	const userSessions = wsSessionManager.getSessionsByUserId(userId);
 	const broadcastPayload = JSON.stringify(payload);
-
-	for (const session of userSessions) {
-		session.sendPacket(PacketType.DEVICE_UPDATED, (writer) => writer.writeString(broadcastPayload));
-	}
+	sendJsonToSessions(userId, PacketType.DEVICE_UPDATED, broadcastPayload);
 }
 
 export function broadcastDeviceRemoved(
 	userId: string,
 	payload: { id: string; fingerprint: string | null; terminatedBy: string },
 ): void {
-	const userSessions = wsSessionManager.getSessionsByUserId(userId);
 	const broadcastPayload = JSON.stringify(payload);
-
-	for (const session of userSessions) {
-		session.sendPacket(PacketType.DEVICE_REMOVED, (writer) => writer.writeString(broadcastPayload));
-	}
+	sendJsonToSessions(userId, PacketType.DEVICE_REMOVED, broadcastPayload);
 }

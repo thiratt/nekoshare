@@ -41,18 +41,18 @@ export async function processDeviceDelete(
 		throw new Error("Device not found");
 	}
 
-	await deviceRepository.remove(payload.id);
-
-	if (existingDevice.currentSessionId) {
-		await deviceRepository.removeSession(existingDevice.currentSessionId);
-	}
-
 	let actorDeviceName = "Unknown Device";
 	if (client.session?.id) {
 		const actorDevice = await deviceRepository.findBySessionId(client.session.id);
 		if (actorDevice) {
 			actorDeviceName = actorDevice.deviceName;
 		}
+	}
+
+	await deviceRepository.remove(payload.id);
+
+	if (existingDevice.currentSessionId) {
+		await deviceRepository.removeSession(existingDevice.currentSessionId);
 	}
 
 	broadcastDeviceRemoved(userId, {
