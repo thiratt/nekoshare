@@ -35,7 +35,7 @@ import { useNekoSocket } from "@workspace/app-ui/hooks/useNekoSocket";
 import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
 import { useSocketInterval } from "@workspace/app-ui/hooks/useSocketInterval";
 import { PacketType } from "@workspace/app-ui/lib/nk-socket";
-import { useTheme } from "@workspace/app-ui/providers/theme-provider";
+import { useAccountThemeSync, useTheme } from "@workspace/app-ui/providers/theme-provider";
 
 import { DesktopTitlebar } from "@/components/navbar";
 import { SetupApplicationUI } from "@/components/setup";
@@ -47,6 +47,7 @@ import {
   useTransferStore,
 } from "@/lib/store/transfers";
 import { parseDropZoneId } from "@/lib/transfer";
+import { useAccountLanguageSync } from "@workspace/i18n/react";
 
 export const Route = createFileRoute("/home")({
   async beforeLoad() {
@@ -148,6 +149,8 @@ function RouteComponent() {
   const { user } = Route.useRouteContext();
   const userId = user?.id ?? null;
   const userDeviceId = user?.deviceId ?? null;
+  useAccountLanguageSync(user?.language);
+  useAccountThemeSync(user?.theme);
   const { theme, setTheme } = useTheme();
   const { send } = useNekoSocket();
   const { devices } = useDevices();

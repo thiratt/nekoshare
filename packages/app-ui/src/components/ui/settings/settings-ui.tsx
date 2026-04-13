@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AnimatePresence, motion } from "motion/react";
 import { LuLogOut, LuX } from "react-icons/lu";
@@ -13,35 +13,87 @@ import type { SettingCategory } from "@workspace/app-ui/types/settings";
 
 import { CONTENT_TRANSITION, CONTENT_VARIANTS, OVERLAY_TRANSITION, OVERLAY_VARIANTS } from "./animations";
 import { CategoryButton } from "./components";
-import { CATEGORY_MAP, CONTENT_COMPONENTS, SETTING_CATEGORIES } from "./constants";
-import { LogoutDialog } from "./dialogs";
+import { CONTENT_COMPONENTS, createCategoryMap, createSettingCategories } from "./constants";
+import { LogoutDialog, UnsavedChangesDialog } from "./dialogs";
+
+import { useAppI18n } from "@workspace/i18n/react";
 
 export function SettingsUI() {
 	const { router, setMode, setGlobalLoading, runBeforeSignOut } = useNekoShare();
+	const { t } = useAppI18n();
 	const [activeCategory, setActiveCategory] = useState<SettingCategory>("account");
 	const [confirmLogout, setConfirmLogout] = useState(false);
+	const [confirmDiscardChanges, setConfirmDiscardChanges] = useState(false);
 	const [hasNestedDialogOpen, setHasNestedDialogOpen] = useState(false);
+	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
+	const discardUnsavedChangesRef = useRef<(() => void) | undefined>(undefined);
+	const pendingActionRef = useRef<(() => void) | null>(null);
 
+	const settingCategories = useMemo(() => createSettingCategories(t), [t]);
+	const categoryMap = useMemo(() => createCategoryMap(settingCategories), [settingCategories]);
 	const filteredCategories = searchQuery
-		? SETTING_CATEGORIES.filter((category) => category.label.toLowerCase().includes(searchQuery.toLowerCase()))
-		: SETTING_CATEGORIES;
-	const isEscapeEnabled = !confirmLogout && !hasNestedDialogOpen;
+		? settingCategories.filter((category) => category.label.toLowerCase().includes(searchQuery.toLowerCase()))
+		: settingCategories;
+	const isEscapeEnabled = !confirmLogout && !confirmDiscardChanges && !hasNestedDialogOpen;
 
-	const handleClose = useCallback(() => setMode("home"), [setMode]);
+	const runOrConfirmDiscard = useCallback(
+		(action: () => void) => {
+			if (!hasUnsavedChanges) {
+				action();
+				return;
+			}
+
+			pendingActionRef.current = action;
+			setConfirmDiscardChanges(true);
+		},
+		[hasUnsavedChanges],
+	);
+
+	const handleClose = useCallback(() => runOrConfirmDiscard(() => setMode("home")), [runOrConfirmDiscard, setMode]);
 	const clearSearch = useCallback(() => setSearchQuery(""), []);
-	const handleCategorySelect = useCallback((id: SettingCategory) => setActiveCategory(id), []);
+	const handleCategorySelect = useCallback(
+		(id: SettingCategory) => {
+			if (id === activeCategory) {
+				return;
+			}
+
+			runOrConfirmDiscard(() => setActiveCategory(id));
+		},
+		[activeCategory, runOrConfirmDiscard],
+	);
 
 	const handleDialogActive = useCallback((hasOpenDialog: boolean) => {
 		setHasNestedDialogOpen(hasOpenDialog);
 	}, []);
 
-	const handleLogoutClick = useCallback(() => {
-		setConfirmLogout(true);
+	const handleUnsavedChange = useCallback((dirty: boolean, discard?: () => void) => {
+		setHasUnsavedChanges(dirty);
+		discardUnsavedChangesRef.current = dirty ? discard : undefined;
 	}, []);
+
+	const handleLogoutClick = useCallback(() => {
+		runOrConfirmDiscard(() => setConfirmLogout(true));
+	}, [runOrConfirmDiscard]);
 
 	const handleLogoutDialogChange = useCallback((open: boolean) => {
 		setConfirmLogout(open);
+	}, []);
+
+	const handleDiscardDialogChange = useCallback((open: boolean) => {
+		setConfirmDiscardChanges(open);
+	}, []);
+
+	const handleDiscardChanges = useCallback(() => {
+		const pendingAction = pendingActionRef.current;
+		pendingActionRef.current = null;
+
+		discardUnsavedChangesRef.current?.();
+		discardUnsavedChangesRef.current = undefined;
+		setHasUnsavedChanges(false);
+		setConfirmDiscardChanges(false);
+
+		pendingAction?.();
 	}, []);
 
 	const onLogout = useCallback(async () => {
@@ -53,10 +105,6 @@ export function SettingsUI() {
 			} catch (cleanupError) {
 				console.error("Failed to run logout cleanup:", cleanupError);
 			}
-
-			// if (currentDevice) {
-			// 	await deleteDevice(currentDevice.id);
-			// }
 
 			socketClient.setAutoReconnect(false);
 			socketClient.disconnect();
@@ -71,7 +119,7 @@ export function SettingsUI() {
 				},
 			});
 		} catch (error) {
-			console.error("Failed to delete device on logout:", error);
+			console.error("Failed to sign out:", error);
 		}
 	}, [router, runBeforeSignOut, setMode, setGlobalLoading]);
 
@@ -85,17 +133,20 @@ export function SettingsUI() {
 
 			if (e.key === "Escape") {
 				e.preventDefault();
-				setMode("home");
+				handleClose();
 			}
 		};
 
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [isEscapeEnabled, setMode]);
+	}, [handleClose, isEscapeEnabled]);
 
-	const activeCategoryLabel = CATEGORY_MAP.get(activeCategory)?.label ?? "";
+	const activeCategoryLabel = categoryMap.get(activeCategory)?.label ?? "";
 	const ContentComponent = CONTENT_COMPONENTS[activeCategory];
-	const contentProps = activeCategory === "account" ? { onDialogActive: handleDialogActive } : {};
+	const contentProps = {
+		...(activeCategory === "account" ? { onDialogActive: handleDialogActive } : {}),
+		onUnsavedChange: handleUnsavedChange,
+	};
 
 	return (
 		<motion.div
@@ -108,17 +159,16 @@ export function SettingsUI() {
 			className="flex fixed inset-0 h-screen w-screen z-20"
 			role="dialog"
 			aria-modal="true"
-			aria-label="Settings"
+			aria-label={t("settings.title")}
 		>
 			<div className="w-full bg-background/90 grid grid-cols-[280px_1fr] m-6 divide-x rounded-xl shadow-2xl overflow-hidden border">
-				{/* Sidebar */}
-				<aside className="flex flex-col p-5" aria-label="Settings categories">
+				<aside className="flex flex-col p-5" aria-label={t("settings.title")}>
 					<SearchInput
 						className="w-auto mb-2"
 						searchQuery={searchQuery}
 						onSearchQuery={setSearchQuery}
 						onClearSearch={clearSearch}
-						aria-label="Search settings"
+						aria-label={t("common.search.settings")}
 					/>
 					<div className="flex flex-1 flex-col justify-between">
 						<div className="space-y-1" role="tablist" aria-orientation="vertical">
@@ -133,12 +183,11 @@ export function SettingsUI() {
 						</div>
 						<Button className="justify-start gap-2" variant="ghost" onClick={handleLogoutClick}>
 							<LuLogOut aria-hidden />
-							ออกจากระบบ
+							{t("common.actions.signOut")}
 						</Button>
 					</div>
 				</aside>
 
-				{/* Main content */}
 				<main className="flex-1 flex flex-col overflow-hidden">
 					<header className="flex justify-between items-center p-6 border-b">
 						<h2 className="text-2xl font-semibold">{activeCategoryLabel}</h2>
@@ -147,7 +196,7 @@ export function SettingsUI() {
 							variant="outline"
 							size="icon"
 							onClick={handleClose}
-							aria-label="Close settings"
+							aria-label={t("common.actions.close")}
 						>
 							<LuX
 								className="rotate-0 transition-transform group-hover:rotate-90 duration-200"
@@ -174,6 +223,11 @@ export function SettingsUI() {
 			</div>
 
 			<LogoutDialog open={confirmLogout} onOpenChange={handleLogoutDialogChange} onConfirm={onLogout} />
+			<UnsavedChangesDialog
+				open={confirmDiscardChanges}
+				onOpenChange={handleDiscardDialogChange}
+				onDiscard={handleDiscardChanges}
+			/>
 		</motion.div>
 	);
 }

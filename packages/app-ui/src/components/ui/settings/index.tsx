@@ -13,7 +13,7 @@ export {
 	ShortcutRow,
 	TAB_ANIMATION_CLASSES,
 } from "./components";
-export { CATEGORY_MAP, CONTENT_COMPONENTS,SETTING_CATEGORIES } from "./constants";
+export { CONTENT_COMPONENTS, createCategoryMap, createSettingCategories } from "./constants";
 export {
 	SettingAccessibilityContent,
 	SettingNotificationsContent,
@@ -23,6 +23,6 @@ export {
 } from "./content";
 export { SettingAccountContent } from "./content/account";
 export { SettingAppearanceContent } from "./content/appearance";
-export { AvatarDialog, DeleteAccountDialog,EmailDialog, LogoutDialog, PasswordDialog } from "./dialogs";
+export { LogoutDialog, UnsavedChangesDialog } from "./dialogs";
 export { SettingsUI } from "./settings-ui";
 export { SettingsUI as default } from "./settings-ui";

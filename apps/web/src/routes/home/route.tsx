@@ -13,9 +13,10 @@ import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
 import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import { getCachedSession } from "@workspace/app-ui/lib/auth";
-import { useTheme } from "@workspace/app-ui/providers/theme-provider";
+import { useAccountThemeSync, useTheme } from "@workspace/app-ui/providers/theme-provider";
 
 import { WebTitlebar } from "@/components/navbar";
+import { useAccountLanguageSync } from "@workspace/i18n/react";
 
 export const Route = createFileRoute("/home")({
   async beforeLoad() {
@@ -43,6 +44,10 @@ function RouteComponent() {
   const { theme, setTheme } = useTheme();
   const { setGlobalLoading, setMode, toggleNotification, notificationStatus } =
     useNekoShare();
+  const { user } = Route.useRouteContext();
+
+  useAccountLanguageSync(user?.language);
+  useAccountThemeSync(user?.theme);
 
   const titlebarHelperActions = useMemo(
     () => [
@@ -75,7 +80,7 @@ function RouteComponent() {
         <HomeSidebar
           linkComponent={Link}
           pathname={location.pathname}
-          mode="desktop"
+          mode="website"
           collapseWhenNotificationOpen={notificationStatus === "on"}
         />
         <div className="flex-1 bg-muted p-4 flex flex-col min-w-0 overflow-hidden">

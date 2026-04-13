@@ -1,12 +1,15 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import type { Theme, ThemeProviderProps, ThemeProviderState } from "@workspace/app-ui/types/theme";
 
 const STORAGE_KEY = "nekoshare-ui-theme";
+const SYNC_STORAGE_KEY = "nekoshare-ui-theme-sync-account";
 
 const initialState: ThemeProviderState = {
 	theme: "system",
 	setTheme: () => null,
+	setSyncThemeFromAccount: () => null,
+	syncThemeFromAccount: true,
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
@@ -18,11 +21,19 @@ export function ThemeProvider({
 	disableTransitionOnChange = true,
 	...props
 }: ThemeProviderProps & { disableTransitionOnChange?: boolean }) {
-	const [theme, setTheme] = useState<Theme>(() => {
+	const [theme, setThemeState] = useState<Theme>(() => {
 		if (typeof window !== "undefined") {
 			return (localStorage.getItem(storageKey) as Theme) || defaultTheme;
 		}
 		return defaultTheme;
+	});
+	const [syncThemeFromAccount, setSyncThemeFromAccountState] = useState<boolean>(() => {
+		if (typeof window === "undefined") {
+			return true;
+		}
+
+		const stored = localStorage.getItem(SYNC_STORAGE_KEY);
+		return stored === null ? true : stored !== "false";
 	});
 
 	useEffect(() => {
@@ -77,13 +88,28 @@ export function ThemeProvider({
 		}
 	}, [theme, disableTransitionOnChange]);
 
-	const value = {
-		theme,
-		setTheme: (newTheme: Theme) => {
-			localStorage.setItem(storageKey, newTheme);
-			setTheme(newTheme);
+	const setTheme = useCallback(
+		(newTheme: Theme, options: { persist?: boolean } = {}) => {
+			if (options.persist !== false) {
+				localStorage.setItem(storageKey, newTheme);
+			}
+
+			setThemeState(newTheme);
 		},
-	};
+		[storageKey],
+	);
+
+	const setSyncThemeFromAccount = useCallback((enabled: boolean) => {
+		localStorage.setItem(SYNC_STORAGE_KEY, enabled ? "true" : "false");
+		setSyncThemeFromAccountState(enabled);
+	}, []);
+
+	const value = useMemo<ThemeProviderState>(() => ({
+		theme,
+		setTheme,
+		setSyncThemeFromAccount,
+		syncThemeFromAccount,
+	}), [setSyncThemeFromAccount, setTheme, syncThemeFromAccount, theme]);
 
 	return (
 		<ThemeProviderContext.Provider {...props} value={value}>
@@ -97,3 +123,20 @@ export const useTheme = () => {
 	if (context === undefined) throw new Error("useTheme must be used within a ThemeProvider");
 	return context;
 };
+
+function normalizeTheme(value?: string | null): Theme | null {
+	return value === "dark" || value === "light" || value === "system" ? value : null;
+}
+
+export function useAccountThemeSync(accountTheme?: string | null): void {
+	const { setTheme, syncThemeFromAccount, theme } = useTheme();
+	const normalizedAccountTheme = normalizeTheme(accountTheme);
+
+	useEffect(() => {
+		if (!syncThemeFromAccount || !normalizedAccountTheme || normalizedAccountTheme === theme) {
+			return;
+		}
+
+		setTheme(normalizedAccountTheme);
+	}, [normalizedAccountTheme, setTheme, syncThemeFromAccount, theme]);
+}

@@ -8,5 +8,7 @@ export type ThemeProviderProps = {
 
 export type ThemeProviderState = {
 	theme: Theme;
-	setTheme: (theme: Theme) => void;
+	setTheme: (theme: Theme, options?: { persist?: boolean }) => void;
+	setSyncThemeFromAccount: (enabled: boolean) => void;
+	syncThemeFromAccount: boolean;
 };

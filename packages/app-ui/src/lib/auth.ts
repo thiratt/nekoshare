@@ -2,9 +2,13 @@ import { customSessionClient, oneTimeTokenClient, usernameClient } from "better-
 import { createAuthClient } from "better-auth/react";
 import type { Auth, BetterAuthClientOptions, InferSessionFromClient, InferUserFromClient } from "better-auth";
 
+import type { Theme } from "@workspace/app-ui/types/theme";
+
 import { config } from "./config";
 import { AppError, createInternalError, ErrorCategory, ErrorSource, failure, type Result, success } from "./errors";
 import { xfetch, type XFetchOptions } from "./xfetch";
+
+import type { AppLanguage } from "@workspace/i18n/core";
 
 export const authClient = createAuthClient({
 	baseURL: config.apiBaseUrl,
@@ -15,6 +19,8 @@ export const authClient = createAuthClient({
 export interface SessionUser extends InferUserFromClient<BetterAuthClientOptions> {
 	deviceId: string;
 	displayUsername?: string | null;
+	language?: AppLanguage | null;
+	theme?: Theme | null;
 	username?: string | null;
 }
 
@@ -66,6 +72,15 @@ export interface AuthUserAccount {
 export interface UpdateUsernameInput {
 	displayUsername?: string | null;
 	username: string;
+}
+
+export interface UpdateUserLanguageInput {
+	language: AppLanguage;
+}
+
+export interface UpdateUserAppearanceInput {
+	language?: AppLanguage;
+	theme?: Theme;
 }
 
 export interface ChangePasswordInput {
@@ -301,6 +316,28 @@ export async function updateUsername(input: UpdateUsernameInput): Promise<AuthAc
 		},
 		method: "POST",
 		operation: "Update username",
+	});
+}
+
+export async function updateUserLanguage(
+	input: UpdateUserLanguageInput,
+): Promise<AuthActionResult<Record<string, unknown>>> {
+	return await requestAuthAction<Record<string, unknown>>("auth/update-user", {
+		body: {
+			language: input.language,
+		},
+		method: "POST",
+		operation: "Update user language",
+	});
+}
+
+export async function updateUserAppearance(
+	input: UpdateUserAppearanceInput,
+): Promise<AuthActionResult<Record<string, unknown>>> {
+	return await requestAuthAction<Record<string, unknown>>("auth/update-user", {
+		body: input,
+		method: "POST",
+		operation: "Update user appearance",
 	});
 }
 

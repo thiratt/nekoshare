@@ -1,4 +1,4 @@
-import { memo, type ReactNode, useCallback, useState } from "react";
+import { memo, type ReactNode, useCallback, useEffect, useState } from "react";
 import type { IconType } from "react-icons";
 
 import { LuCheck, LuMonitorSmartphone, LuMoon, LuSun } from "react-icons/lu";
@@ -6,13 +6,23 @@ import { LuCheck, LuMonitorSmartphone, LuMoon, LuSun } from "react-icons/lu";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
+import { useToast } from "@workspace/ui/hooks/use-toast";
 import { cn } from "@workspace/ui/lib/utils";
 
 import { EnglishFlagSvg } from "@workspace/app-ui/components/svgs/english";
 import { ThaiFlagSvg } from "@workspace/app-ui/components/svgs/thai";
+import { authClient, updateUserAppearance } from "@workspace/app-ui/lib/auth";
 import { useTheme } from "@workspace/app-ui/providers/theme-provider";
 import type { Language, LanguageOption } from "@workspace/app-ui/types/settings";
 import type { Theme } from "@workspace/app-ui/types/theme";
+
+import { SettingSwitch } from "../components";
+
+import { useAppI18n } from "@workspace/i18n/react";
+
+interface SettingAppearanceContentProps {
+	onUnsavedChange?: (dirty: boolean, discard?: () => void) => void;
+}
 
 const LANGUAGE_OPTIONS: readonly LanguageOption[] = [
 	{
@@ -24,25 +34,11 @@ const LANGUAGE_OPTIONS: readonly LanguageOption[] = [
 	{ id: "en", label: "English", nativeLabel: "English", flag: <EnglishFlagSvg /> },
 ] as const;
 
-// TODO: Replace with actual i18n implementation
-function useLanguage() {
-	const [language, setLanguage] = useState<Language>("th");
-
-	const changeLanguage = useCallback((newLanguage: Language) => {
-		setLanguage(newLanguage);
-		// TODO: Implement actual language change logic
-		console.log("Language changed to:", newLanguage);
-	}, []);
-
-	return { language, setLanguage: changeLanguage } as const;
-}
-
 interface LocalThemeOption {
 	id: Theme;
 	icon: IconType;
 	bgClass: string;
 	iconClass: string;
-	label: string;
 }
 
 const THEME_OPTIONS: readonly LocalThemeOption[] = [
@@ -51,23 +47,20 @@ const THEME_OPTIONS: readonly LocalThemeOption[] = [
 		icon: LuSun,
 		bgClass: "bg-white",
 		iconClass: "text-black",
-		label: "Light theme",
 	},
 	{
 		id: "dark",
 		icon: LuMoon,
 		bgClass: "bg-black",
 		iconClass: "text-white group-hover:-rotate-90",
-		label: "Dark theme",
 	},
 	{
 		id: "system",
 		icon: LuMonitorSmartphone,
 		bgClass: "bg-background",
 		iconClass: "group-hover:rotate-none group-hover:scale-125",
-		label: "System theme",
 	},
-] as const;
+];
 
 const CheckIndicator = memo(function CheckIndicator() {
 	return (
@@ -90,7 +83,7 @@ const IconElement = memo(function IconElement({ className, children }: LocalIcon
 		<div
 			className={cn(
 				"absolute inset-0 flex items-center justify-center group-hover:rotate-90 transition-transform duration-300",
-				className
+				className,
 			)}
 			aria-hidden="true"
 		>
@@ -100,37 +93,47 @@ const IconElement = memo(function IconElement({ className, children }: LocalIcon
 });
 
 interface LocalThemeButtonProps {
+	label: string;
 	option: LocalThemeOption;
 	isSelected: boolean;
 	onThemeSelect: (theme: Theme) => void;
+	disabled?: boolean;
 	className?: string;
 	role?: string;
 	"aria-checked"?: boolean;
 }
 
 const ThemeButton = memo(function ThemeButton({
+	label,
 	option,
 	isSelected,
 	onThemeSelect,
+	disabled = false,
 	className,
 	...props
 }: LocalThemeButtonProps) {
-	const { id, icon: Icon, bgClass, iconClass, label } = option;
+	const { id, icon: Icon, bgClass, iconClass } = option;
 
 	const handleClick = useCallback(() => {
+		if (disabled) {
+			return;
+		}
+
 		onThemeSelect(id);
-	}, [onThemeSelect, id]);
+	}, [disabled, onThemeSelect, id]);
 
 	return (
 		<button
 			type="button"
 			className={cn(
 				"group cursor-pointer relative w-16 h-16 border-2 border-foreground rounded-full transition-all",
+				"disabled:cursor-not-allowed disabled:opacity-50",
 				"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
 				bgClass,
-				className
+				className,
 			)}
 			onClick={handleClick}
+			disabled={disabled}
 			aria-label={label}
 			aria-pressed={isSelected}
 			{...props}
@@ -143,64 +146,269 @@ const ThemeButton = memo(function ThemeButton({
 	);
 });
 
-export const SettingAppearanceContent = memo(function SettingAppearanceContent() {
-	const { theme, setTheme } = useTheme();
-	const { language, setLanguage } = useLanguage();
+export const SettingAppearanceContent = memo(function SettingAppearanceContent({
+	onUnsavedChange,
+}: SettingAppearanceContentProps) {
+	const { setSyncThemeFromAccount, setTheme, syncThemeFromAccount, theme } = useTheme();
+	const { data: sessionData, refetch } = authClient.useSession();
+	const { toast } = useToast();
+	const {
+		language,
+		setLanguage,
+		setSyncLanguageFromAccount,
+		syncLanguageFromAccount,
+		t,
+	} = useAppI18n();
+
+	const userPreferences =
+		(sessionData?.user as { language?: Language | null; theme?: Theme | null } | undefined) ?? null;
+	const userLanguage = userPreferences?.language ?? null;
+	const userTheme = userPreferences?.theme ?? null;
+	const [savedTheme, setSavedTheme] = useState<Theme>(theme);
+	const [draftTheme, setDraftTheme] = useState<Theme>(theme);
+	const [draftSyncThemeFromAccount, setDraftSyncThemeFromAccount] = useState(syncThemeFromAccount);
+	const [draftLanguage, setDraftLanguage] = useState<Language>(language);
+	const [draftSyncLanguageFromAccount, setDraftSyncLanguageFromAccount] = useState(syncLanguageFromAccount);
+	const [isSaving, setIsSaving] = useState(false);
+
+	useEffect(() => {
+		if (draftTheme === savedTheme && savedTheme !== theme) {
+			setSavedTheme(theme);
+			setDraftTheme(theme);
+		}
+	}, [draftTheme, savedTheme, theme]);
+
+	useEffect(() => {
+		setDraftSyncThemeFromAccount(syncThemeFromAccount);
+	}, [syncThemeFromAccount]);
+
+	useEffect(() => {
+		setDraftLanguage(language);
+	}, [language]);
+
+	useEffect(() => {
+		setDraftSyncLanguageFromAccount(syncLanguageFromAccount);
+	}, [syncLanguageFromAccount]);
+
+	const hasUnsavedTheme = draftTheme !== savedTheme;
+	const hasUnsavedThemeSync = draftSyncThemeFromAccount !== syncThemeFromAccount;
+	const hasUnsavedLanguage = draftLanguage !== language || draftSyncLanguageFromAccount !== syncLanguageFromAccount;
+	const hasChanges = hasUnsavedTheme || hasUnsavedThemeSync || hasUnsavedLanguage;
+
+	const discardChanges = useCallback(() => {
+		if (hasUnsavedTheme) {
+			setTheme(savedTheme, { persist: false });
+		}
+
+		setDraftTheme(savedTheme);
+		setDraftSyncThemeFromAccount(syncThemeFromAccount);
+		setDraftLanguage(language);
+		setDraftSyncLanguageFromAccount(syncLanguageFromAccount);
+	}, [hasUnsavedTheme, language, savedTheme, setTheme, syncLanguageFromAccount, syncThemeFromAccount]);
+
+	useEffect(() => {
+		onUnsavedChange?.(hasChanges, discardChanges);
+	}, [discardChanges, hasChanges, onUnsavedChange]);
 
 	const handleThemeChange = useCallback(
 		(newTheme: Theme) => {
-			setTheme(newTheme);
+			if (draftSyncThemeFromAccount) {
+				return;
+			}
+
+			setDraftTheme(newTheme);
+			setTheme(newTheme, { persist: false });
 		},
-		[setTheme]
+		[draftSyncThemeFromAccount, setTheme],
 	);
 
-	const handleSave = useCallback(() => {
-		// TODO: Implement save logic if needed
-	}, []);
+	const handleThemeSyncToggle = useCallback(
+		(checked: boolean) => {
+			setDraftSyncThemeFromAccount(checked);
+			if (checked && userTheme) {
+				setDraftTheme(userTheme);
+				setTheme(userTheme, { persist: false });
+			}
+		},
+		[setTheme, userTheme],
+	);
 
 	const handleLanguageChange = useCallback(
 		(value: string) => {
-			setLanguage(value as Language);
+			if (draftSyncLanguageFromAccount) {
+				return;
+			}
+
+			setDraftLanguage(value as Language);
 		},
-		[setLanguage]
+		[draftSyncLanguageFromAccount],
 	);
 
-	const selectedLanguage = LANGUAGE_OPTIONS.find((opt) => opt.id === language);
+	const handleSyncToggle = useCallback(
+		(checked: boolean) => {
+			setDraftSyncLanguageFromAccount(checked);
+			if (checked && userLanguage) {
+				setDraftLanguage(userLanguage);
+			}
+		},
+		[userLanguage],
+	);
+
+	const handleSaveTheme = useCallback(async () => {
+		if (isSaving) {
+			return;
+		}
+
+		setIsSaving(true);
+
+		try {
+			const shouldUpdateAccount = draftSyncThemeFromAccount && !!sessionData?.user && userTheme !== draftTheme;
+			const result = shouldUpdateAccount ? await updateUserAppearance({ theme: draftTheme }) : null;
+			if (result?.error) {
+				toast.error(t("settings.appearance.theme.saveError"));
+				return;
+			}
+
+			if (shouldUpdateAccount) {
+				await refetch();
+			}
+
+			if (theme !== draftTheme || hasUnsavedTheme) {
+				setTheme(draftTheme);
+			}
+
+			if (syncThemeFromAccount !== draftSyncThemeFromAccount) {
+				setSyncThemeFromAccount(draftSyncThemeFromAccount);
+			}
+
+			setSavedTheme(draftTheme);
+			toast.success(t("settings.appearance.theme.saveSuccess"));
+		} catch (error) {
+			console.error("Failed to save theme settings:", error);
+			toast.error(t("settings.appearance.theme.saveError"));
+		} finally {
+			setIsSaving(false);
+		}
+	}, [
+		draftSyncThemeFromAccount,
+		draftTheme,
+		hasUnsavedTheme,
+		isSaving,
+		refetch,
+		sessionData?.user,
+		setSyncThemeFromAccount,
+		setTheme,
+		syncThemeFromAccount,
+		t,
+		theme,
+		toast,
+		userTheme,
+	]);
+
+	const handleSaveLanguage = useCallback(async () => {
+		if (isSaving) {
+			return;
+		}
+
+		setIsSaving(true);
+
+		try {
+			if (draftSyncLanguageFromAccount && sessionData?.user && userLanguage !== draftLanguage) {
+				const result = await updateUserAppearance({ language: draftLanguage });
+				if (result.error) {
+					toast.error(t("settings.appearance.language.saveError"));
+					return;
+				}
+
+				await refetch();
+			}
+
+			if (syncLanguageFromAccount !== draftSyncLanguageFromAccount) {
+				setSyncLanguageFromAccount(draftSyncLanguageFromAccount);
+			}
+
+			if (language !== draftLanguage) {
+				await setLanguage(draftLanguage);
+			}
+
+			toast.success(t("settings.appearance.language.saveSuccess"));
+		} catch (error) {
+			console.error("Failed to save language settings:", error);
+			toast.error(t("settings.appearance.language.saveError"));
+		} finally {
+			setIsSaving(false);
+		}
+	}, [
+		draftLanguage,
+		draftSyncLanguageFromAccount,
+		isSaving,
+		language,
+		refetch,
+		sessionData?.user,
+		setLanguage,
+		setSyncLanguageFromAccount,
+		syncLanguageFromAccount,
+		t,
+		toast,
+		userLanguage,
+	]);
+
+	const selectedLanguage = LANGUAGE_OPTIONS.find((option) => option.id === draftLanguage);
 
 	return (
 		<div className="space-y-4">
 			<Card>
 				<CardHeader>
-					<CardTitle>ธีม</CardTitle>
-					<CardDescription>ปรับแต่งธีมแอปให้ดูดีในแบบที่คุณชอบ</CardDescription>
+					<CardTitle>{t("settings.appearance.theme.title")}</CardTitle>
+					<CardDescription>{t("settings.appearance.theme.description")}</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-2">
-					<div className="flex gap-2" role="radiogroup" aria-label="Theme selection">
+					<div className="flex gap-2" role="radiogroup" aria-label={t("settings.appearance.theme.title")}>
 						{THEME_OPTIONS.map((option) => (
 							<ThemeButton
 								key={option.id}
+								label={
+									option.id === "light"
+										? t("settings.appearance.theme.light")
+										: option.id === "dark"
+											? t("settings.appearance.theme.dark")
+											: t("settings.appearance.theme.system")
+								}
 								option={option}
-								isSelected={theme === option.id}
+								isSelected={draftTheme === option.id}
 								onThemeSelect={handleThemeChange}
+								disabled={draftSyncThemeFromAccount}
 								role="radio"
-								aria-checked={theme === option.id}
+								aria-checked={draftTheme === option.id}
 							/>
 						))}
 					</div>
+					<SettingSwitch
+						label={t("settings.appearance.theme.syncLabel")}
+						description={t("settings.appearance.theme.syncDescription")}
+						checked={draftSyncThemeFromAccount}
+						onCheckedChange={handleThemeSyncToggle}
+					/>
 				</CardContent>
-				<CardFooter className="ms-auto">
-					<Button onClick={handleSave}>บันทึก</Button>
+				<CardFooter className="justify-end">
+					<Button onClick={handleSaveTheme} disabled={!(hasUnsavedTheme || hasUnsavedThemeSync) || isSaving}>
+						{t("common.actions.save")}
+					</Button>
 				</CardFooter>
 			</Card>
 
 			<Card>
 				<CardHeader>
-					<CardTitle>ภาษา</CardTitle>
-					<CardDescription>เลือกภาษาที่ต้องการใช้งานในแอปพลิเคชัน</CardDescription>
+					<CardTitle>{t("settings.appearance.language.title")}</CardTitle>
+					<CardDescription>{t("settings.appearance.language.description")}</CardDescription>
 				</CardHeader>
-				<CardContent>
-					<Select value={language} onValueChange={handleLanguageChange}>
-						<SelectTrigger className="w-full max-w-xs">
+				<CardContent className="space-y-4">
+					<Select
+						value={draftLanguage}
+						onValueChange={handleLanguageChange}
+						disabled={draftSyncLanguageFromAccount}
+					>
+						<SelectTrigger className="w-full max-w-xs" disabled={draftSyncLanguageFromAccount}>
 							<SelectValue>
 								{selectedLanguage && (
 									<span className="flex gap-1">
@@ -221,9 +429,18 @@ export const SettingAppearanceContent = memo(function SettingAppearanceContent()
 							))}
 						</SelectContent>
 					</Select>
+
+					<SettingSwitch
+						label={t("settings.appearance.language.syncLabel")}
+						description={t("settings.appearance.language.syncDescription")}
+						checked={draftSyncLanguageFromAccount}
+						onCheckedChange={handleSyncToggle}
+					/>
 				</CardContent>
-				<CardFooter className="ms-auto">
-					<Button onClick={handleSave}>บันทึก</Button>
+				<CardFooter className="justify-end">
+					<Button onClick={handleSaveLanguage} disabled={!hasUnsavedLanguage || isSaving}>
+						{t("common.actions.save")}
+					</Button>
 				</CardFooter>
 			</Card>
 		</div>

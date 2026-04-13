@@ -1,19 +1,26 @@
 import { memo } from "react";
 
-import { Card, CardContent,CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 
 import { SettingSwitch } from "../components";
 
+import { useAppI18n } from "@workspace/i18n/react";
+
 export const SettingPrivacyContent = memo(function SettingPrivacyContent() {
+	const { t } = useAppI18n();
+
 	return (
 		<div className="space-y-6">
 			<Card>
 				<CardHeader>
-					<CardTitle>ทั่วไป</CardTitle>
-					<CardDescription>ควบคุมความเป็นส่วนตัวและการตั้งค่าการแชร์ข้อมูลของคุณ</CardDescription>
+					<CardTitle>{t("settings.privacy.general.title")}</CardTitle>
+					<CardDescription>{t("settings.privacy.general.description")}</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					<SettingSwitch label="การเก็บข้อมูล" description="อนุญาตการวิเคราะห์การใช้งานแบบไม่ระบุชื่อ" />
+					<SettingSwitch
+						label={t("settings.privacy.analytics.label")}
+						description={t("settings.privacy.analytics.description")}
+					/>
 				</CardContent>
 			</Card>
 		</div>

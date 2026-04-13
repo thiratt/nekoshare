@@ -57,19 +57,21 @@ import {
 	ACCOUNT_PASSWORD_MIN_LENGTH,
 	ACCOUNT_USERNAME_MAX_LENGTH,
 	type ChangeEmailFormValues,
-	changeEmailSchema,
 	type ChangePasswordFormValues,
-	changePasswordSchema,
+	createChangeEmailSchema,
+	createChangePasswordSchema,
 	createDeleteAccountSchema,
+	createDisplayNameSchema,
+	createSetPasswordSchema,
+	createUsernameSchema,
 	type DeleteAccountFormValues,
 	type DisplayNameFormValues,
-	displayNameSchema,
 	type SetPasswordFormValues,
-	setPasswordSchema,
 	type UsernameFormValues,
-	usernameSchema,
 } from "@workspace/app-ui/schemas/account-settings";
 import type { DialogKey, DialogState } from "@workspace/app-ui/types/settings";
+
+import { useAppI18n } from "@workspace/i18n/react";
 
 const INITIAL_DIALOG_STATE: DialogState = {
 	avatar: false,
@@ -306,6 +308,7 @@ const AvatarDialog = memo(function AvatarDialog({
 	const [isPreparingImage, setIsPreparingImage] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const { toast } = useToast();
+	const { t } = useAppI18n();
 
 	const resetCropState = useCallback(() => {
 		setCrop({ x: 0, y: 0 });
@@ -350,7 +353,7 @@ const AvatarDialog = memo(function AvatarDialog({
 			}
 
 			if (file.size > ACCOUNT_AVATAR_MAX_FILE_SIZE_BYTES) {
-				toast.error("ขนาดไฟล์ต้องไม่เกิน 5 MB");
+				toast.error(t("account.ui.avatar.fileTooLarge"));
 				input.value = "";
 				return;
 			}
@@ -363,12 +366,12 @@ const AvatarDialog = memo(function AvatarDialog({
 				setSourceUrl(nextSourceUrl);
 				resetCropState();
 			} catch {
-				toast.error("ไม่สามารถเตรียมรูปภาพนี้ได้ กรุณาลองเลือกรูปอื่น");
+				toast.error(t("account.ui.avatar.prepareError"));
 			} finally {
 				setIsPreparingImage(false);
 			}
 		},
-		[resetCropState, sourceUrl, toast],
+		[resetCropState, sourceUrl, t, toast],
 	);
 
 	const handleBackToSelect = useCallback(() => {
@@ -396,21 +399,21 @@ const AvatarDialog = memo(function AvatarDialog({
 				return;
 			}
 
-			toast.success("อัปเดตรูปโปรไฟล์เรียบร้อยแล้ว");
+			toast.success(t("account.ui.avatar.saveSuccess"));
 			onOpenChange(false);
 		} catch (error) {
 			if (abortController.signal.aborted) {
 				return;
 			}
 
-			toast.error(error instanceof Error ? error.message : "ไม่สามารถบันทึกรูปโปรไฟล์ได้");
+			toast.error(error instanceof Error ? error.message : t("account.ui.avatar.saveError"));
 		} finally {
 			if (saveAbortControllerRef.current === abortController) {
 				saveAbortControllerRef.current = null;
 			}
 			setIsSaving(false);
 		}
-	}, [cropAreaPixels, isPreparingImage, onOpenChange, onSave, sourceUrl, toast]);
+	}, [cropAreaPixels, isPreparingImage, onOpenChange, onSave, sourceUrl, t, toast]);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -425,8 +428,8 @@ const AvatarDialog = memo(function AvatarDialog({
 				{sourceUrl ? (
 					<div className="flex flex-col gap-4">
 						<DialogHeader>
-							<DialogTitle>แก้ไขรูปโปรไฟล์</DialogTitle>
-							<DialogDescription>ลากเพื่อปรับตำแหน่ง แล้วปรับระดับการซูม</DialogDescription>
+							<DialogTitle>{t("account.ui.avatar.editTitle")}</DialogTitle>
+							<DialogDescription>{t("account.ui.avatar.editDescription")}</DialogDescription>
 						</DialogHeader>
 
 						<div className="min-h-0 flex-1 space-y-5 overflow-y-auto">
@@ -473,7 +476,7 @@ const AvatarDialog = memo(function AvatarDialog({
 									<div className="absolute inset-0 z-50 flex h-full w-full items-center justify-center bg-background/80 px-4 backdrop-blur-[2px]">
 										<div className="flex w-full max-w-56 flex-col items-center gap-3 rounded-lg p-4 text-center">
 											<LuLoader className="size-5 animate-spin" aria-hidden="true" />
-											<span className="text-sm font-medium">กำลังบันทึกรูป</span>
+											<span className="text-sm font-medium">{t("account.ui.avatar.saving")}</span>
 										</div>
 									</div>
 								)}
@@ -503,7 +506,7 @@ const AvatarDialog = memo(function AvatarDialog({
 								onClick={() => fileInputRef.current?.click()}
 							>
 								<LuCamera aria-hidden="true" />
-								{isPreparingImage ? "กำลังเตรียมรูป..." : "เปลี่ยนรูปภาพ"}
+								{isPreparingImage ? t("account.ui.avatar.preparing") : t("account.ui.avatar.changeImage")}
 							</Button>
 							<div className="flex-1 justify-end gap-2 sm:flex">
 								<Button
@@ -512,11 +515,11 @@ const AvatarDialog = memo(function AvatarDialog({
 									disabled={isSaving || isPreparingImage}
 									onClick={handleBackToSelect}
 								>
-									ย้อนกลับ
+									{t("account.ui.avatar.back")}
 								</Button>
 								<Button type="button" disabled={!cropAreaPixels || isSaving || isPreparingImage} onClick={handleSave}>
 									{isSaving && <LuLoader className="size-4 animate-spin" aria-hidden="true" />}
-									บันทึก
+									{t("common.actions.save")}
 								</Button>
 							</div>
 						</DialogFooter>
@@ -526,8 +529,8 @@ const AvatarDialog = memo(function AvatarDialog({
 				) : (
 					<>
 						<DialogHeader>
-							<DialogTitle>เปลี่ยนรูปโปรไฟล์</DialogTitle>
-							<DialogDescription>คลิกที่รูปเพื่ออัปโหลดภาพใหม่จากอุปกรณ์ของคุณ</DialogDescription>
+							<DialogTitle>{t("account.ui.avatar.changeTitle")}</DialogTitle>
+							<DialogDescription>{t("account.ui.avatar.changeDescription")}</DialogDescription>
 						</DialogHeader>
 
 						<div className="flex flex-col items-center justify-center gap-4 py-2 text-center">
@@ -537,18 +540,18 @@ const AvatarDialog = memo(function AvatarDialog({
 								onClick={() => fileInputRef.current?.click()}
 							>
 								<Avatar className="group h-full w-full">
-									{avatarUrl && <AvatarImage src={avatarUrl} alt="รูปโปรไฟล์ปัจจุบัน" />}
+									{avatarUrl && <AvatarImage src={avatarUrl} alt={t("account.ui.avatar.alt")} />}
 									<AvatarFallback className="text-4xl">{userInitials}</AvatarFallback>
 									<div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
 										<LuCamera size={48} className="text-white" aria-hidden="true" />
-										<span className="sr-only">เปลี่ยนรูปภาพ</span>
+										<span className="sr-only">{t("account.ui.avatar.changeImageSr")}</span>
 									</div>
 								</Avatar>
 							</button>
 
 							<div className="space-y-1">
-								<p className="text-sm font-medium">เลือกรูปจากอุปกรณ์ของคุณ</p>
-								<p className="text-sm text-muted-foreground">รองรับไฟล์ภาพทั่วไปและขนาดสูงสุด 5 MB</p>
+								<p className="text-sm font-medium">{t("account.ui.avatar.selectFromDevice")}</p>
+								<p className="text-sm text-muted-foreground">{t("account.ui.avatar.selectHint")}</p>
 							</div>
 
 							<Button
@@ -557,7 +560,7 @@ const AvatarDialog = memo(function AvatarDialog({
 								disabled={isPreparingImage}
 								onClick={() => fileInputRef.current?.click()}
 							>
-								{isPreparingImage ? "กำลังเตรียมรูป..." : "เลือกไฟล์รูปภาพ"}
+								{isPreparingImage ? t("account.ui.avatar.preparing") : t("account.ui.avatar.chooseFile")}
 							</Button>
 						</div>
 
@@ -565,7 +568,7 @@ const AvatarDialog = memo(function AvatarDialog({
 
 						<DialogFooter className="gap-2">
 							<Button type="button" variant="outline" disabled={isSaving} onClick={() => onOpenChange(false)}>
-								ปิด
+								{t("account.ui.avatar.close")}
 							</Button>
 						</DialogFooter>
 					</>
@@ -585,6 +588,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 	const { data: sessionData, isPending, refetch } = authClient.useSession();
 	const { router, runBeforeSignOut, setGlobalLoading, setMode } = useNekoShare();
 	const { toast } = useToast();
+	const { t } = useAppI18n();
 
 	const [dialogs, setDialogs] = useState<DialogState>(INITIAL_DIALOG_STATE);
 	const [dialogStack, setDialogStack] = useState<DialogKey[]>([]);
@@ -607,15 +611,15 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 
 	const displayNameForm = useForm<DisplayNameFormValues>({
 		defaultValues: { displayName: user?.name ?? "" },
-		resolver: zodResolver(displayNameSchema),
+		resolver: zodResolver(createDisplayNameSchema(t)),
 	});
 	const usernameForm = useForm<UsernameFormValues>({
 		defaultValues: { username: username ?? "" },
-		resolver: zodResolver(usernameSchema),
+		resolver: zodResolver(createUsernameSchema(t)),
 	});
 	const emailForm = useForm<ChangeEmailFormValues>({
 		defaultValues: { confirmEmail: "", newEmail: "" },
-		resolver: zodResolver(changeEmailSchema),
+		resolver: zodResolver(createChangeEmailSchema(t)),
 	});
 	const changePasswordForm = useForm<ChangePasswordFormValues>({
 		defaultValues: {
@@ -623,20 +627,20 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 			currentPassword: "",
 			newPassword: "",
 		},
-		resolver: zodResolver(changePasswordSchema),
+		resolver: zodResolver(createChangePasswordSchema(t)),
 	});
 	const setPasswordForm = useForm<SetPasswordFormValues>({
 		defaultValues: { confirmPassword: "", newPassword: "" },
-		resolver: zodResolver(setPasswordSchema),
+		resolver: zodResolver(createSetPasswordSchema(t)),
 	});
 	const deleteAccountResolver = useCallback<Resolver<DeleteAccountFormValues>>(
 		async (values, context, options) =>
-			await zodResolver(createDeleteAccountSchema(deleteConfirmationName, hasCredentialAccount === true))(
+			await zodResolver(createDeleteAccountSchema(t, deleteConfirmationName, hasCredentialAccount === true))(
 				values,
 				context,
 				options,
 			),
-		[deleteConfirmationName, hasCredentialAccount],
+		[deleteConfirmationName, hasCredentialAccount, t],
 	);
 	const deleteAccountForm = useForm<DeleteAccountFormValues>({
 		defaultValues: { password: "", phrase: "", username: "" },
@@ -756,7 +760,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 				if (result.error) {
 					const message = getAccountActionErrorMessage(
 						result.error,
-						"ไม่สามารถโหลดข้อมูลวิธีเข้าสู่ระบบของบัญชีนี้ได้",
+						t("account.ui.linkedAccountsLoadError"),
 					);
 					toast.error(message);
 					setLinkedAccountsError(message);
@@ -774,7 +778,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 		return () => {
 			active = false;
 		};
-	}, [needsSensitiveAccounts, toast, user?.id]);
+	}, [needsSensitiveAccounts, t, toast, user?.id]);
 
 	const handleSaveDisplayName = displayNameForm.handleSubmit(async (values) => {
 		const nextName = values.displayName.trim();
@@ -784,13 +788,13 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 
 		const result = await updateUserProfile({ name: nextName });
 		if (result.error) {
-			toast.error(getAccountActionErrorMessage(result.error, "ไม่สามารถบันทึกชื่อที่แสดงได้ กรุณาลองอีกครั้ง"));
+			toast.error(getAccountActionErrorMessage(result.error, t("account.ui.displayName.saveError")));
 			return;
 		}
 
 		await refreshSession();
 		displayNameForm.reset({ displayName: nextName });
-		toast.success("อัปเดตชื่อที่แสดงเรียบร้อยแล้ว");
+		toast.success(t("account.ui.displayName.saveSuccess"));
 	});
 
 	const handleSaveUsername = usernameForm.handleSubmit(async (values) => {
@@ -804,13 +808,13 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 			username: nextUsername,
 		});
 		if (result.error) {
-			toast.error(getAccountActionErrorMessage(result.error, "ไม่สามารถบันทึกชื่อผู้ใช้งานได้ กรุณาลองอีกครั้ง"));
+			toast.error(getAccountActionErrorMessage(result.error, t("account.ui.username.saveError")));
 			return;
 		}
 
 		await refreshSession();
 		usernameForm.reset({ username: nextUsername });
-		toast.success("อัปเดตชื่อผู้ใช้งานเรียบร้อยแล้ว");
+		toast.success(t("account.ui.username.saveSuccess"));
 	});
 
 	const handleAvatarSave = useCallback(
@@ -821,7 +825,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 			}
 
 			if (result.error) {
-				throw new Error(getAccountActionErrorMessage(result.error, "ไม่สามารถอัปโหลดรูปโปรไฟล์ได้ กรุณาลองอีกครั้ง"));
+				throw new Error(getAccountActionErrorMessage(result.error, t("account.ui.avatar.saveError")));
 			}
 
 			if (options.signal?.aborted) {
@@ -830,7 +834,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 
 			await refreshSession();
 		},
-		[refreshSession],
+		[refreshSession, t],
 	);
 
 	const handleEmailChange = emailForm.handleSubmit(async (values) => {
@@ -839,20 +843,20 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 
 		if (nextEmail === currentEmail) {
 			emailForm.setError("newEmail", {
-				message: "อีเมลใหม่ต้องไม่ตรงกับอีเมลปัจจุบัน",
+				message: t("account.ui.email.sameAsCurrent"),
 			});
 			return;
 		}
 
 		const result = await changeEmail({ newEmail: nextEmail });
 		if (result.error) {
-			toast.error(getAccountActionErrorMessage(result.error, "ไม่สามารถเริ่มการเปลี่ยนอีเมลได้ กรุณาลองอีกครั้ง"));
+			toast.error(getAccountActionErrorMessage(result.error, t("account.ui.email.startChangeError")));
 			return;
 		}
 
 		emailForm.reset({ confirmEmail: "", newEmail: "" });
 		setDialogOpen("changeEmail", false);
-		toast.success(`เราได้ส่งลิงก์ยืนยันไปที่ ${nextEmail} แล้ว`);
+		toast.success(t("account.ui.email.sent", { email: nextEmail }));
 	});
 
 	const handlePasswordSubmit = changePasswordForm.handleSubmit(async (values) => {
@@ -863,7 +867,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 		});
 
 		if (result.error) {
-			toast.error(getAccountActionErrorMessage(result.error, "ไม่สามารถเปลี่ยนรหัสผ่านได้ กรุณาลองอีกครั้ง"));
+			toast.error(getAccountActionErrorMessage(result.error, t("account.ui.password.changeError")));
 			return;
 		}
 
@@ -873,26 +877,26 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 			newPassword: "",
 		});
 		setDialogOpen("changePassword", false);
-		toast.success("เปลี่ยนรหัสผ่านเรียบร้อยแล้ว");
+		toast.success(t("account.ui.password.changeSuccess"));
 	});
 
 	const handleSetPasswordSubmit = setPasswordForm.handleSubmit(async (values) => {
 		const result = await setPassword({ newPassword: values.newPassword });
 
 		if (result.error) {
-			toast.error(getAccountActionErrorMessage(result.error, "ไม่สามารถตั้งรหัสผ่านได้ กรุณาลองอีกครั้ง"));
+			toast.error(getAccountActionErrorMessage(result.error, t("account.ui.password.setError")));
 			return;
 		}
 
 		await refreshSession();
 		setPasswordForm.reset({ confirmPassword: "", newPassword: "" });
 		setDialogOpen("changePassword", false);
-		toast.success("ตั้งรหัสผ่านเรียบร้อยแล้ว");
+		toast.success(t("account.ui.password.setSuccess"));
 	});
 
 	const handleDeleteAccount = deleteAccountForm.handleSubmit(async (values) => {
 		if (!deleteConfirmationName) {
-			toast.error("ไม่พบข้อมูลบัญชีสำหรับยืนยันการลบ");
+			toast.error(t("account.ui.deleteAccount.missingConfirmation"));
 			return;
 		}
 
@@ -901,7 +905,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 		});
 
 		if (result.error) {
-			toast.error(getAccountActionErrorMessage(result.error, "ไม่สามารถลบบัญชีได้ กรุณาลองอีกครั้ง"));
+			toast.error(getAccountActionErrorMessage(result.error, t("account.ui.deleteAccount.deleteError")));
 			return;
 		}
 
@@ -916,18 +920,18 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 				items={[
 					{
 						value: "general",
-						label: "ทั่วไป",
+						label: t("account.ui.tabs.general"),
 						content: (
 							<ScrollArea className="h-[calc(100vh-14rem)]">
 								<div className="space-y-4">
 									<Card>
 										<CardHeader className="flex flex-row justify-between space-y-0 gap-4">
 											<div className="flex flex-col">
-												<CardTitle>รูปโปรไฟล์</CardTitle>
+												<CardTitle>{t("account.ui.avatar.changeTitle")}</CardTitle>
 												<CardDescription>
-													นี่คือรูปโปรไฟล์ของคุณ
+													{t("account.ui.avatar.alt")}
 													<br />
-													คลิกที่รูปเพื่ออัปโหลดรูปใหม่จากไฟล์ในอุปกรณ์ของคุณ
+													{t("account.ui.avatar.changeDescription")}
 												</CardDescription>
 											</div>
 
@@ -938,13 +942,13 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 													<button
 														type="button"
 														className="group relative size-24 overflow-hidden rounded-full transition-all duration-200 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-														aria-label="เปลี่ยนรูปโปรไฟล์"
+														aria-label={t("account.ui.avatar.changeAria")}
 														onClick={() => setDialogOpen("avatar", true)}
 													>
 														<Avatar className="h-full w-full">
 															<AvatarImage
 																src={user?.image ?? undefined}
-																alt={`รูปโปรไฟล์ของ ${user?.name ?? "ผู้ใช้"}`}
+																alt={t("account.ui.avatar.altWithName", { name: user?.name ?? t("common.appName") })}
 															/>
 															<AvatarFallback className="text-lg">{userInitials}</AvatarFallback>
 														</Avatar>
@@ -952,13 +956,13 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 														<div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
 															<LuCamera size={30} className="text-white" aria-hidden="true" />
 														</div>
-														<span className="sr-only">เปลี่ยนรูปโปรไฟล์</span>
+														<span className="sr-only">{t("account.ui.avatar.changeAria")}</span>
 													</button>
 												)}
 											</div>
 										</CardHeader>
 										<CardFooter className="border-t text-sm text-muted-foreground">
-											รูปโปรไฟล์เป็นตัวเลือก แต่แนะนำให้เพิ่มไว้เพื่อให้ผู้อื่นจดจำคุณได้ง่าย
+											{t("account.ui.avatar.summary")}
 										</CardFooter>
 									</Card>
 
@@ -966,8 +970,8 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 										<form onSubmit={handleSaveDisplayName}>
 											<Card>
 												<CardHeader>
-													<CardTitle>ชื่อที่แสดง</CardTitle>
-													<CardDescription>ชื่อที่แสดงจะปรากฏในโปรไฟล์และการแจ้งเตือนต่าง ๆ ของคุณ</CardDescription>
+													<CardTitle>{t("account.ui.displayName.title")}</CardTitle>
+													<CardDescription>{t("account.ui.displayName.description")}</CardDescription>
 												</CardHeader>
 												<CardContent>
 													<FormField
@@ -981,7 +985,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 																		maxLength={ACCOUNT_DISPLAY_NAME_MAX_LENGTH}
 																		autoComplete="name"
 																		disabled={isPending || displayNameForm.formState.isSubmitting}
-																		placeholder="ชื่อของคุณ"
+																		placeholder={t("account.ui.displayName.placeholder")}
 																	/>
 																</FormControl>
 																<FormMessage />
@@ -990,7 +994,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 													/>
 												</CardContent>
 												<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-													<p className="text-sm text-muted-foreground">ใช้ชื่อที่ผู้อื่นจดจำคุณได้ง่ายใน NekoShare</p>
+													<p className="text-sm text-muted-foreground">{t("account.ui.displayName.hint")}</p>
 													<Button
 														type="submit"
 														disabled={
@@ -1003,7 +1007,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 														{displayNameForm.formState.isSubmitting && (
 															<LuLoader className="animate-spin" aria-hidden="true" />
 														)}
-														บันทึก
+														{t("common.actions.save")}
 													</Button>
 												</CardFooter>
 											</Card>
@@ -1014,10 +1018,8 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 										<form onSubmit={handleSaveUsername}>
 											<Card>
 												<CardHeader>
-													<CardTitle>ชื่อผู้ใช้งาน</CardTitle>
-													<CardDescription>
-														ชื่อผู้ใช้งานช่วยให้ผู้อื่นค้นหาคุณได้ง่ายขึ้น และใช้สำหรับการยืนยันบางขั้นตอนของบัญชี
-													</CardDescription>
+													<CardTitle>{t("account.ui.username.title")}</CardTitle>
+													<CardDescription>{t("account.ui.username.description")}</CardDescription>
 												</CardHeader>
 												<CardContent>
 													<FormField
@@ -1042,8 +1044,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 												</CardContent>
 												<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
 													<p className="text-sm text-muted-foreground">
-														ใช้ได้เฉพาะตัวอักษรภาษาอังกฤษ ตัวเลข จุด และขีดล่าง ความยาวสูงสุด{" "}
-														{ACCOUNT_USERNAME_MAX_LENGTH} ตัวอักษร
+														{t("account.ui.username.hint", { max: ACCOUNT_USERNAME_MAX_LENGTH })}
 													</p>
 													<Button
 														type="submit"
@@ -1057,7 +1058,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 														{usernameForm.formState.isSubmitting && (
 															<LuLoader className="mr-2 size-4 animate-spin" aria-hidden="true" />
 														)}
-														บันทึก
+														{t("common.actions.save")}
 													</Button>
 												</CardFooter>
 											</Card>
@@ -1066,40 +1067,34 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 
 									<Card>
 										<CardHeader>
-											<CardTitle>อีเมล</CardTitle>
-											<CardDescription>
-												อีเมลนี้ใช้สำหรับเข้าสู่ระบบ รับการแจ้งเตือนเกี่ยวกับบัญชี และยืนยันการเปลี่ยนแปลงสำคัญ
-											</CardDescription>
+											<CardTitle>{t("account.ui.email.title")}</CardTitle>
+											<CardDescription>{t("account.ui.email.description")}</CardDescription>
 										</CardHeader>
 										<CardContent>
 											<Input className={ACCOUNT_FIELD_WIDTH_CLASS} value={user?.email ?? ""} readOnly tabIndex={-1} />
 										</CardContent>
 										<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-											<p className="text-sm text-muted-foreground">
-												เมื่อเปลี่ยนอีเมล เราจะส่งลิงก์ยืนยันไปยังอีเมลใหม่ก่อนใช้งานจริง
-											</p>
+											<p className="text-sm text-muted-foreground">{t("account.ui.email.warning")}</p>
 											<Button type="button" onClick={() => setDialogOpen("changeEmail", true)}>
-												เปลี่ยนอีเมล
+												{t("account.ui.email.changeButton")}
 											</Button>
 										</CardFooter>
 									</Card>
 
 									<Card className="bg-destructive/5 dark:bg-destructive/20">
 										<CardHeader className="text-destructive">
-											<CardTitle>ลบบัญชี</CardTitle>
+											<CardTitle>{t("account.ui.deleteAccount.title")}</CardTitle>
 											<CardDescription className="text-muted-foreground">
-												การลบบัญชีจะลบข้อมูลที่เกี่ยวข้องกับบัญชีนี้อย่างถาวร และไม่สามารถกู้คืนได้
+												{t("account.ui.deleteAccount.description")}
 											</CardDescription>
 										</CardHeader>
 										<CardContent>
-											<p className="text-sm text-muted-foreground">
-												ก่อนดำเนินการ กรุณาตรวจสอบให้แน่ใจว่าคุณได้สำรองข้อมูลที่ต้องการเก็บไว้แล้ว
-											</p>
+											<p className="text-sm text-muted-foreground">{t("account.ui.deleteAccount.warning")}</p>
 										</CardContent>
 										<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-											<p className="text-sm text-muted-foreground">การดำเนินการนี้ไม่สามารถย้อนกลับได้</p>
+											<p className="text-sm text-muted-foreground">{t("account.ui.deleteAccount.irreversible")}</p>
 											<Button variant="destructive" type="button" onClick={() => setDialogOpen("deleteAccount", true)}>
-												ลบบัญชี
+												{t("account.ui.deleteAccount.button")}
 											</Button>
 										</CardFooter>
 									</Card>
@@ -1109,29 +1104,27 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 					},
 					{
 						value: "security",
-						label: "ความปลอดภัย",
+						label: t("account.ui.tabs.security"),
 						content: (
 							<ScrollArea className="h-[calc(100vh-14rem)]">
 								<div className="space-y-4">
 									<Card>
 										<CardHeader>
-											<CardTitle>รหัสผ่าน</CardTitle>
-											<CardDescription>
-												ดูแลความปลอดภัยของบัญชีด้วยรหัสผ่านที่เดายาก และอัปเดตเมื่อจำเป็น
-											</CardDescription>
+											<CardTitle>{t("account.ui.password.title")}</CardTitle>
+											<CardDescription>{t("account.ui.password.changeDescription")}</CardDescription>
 										</CardHeader>
 										<CardContent>
 											<p className="text-sm text-muted-foreground">
-												รหัสผ่านต้องมีอย่างน้อย {ACCOUNT_PASSWORD_MIN_LENGTH} ตัวอักษร และไม่เกิน{" "}
-												{ACCOUNT_PASSWORD_MAX_LENGTH} ตัวอักษร
+												{t("account.ui.password.hint", {
+													max: ACCOUNT_PASSWORD_MAX_LENGTH,
+													min: ACCOUNT_PASSWORD_MIN_LENGTH,
+												})}
 											</p>
 										</CardContent>
 										<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-											<p className="text-sm text-muted-foreground">
-												หากคุณเข้าสู่ระบบด้วย social account อย่างเดียว สามารถตั้งรหัสผ่านเพิ่มได้จากหน้านี้
-											</p>
+											<p className="text-sm text-muted-foreground">{t("account.ui.password.socialHint")}</p>
 											<Button type="button" onClick={() => setDialogOpen("changePassword", true)}>
-												จัดการรหัสผ่าน
+												{t("account.ui.password.button")}
 											</Button>
 										</CardFooter>
 									</Card>
@@ -1151,16 +1144,14 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 				onSave={handleAvatarSave}
 			/>
 			<Dialog open={dialogs.changeEmail} onOpenChange={(open) => setDialogOpen("changeEmail", open)}>
-				<DialogContent
-					className="max-w-xl"
-					onEscapeKeyDown={(event) => handleDialogEscapeKeyDown("changeEmail", event)}
-				>
-					<DialogHeader>
-						<DialogTitle>เปลี่ยนอีเมล</DialogTitle>
-						<DialogDescription>
-							กรอกอีเมลใหม่ของคุณ แล้วเราจะส่งลิงก์ยืนยันเพื่อให้การเปลี่ยนแปลงมีผลอย่างปลอดภัย
-						</DialogDescription>
-					</DialogHeader>
+			<DialogContent
+				className="max-w-xl"
+				onEscapeKeyDown={(event) => handleDialogEscapeKeyDown("changeEmail", event)}
+			>
+				<DialogHeader>
+					<DialogTitle>{t("account.ui.email.dialogTitle")}</DialogTitle>
+					<DialogDescription>{t("account.ui.email.dialogDescription")}</DialogDescription>
+				</DialogHeader>
 
 					<Form {...emailForm}>
 						<form className="space-y-4" onSubmit={handleEmailChange}>
@@ -1169,7 +1160,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 								name="newEmail"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>อีเมลใหม่</FormLabel>
+										<FormLabel>{t("account.ui.email.newLabel")}</FormLabel>
 										<FormControl>
 											<Input
 												{...field}
@@ -1189,7 +1180,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 								name="confirmEmail"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>ยืนยันอีเมลใหม่</FormLabel>
+										<FormLabel>{t("account.ui.email.confirmLabel")}</FormLabel>
 										<FormControl>
 											<Input
 												{...field}
@@ -1211,13 +1202,13 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									disabled={emailForm.formState.isSubmitting}
 									onClick={() => setDialogOpen("changeEmail", false)}
 								>
-									ยกเลิก
+									{t("common.actions.cancel")}
 								</Button>
 								<Button type="submit" disabled={emailForm.formState.isSubmitting}>
 									{emailForm.formState.isSubmitting && (
 										<LuLoader className="mr-2 size-4 animate-spin" aria-hidden="true" />
 									)}
-									ส่งอีเมลยืนยัน
+									{t("account.ui.email.submit")}
 								</Button>
 							</DialogFooter>
 						</form>
@@ -1226,28 +1217,30 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 			</Dialog>
 
 			<Dialog open={dialogs.changePassword} onOpenChange={(open) => setDialogOpen("changePassword", open)}>
-				<DialogContent
-					className="max-w-xl"
-					onEscapeKeyDown={(event) => handleDialogEscapeKeyDown("changePassword", event)}
-				>
-					<DialogHeader>
-						<DialogTitle>{hasCredentialAccount === false ? "ตั้งรหัสผ่าน" : "เปลี่ยนรหัสผ่าน"}</DialogTitle>
-						<DialogDescription>
-							{hasCredentialAccount === false
-								? "บัญชีนี้ยังไม่มีรหัสผ่าน คุณสามารถตั้งรหัสผ่านเพื่อใช้เข้าสู่ระบบแบบ credential ได้"
-								: "กรอกรหัสผ่านปัจจุบันและตั้งรหัสผ่านใหม่เพื่ออัปเดตความปลอดภัยของบัญชี"}
-						</DialogDescription>
-					</DialogHeader>
+			<DialogContent
+				className="max-w-xl"
+				onEscapeKeyDown={(event) => handleDialogEscapeKeyDown("changePassword", event)}
+			>
+				<DialogHeader>
+					<DialogTitle>
+						{hasCredentialAccount === false ? t("account.ui.password.setTitle") : t("account.ui.password.changeTitle")}
+					</DialogTitle>
+					<DialogDescription>
+						{hasCredentialAccount === false
+							? t("account.ui.password.setDescription")
+							: t("account.ui.password.changeDescription")}
+					</DialogDescription>
+				</DialogHeader>
 
 					{isLoadingLinkedAccounts ? (
 						<div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
 							<LuLoader className="mr-2 size-4 animate-spin" aria-hidden="true" />
-							กำลังโหลดข้อมูลวิธีเข้าสู่ระบบ...
+							{t("account.ui.loadingAccounts")}
 						</div>
 					) : linkedAccountsError ? (
 						<p className="py-4 text-sm text-destructive">{linkedAccountsError}</p>
 					) : !isSensitiveAccountStateReady ? (
-						<p className="py-4 text-sm text-destructive">ไม่สามารถตรวจสอบสถานะรหัสผ่านของบัญชีนี้ได้</p>
+						<p className="py-4 text-sm text-destructive">{t("account.ui.password.passwordStateError")}</p>
 					) : hasCredentialAccount ? (
 						<Form {...changePasswordForm}>
 							<form className="space-y-4" onSubmit={handlePasswordSubmit}>
@@ -1256,7 +1249,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									name="currentPassword"
 									render={({ field }) => (
 										<FormItem>
-											<FormLabel>รหัสผ่านปัจจุบัน</FormLabel>
+											<FormLabel>{t("account.ui.password.currentLabel")}</FormLabel>
 											<FormControl>
 												<Input
 													{...field}
@@ -1275,7 +1268,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									name="newPassword"
 									render={({ field }) => (
 										<FormItem>
-											<FormLabel>รหัสผ่านใหม่</FormLabel>
+											<FormLabel>{t("account.ui.password.newLabel")}</FormLabel>
 											<FormControl>
 												<Input
 													{...field}
@@ -1294,7 +1287,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									name="confirmPassword"
 									render={({ field }) => (
 										<FormItem>
-											<FormLabel>ยืนยันรหัสผ่านใหม่</FormLabel>
+											<FormLabel>{t("account.ui.password.confirmLabel")}</FormLabel>
 											<FormControl>
 												<Input
 													{...field}
@@ -1315,13 +1308,13 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 										disabled={changePasswordForm.formState.isSubmitting}
 										onClick={() => setDialogOpen("changePassword", false)}
 									>
-										ยกเลิก
+										{t("common.actions.cancel")}
 									</Button>
 									<Button type="submit" disabled={changePasswordForm.formState.isSubmitting}>
 										{changePasswordForm.formState.isSubmitting && (
 											<LuLoader className="mr-2 size-4 animate-spin" aria-hidden="true" />
 										)}
-										บันทึกรหัสผ่านใหม่
+										{t("account.ui.password.saveButton")}
 									</Button>
 								</DialogFooter>
 							</form>
@@ -1334,7 +1327,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									name="newPassword"
 									render={({ field }) => (
 										<FormItem>
-											<FormLabel>รหัสผ่านใหม่</FormLabel>
+											<FormLabel>{t("account.ui.password.newLabel")}</FormLabel>
 											<FormControl>
 												<Input
 													{...field}
@@ -1353,7 +1346,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									name="confirmPassword"
 									render={({ field }) => (
 										<FormItem>
-											<FormLabel>ยืนยันรหัสผ่านใหม่</FormLabel>
+											<FormLabel>{t("account.ui.password.confirmLabel")}</FormLabel>
 											<FormControl>
 												<Input
 													{...field}
@@ -1374,13 +1367,13 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 										disabled={setPasswordForm.formState.isSubmitting}
 										onClick={() => setDialogOpen("changePassword", false)}
 									>
-										ยกเลิก
+										{t("common.actions.cancel")}
 									</Button>
 									<Button type="submit" disabled={setPasswordForm.formState.isSubmitting}>
 										{setPasswordForm.formState.isSubmitting && (
 											<LuLoader className="mr-2 size-4 animate-spin" aria-hidden="true" />
 										)}
-										ตั้งรหัสผ่าน
+										{t("account.ui.password.submitSetButton")}
 									</Button>
 								</DialogFooter>
 							</form>
@@ -1390,27 +1383,30 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 			</Dialog>
 
 			<Dialog open={dialogs.deleteAccount} onOpenChange={(open) => setDialogOpen("deleteAccount", open)}>
-				<DialogContent
-					className="max-w-xl"
-					onEscapeKeyDown={(event) => handleDialogEscapeKeyDown("deleteAccount", event)}
-				>
-					<DialogHeader>
-						<DialogTitle>ลบบัญชี</DialogTitle>
-						<DialogDescription>
-							ยืนยันด้วยชื่อผู้ใช้ ข้อความ <strong>{ACCOUNT_DELETE_CONFIRMATION_PHRASE}</strong>
-							{hasCredentialAccount ? " และรหัสผ่านปัจจุบัน" : ""} เพื่อดำเนินการลบบัญชีแบบถาวร
-						</DialogDescription>
-					</DialogHeader>
+			<DialogContent
+				className="max-w-xl"
+				onEscapeKeyDown={(event) => handleDialogEscapeKeyDown("deleteAccount", event)}
+			>
+				<DialogHeader>
+					<DialogTitle>{t("account.ui.deleteAccount.dialogTitle")}</DialogTitle>
+					<DialogDescription>
+						{t("account.ui.deleteAccount.dialogDescription")}{" "}
+						<strong>{ACCOUNT_DELETE_CONFIRMATION_PHRASE}</strong>{" "}
+						{hasCredentialAccount
+							? t("account.ui.deleteAccount.dialogDescriptionPassword")
+							: t("account.ui.deleteAccount.dialogDescriptionSuffix")}
+					</DialogDescription>
+				</DialogHeader>
 
 					{isLoadingLinkedAccounts ? (
 						<div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
 							<LuLoader className="mr-2 size-4 animate-spin" aria-hidden="true" />
-							กำลังโหลดข้อมูลวิธีเข้าสู่ระบบ...
+							{t("account.ui.loadingAccounts")}
 						</div>
 					) : linkedAccountsError ? (
 						<p className="py-4 text-sm text-destructive">{linkedAccountsError}</p>
 					) : !isSensitiveAccountStateReady ? (
-						<p className="py-4 text-sm text-destructive">ไม่สามารถตรวจสอบสถานะบัญชีสำหรับการลบได้</p>
+						<p className="py-4 text-sm text-destructive">{t("account.ui.deleteAccount.deleteStateError")}</p>
 					) : (
 						<Form {...deleteAccountForm}>
 							<form className="space-y-4" onSubmit={handleDeleteAccount}>
@@ -1419,7 +1415,9 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									name="username"
 									render={({ field }) => (
 										<FormItem>
-											<FormLabel>พิมพ์ชื่อผู้ใช้ {deleteConfirmationName || "-"}</FormLabel>
+											<FormLabel>
+												{t("account.ui.deleteAccount.usernameLabel", { username: deleteConfirmationName || "-" })}
+											</FormLabel>
 											<FormControl>
 												<Input {...field} autoComplete="off" disabled={deleteAccountForm.formState.isSubmitting} />
 											</FormControl>
@@ -1433,7 +1431,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									name="phrase"
 									render={({ field }) => (
 										<FormItem>
-											<FormLabel>พิมพ์ข้อความยืนยัน</FormLabel>
+											<FormLabel>{t("account.ui.deleteAccount.phraseLabel")}</FormLabel>
 											<FormControl>
 												<Input
 													{...field}
@@ -1450,11 +1448,11 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 								{hasCredentialAccount && (
 									<FormField
 										control={deleteAccountForm.control}
-										name="password"
-										render={({ field }) => (
-											<FormItem>
-												<FormLabel>รหัสผ่านปัจจุบัน</FormLabel>
-												<FormControl>
+											name="password"
+											render={({ field }) => (
+												<FormItem>
+													<FormLabel>{t("account.ui.deleteAccount.passwordLabel")}</FormLabel>
+													<FormControl>
 													<Input
 														{...field}
 														type="password"
@@ -1470,7 +1468,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 
 								{!hasCredentialAccount && (
 									<p className="text-sm text-muted-foreground">
-										หากเซสชันของคุณเก่าเกินไป ระบบอาจให้เข้าสู่ระบบใหม่ก่อนจึงจะลบบัญชีได้
+										{t("account.ui.deleteAccount.staleSessionHint")}
 									</p>
 								)}
 
@@ -1481,13 +1479,13 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 										disabled={deleteAccountForm.formState.isSubmitting}
 										onClick={() => setDialogOpen("deleteAccount", false)}
 									>
-										ยกเลิก
+										{t("common.actions.cancel")}
 									</Button>
 									<Button type="submit" variant="destructive" disabled={deleteAccountForm.formState.isSubmitting}>
 										{deleteAccountForm.formState.isSubmitting && (
 											<LuLoader className="mr-2 size-4 animate-spin" aria-hidden="true" />
 										)}
-										ลบบัญชีถาวร
+										{t("account.ui.deleteAccount.button")}
 									</Button>
 								</DialogFooter>
 							</form>
