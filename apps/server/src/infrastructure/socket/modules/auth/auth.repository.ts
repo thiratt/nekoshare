@@ -1,12 +1,12 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/infrastructure/db";
 import { verifications } from "@/infrastructure/db/schemas";
 
 export const authSocketRepository = {
-	findFirstDeviceByUserId(userId: string) {
+	findDeviceBySessionAndUser(sessionId: string, userId: string) {
 		return db.query.device.findFirst({
-			where: (devices) => eq(devices.userId, userId),
+			where: (devices) => and(eq(devices.currentSessionId, sessionId), eq(devices.userId, userId)),
 		});
 	},
 

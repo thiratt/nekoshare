@@ -35,11 +35,11 @@ export async function authenticateClient(client: IConnection, oneTimeToken: stri
 		};
 	}
 
-	const linkedDevice = await authSocketRepository.findFirstDeviceByUserId(data.user.id);
+	const linkedDevice = await authSocketRepository.findDeviceBySessionAndUser(data.session.id, data.user.id);
 	if (!linkedDevice) {
 		return {
 			ok: false,
-			message: "Associated device not found",
+			message: "Associated device not found for this session",
 			shouldShutdown: true,
 		};
 	}
