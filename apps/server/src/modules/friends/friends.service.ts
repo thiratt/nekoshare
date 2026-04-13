@@ -104,7 +104,7 @@ export class FriendsService {
 			.filter((id): id is string => !!id);
 		const uniqueFriendUserIds = Array.from(new Set(friendUserIds));
 
-		const friendUsers = await this.repository.findUsersByIds(friendUserIds);
+		const friendUsers = await this.repository.findUsersByIds(uniqueFriendUserIds);
 		const userMap = new Map(friendUsers.map((user) => [user.id, user]));
 		const onlineEntries = await Promise.all(
 			uniqueFriendUserIds.map(async (friendUserId) => {

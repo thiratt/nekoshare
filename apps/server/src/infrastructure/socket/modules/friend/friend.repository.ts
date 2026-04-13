@@ -1,16 +1,26 @@
-import { and, eq, or } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/infrastructure/db";
 import { friend } from "@/infrastructure/db/schemas";
 
+const friendLinkColumns = {
+	userLowId: true,
+	userHighId: true,
+} as const;
+
 export const friendRepository = {
-	listAcceptedFriendLinks(userId: string) {
-		return db.query.friend.findMany({
-			where: and(or(eq(friend.userLowId, userId), eq(friend.userHighId, userId)), eq(friend.status, "accepted")),
-			columns: {
-				userLowId: true,
-				userHighId: true,
-			},
-		});
+	async listAcceptedFriendLinks(userId: string) {
+		const [lowLinks, highLinks] = await Promise.all([
+			db.query.friend.findMany({
+				where: and(eq(friend.userLowId, userId), eq(friend.status, "accepted")),
+				columns: friendLinkColumns,
+			}),
+			db.query.friend.findMany({
+				where: and(eq(friend.userHighId, userId), eq(friend.status, "accepted")),
+				columns: friendLinkColumns,
+			}),
+		]);
+
+		return [...lowLinks, ...highLinks];
 	},
 };

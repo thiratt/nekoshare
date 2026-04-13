@@ -7,19 +7,27 @@ export type FriendRecord = typeof friend.$inferSelect;
 export type UserRecord = typeof users.$inferSelect;
 
 export const friendsRepository = {
-	listRelationsByUser(userId: string) {
-		return db.query.friend.findMany({
-			where: or(eq(friend.userLowId, userId), eq(friend.userHighId, userId)),
-		});
+	async listRelationsByUser(userId: string) {
+		const [lowRelations, highRelations] = await Promise.all([
+			db.query.friend.findMany({
+				where: eq(friend.userLowId, userId),
+			}),
+			db.query.friend.findMany({
+				where: eq(friend.userHighId, userId),
+			}),
+		]);
+
+		return [...lowRelations, ...highRelations];
 	},
 
 	findUsersByIds(userIds: string[]) {
-		if (userIds.length === 0) {
+		const uniqueUserIds = Array.from(new Set(userIds));
+		if (uniqueUserIds.length === 0) {
 			return Promise.resolve([] as UserRecord[]);
 		}
 
 		return db.query.users.findMany({
-			where: inArray(users.id, userIds),
+			where: inArray(users.id, uniqueUserIds),
 		});
 	},
 
@@ -95,16 +103,21 @@ export const friendsRepository = {
 		});
 	},
 
-	findRelationsForCandidates(currentUserId: string, candidateUserIds: string[]) {
+	async findRelationsForCandidates(currentUserId: string, candidateUserIds: string[]) {
 		if (candidateUserIds.length === 0) {
 			return Promise.resolve([] as FriendRecord[]);
 		}
 
-		return db.query.friend.findMany({
-			where: and(
-				or(eq(friend.userLowId, currentUserId), eq(friend.userHighId, currentUserId)),
-				or(inArray(friend.userLowId, candidateUserIds), inArray(friend.userHighId, candidateUserIds)),
-			),
-		});
+		const uniqueCandidateUserIds = Array.from(new Set(candidateUserIds));
+		const [lowRelations, highRelations] = await Promise.all([
+			db.query.friend.findMany({
+				where: and(eq(friend.userLowId, currentUserId), inArray(friend.userHighId, uniqueCandidateUserIds)),
+			}),
+			db.query.friend.findMany({
+				where: and(eq(friend.userHighId, currentUserId), inArray(friend.userLowId, uniqueCandidateUserIds)),
+			}),
+		]);
+
+		return [...lowRelations, ...highRelations];
 	},
 };

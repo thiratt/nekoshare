@@ -52,6 +52,8 @@ const friends = mysqlTable(
 	},
 	(table) => [
 		unique("friends_user_pair_unique").on(table.userLowId, table.userHighId),
+		index("friends_user_low_status_idx").on(table.userLowId, table.status),
+		index("friends_user_high_status_idx").on(table.userHighId, table.status),
 		index("friends_requested_by_user_id_idx").on(table.requestedByUserId),
 		index("friends_blocked_by_user_id_idx").on(table.blockedByUserId),
 	],
