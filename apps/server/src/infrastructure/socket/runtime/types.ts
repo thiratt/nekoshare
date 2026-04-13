@@ -8,6 +8,7 @@ export type TransportType = "TCP" | "WebSocket";
 
 export interface ISessionManager<T extends IConnection> {
 	addSession(connection: T): void;
+	bindSessionToUser(connectionId: string, userId: string | null | undefined): void;
 	getSession(connectionId: string): T | undefined;
 	getSessionsByUserId(userId: string): T[];
 	removeSession(connectionId: string): void;

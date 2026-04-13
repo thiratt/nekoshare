@@ -6,6 +6,7 @@ export {
 	resolveConnectionBySessionId,
 	resolveConnectionTargetByDeviceId,
 	resolveConnectionTargetBySessionId,
+	resolveLocalConnectionById,
 	shutdownConnectionRouting,
 	unregisterConnectionRoute,
 } from "./connection-routing";

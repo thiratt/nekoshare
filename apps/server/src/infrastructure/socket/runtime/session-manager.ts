@@ -5,6 +5,7 @@ import { Logger } from "@/infrastructure/logger";
 export class SessionManager<T extends IConnection> implements ISessionManager<T> {
 	private sessions = new Map<string, T>();
 	private userSessions = new Map<string, Set<string>>();
+	private sessionUserIds = new Map<string, string>();
 	private transportType: TransportType;
 
 	constructor(transportType: TransportType) {
@@ -12,20 +13,16 @@ export class SessionManager<T extends IConnection> implements ISessionManager<T>
 	}
 
 	isUserOnline(userId: string): boolean {
-		const sessions = this.userSessions.get(userId);
-		return sessions !== undefined && sessions.size > 0;
+		return this.getSessionsByUserId(userId).length > 0;
 	}
 
 	getOnlineUserIds(): string[] {
-		return Array.from(this.userSessions.keys());
+		return Array.from(this.userSessions.keys()).filter((userId) => this.isUserOnline(userId));
 	}
 
 	addSession(connection: T) {
 		this.sessions.set(connection.id, connection);
-
-		if (connection.user?.id) {
-			this.addUserSession(connection.user.id, connection.id);
-		}
+		this.bindSessionToUser(connection.id, connection.user?.id);
 
 		Logger.debug(this.transportType, `Connection ${connection.id} added. Total: ${this.sessions.size}`);
 	}
@@ -35,6 +32,37 @@ export class SessionManager<T extends IConnection> implements ISessionManager<T>
 			this.userSessions.set(userId, new Set());
 		}
 		this.userSessions.get(userId)!.add(connectionId);
+		this.sessionUserIds.set(connectionId, userId);
+	}
+
+	private removeUserSession(connectionId: string) {
+		const userId = this.sessionUserIds.get(connectionId);
+		if (!userId) {
+			return;
+		}
+
+		const userSessions = this.userSessions.get(userId);
+		if (userSessions) {
+			userSessions.delete(connectionId);
+			if (userSessions.size === 0) {
+				this.userSessions.delete(userId);
+			}
+		}
+
+		this.sessionUserIds.delete(connectionId);
+	}
+
+	bindSessionToUser(connectionId: string, userId: string | null | undefined): void {
+		const normalizedUserId = userId?.trim();
+		const currentUserId = this.sessionUserIds.get(connectionId);
+		if (currentUserId === normalizedUserId) {
+			return;
+		}
+
+		this.removeUserSession(connectionId);
+		if (normalizedUserId) {
+			this.addUserSession(normalizedUserId, connectionId);
+		}
 	}
 
 	getSession(connectionId: string): T | undefined {
@@ -46,25 +74,28 @@ export class SessionManager<T extends IConnection> implements ISessionManager<T>
 		if (!connectionIds) return [];
 
 		const connections: T[] = [];
-		for (const id of connectionIds) {
+		for (const id of Array.from(connectionIds)) {
 			const conn = this.sessions.get(id);
-			if (conn) connections.push(conn);
+			if (conn) {
+				connections.push(conn);
+				continue;
+			}
+
+			connectionIds.delete(id);
+			this.sessionUserIds.delete(id);
 		}
+
+		if (connectionIds.size === 0) {
+			this.userSessions.delete(userId);
+		}
+
 		return connections;
 	}
 
 	removeSession(connectionId: string) {
 		const connection = this.sessions.get(connectionId);
+		this.removeUserSession(connectionId);
 		if (connection) {
-			if (connection.user?.id) {
-				const userSess = this.userSessions.get(connection.user.id);
-				if (userSess) {
-					userSess.delete(connectionId);
-					if (userSess.size === 0) {
-						this.userSessions.delete(connection.user.id);
-					}
-				}
-			}
 			this.sessions.delete(connectionId);
 			Logger.debug(this.transportType, `Connection ${connectionId} disconnected. Total: ${this.sessions.size}`);
 		}

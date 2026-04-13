@@ -231,9 +231,13 @@ export async function unregisterConnectionRoute(connectionId: string): Promise<v
 	}
 }
 
-function getLocalConnectionByConnectionId(connectionId: string): IConnection | undefined {
+export function resolveLocalConnectionById(connectionId: string, transport?: TransportType): IConnection | undefined {
 	const localConnection = localConnectionById.get(connectionId);
 	if (!localConnection) {
+		return undefined;
+	}
+
+	if (transport && localConnection.transportType !== transport) {
 		return undefined;
 	}
 
@@ -271,7 +275,7 @@ async function resolveTargetByRouteKey(routeKey: string): Promise<ConnectionTarg
 		return toRemoteTarget(parsed);
 	}
 
-	const localConnection = getLocalConnectionByConnectionId(parsed.connectionId);
+	const localConnection = resolveLocalConnectionById(parsed.connectionId, parsed.transport);
 	if (localConnection) {
 		return toLocalTarget(parsed, localConnection);
 	}
@@ -290,7 +294,7 @@ export async function resolveConnectionTargetBySessionId(sessionId: string | nul
 
 	const localConnectionId = localConnectionIdBySessionId.get(normalizedSessionId);
 	if (localConnectionId) {
-		const localConnection = getLocalConnectionByConnectionId(localConnectionId);
+		const localConnection = resolveLocalConnectionById(localConnectionId);
 		if (localConnection) {
 			return {
 				kind: "local",
@@ -315,7 +319,7 @@ export async function resolveConnectionTargetByDeviceId(deviceId: string | null)
 
 	const localConnectionId = localConnectionIdByDeviceId.get(normalizedDeviceId);
 	if (localConnectionId) {
-		const localConnection = getLocalConnectionByConnectionId(localConnectionId);
+		const localConnection = resolveLocalConnectionById(localConnectionId);
 		if (localConnection) {
 			return {
 				kind: "local",

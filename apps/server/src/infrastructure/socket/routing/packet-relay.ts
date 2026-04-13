@@ -1,11 +1,9 @@
-import { type ConnectionTarget,getLocalNodeId } from "./connection-routing";
+import { type ConnectionTarget, getLocalNodeId, resolveLocalConnectionById } from "./connection-routing";
 
 import { Logger } from "@/infrastructure/logger";
 import { getRedisClient } from "@/infrastructure/redis";
 import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 import type { IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
-import { tcpSessionManager } from "@/infrastructure/socket/transport/tcp/connection";
-import { wsSessionManager } from "@/infrastructure/socket/transport/ws/connection";
 
 type RedisClient = ReturnType<typeof getRedisClient>;
 
@@ -29,11 +27,7 @@ function getRelayChannel(nodeId: string): string {
 }
 
 function getLocalConnection(connectionId: string, transport: TransportType): IConnection | undefined {
-	if (transport === "WebSocket") {
-		return wsSessionManager.getSession(connectionId);
-	}
-
-	return tcpSessionManager.getSession(connectionId);
+	return resolveLocalConnectionById(connectionId, transport);
 }
 
 function parseRelayPayload(raw: string): RelayPacketPayload | undefined {

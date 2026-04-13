@@ -9,7 +9,8 @@ import { registerConnectionRoute, unregisterConnectionRoute } from "@/infrastruc
 import type { Session, User } from "@/modules/auth/lib";
 
 interface BaseSessionManager {
-	removeSession(userId: string): void;
+	bindSessionToUser(connectionId: string, userId: string | null | undefined): void;
+	removeSession(connectionId: string): void;
 }
 
 interface BaseRouter {
@@ -51,6 +52,7 @@ export abstract class BaseConnection {
 		this._authenticated = true;
 		this._user = data.user;
 		this._session = data.session;
+		this.sessionManager.bindSessionToUser(this.id, this._user.id);
 		Logger.debug(this.transportType, `Set authenticated for client ${this.id}, user ID: ${this._user.id}`);
 		void registerConnectionRoute(this).catch((error) => {
 			Logger.warn(this.transportType, `Failed to register connection route for ${this.id}`, error);
