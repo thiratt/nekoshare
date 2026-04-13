@@ -13,11 +13,12 @@ import {
 } from "@/lib/app-auth";
 import { invalidateSessionCache } from "@/lib/auth";
 import { bootstrapAuthenticatedDesktopSession } from "@/lib/auth-bootstrap";
-import { getThaiAuthErrorMessage } from "@/lib/auth-error";
 import {
   isGoogleAuthCancelledError,
   signInWithGoogle,
 } from "@/lib/google-auth";
+import { getAuthErrorMessage } from "@workspace/i18n/messages";
+import { useAppI18n } from "@workspace/i18n/react";
 
 export const Route = createFileRoute("/(auth)/login")({
   component: RouteComponent,
@@ -27,15 +28,16 @@ function RouteComponent() {
   const router = useRouter();
   const { setGlobalLoading } = useNekoShare();
   const { toast } = useToast();
+  const { language, t } = useAppI18n();
   const { hideGoogleAuthProgress, showGoogleAuthProgress } =
     useGoogleAuthProgress();
 
   const onGoogle = async () => {
     try {
       showGoogleAuthProgress();
-      const result = await signInWithGoogle("login");
+      const result = await signInWithGoogle("login", language);
       if (result.status === "action_required") {
-        toast.info(result.message);
+        toast.info(getAuthErrorMessage(t, result.code, "errors.auth.fallbacks.googleActionRequired"));
         return;
       }
 
@@ -49,10 +51,7 @@ function RouteComponent() {
       }
 
       toast.error(
-        getThaiAuthErrorMessage(
-          error,
-          "ไม่สามารถเข้าสู่ระบบด้วย Google ได้ในขณะนี้",
-        ),
+        getAuthErrorMessage(t, error, "errors.auth.fallbacks.googleLogin"),
       );
     } finally {
       hideGoogleAuthProgress();
@@ -64,20 +63,18 @@ function RouteComponent() {
     try {
       const result = await continueDesktopEmailSignIn({
         email: data.identifier,
+        language,
         password: data.password,
       });
 
       if (result.status === "action_required") {
-        toast.info(getThaiAuthErrorMessage(result.code, result.message));
+        toast.info(getAuthErrorMessage(t, result.code, "errors.auth.fallbacks.googleActionRequired"));
         return;
       }
 
       if (result.status === "terminal_error") {
         toast.error(
-          getThaiAuthErrorMessage(
-            result.code,
-            "ไม่สามารถเข้าสู่ระบบได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง",
-          ),
+          getAuthErrorMessage(t, result.code, "errors.auth.fallbacks.login"),
         );
         return;
       }
@@ -89,10 +86,7 @@ function RouteComponent() {
       await router.navigate({ to: "/home" });
     } catch (error) {
       toast.error(
-        getThaiAuthErrorMessage(
-          error,
-          "ไม่สามารถเข้าสู่ระบบได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง",
-        ),
+        getAuthErrorMessage(t, error, "errors.auth.fallbacks.login"),
       );
     } finally {
       setGlobalLoading(false);

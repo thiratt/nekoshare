@@ -11,9 +11,11 @@ import { Input } from "@workspace/ui/components/input";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
 import { ExtendLink } from "@workspace/app-ui/components/ext/link";
-import { resetPasswordFormSchema } from "@workspace/app-ui/schemas/auth";
+import { createResetPasswordFormSchema } from "@workspace/app-ui/schemas/auth";
 import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
 import type { TResetPasswordSchema } from "@workspace/app-ui/types/schema";
+
+import { useAppI18n } from "@workspace/i18n/react";
 
 interface ResetPasswordCardProps extends IncludeLinkComponentProps {
 	data?: {
@@ -23,9 +25,10 @@ interface ResetPasswordCardProps extends IncludeLinkComponentProps {
 }
 
 export function ResetPasswordCard({ data, linkComponent, onSubmit }: ResetPasswordCardProps) {
+	const { t } = useAppI18n();
 	const form = useForm<TResetPasswordSchema>({
 		mode: "onSubmit",
-		resolver: zodResolver(resetPasswordFormSchema),
+		resolver: zodResolver(createResetPasswordFormSchema(t)),
 		defaultValues: {
 			email: data?.email ?? "",
 		},
@@ -59,23 +62,23 @@ export function ResetPasswordCard({ data, linkComponent, onSubmit }: ResetPasswo
 		<div className="space-y-4 w-full max-w-sm md:max-w-4xl">
 			<CardTransition className="shadow-xl" tag="auth-card">
 				<CardHeader>
-					<CardTitle className="text-2xl font-semibold">ลืมรหัสผ่าน?</CardTitle>
-					<CardDescription>ไม่ต้องกังวล! เราจะส่งวิธีรีเซ็ตรหัสผ่านให้คุณ</CardDescription>
+					<CardTitle className="text-2xl font-semibold">{t("auth.resetPassword.title")}</CardTitle>
+					<CardDescription>{t("auth.resetPassword.description")}</CardDescription>
 				</CardHeader>
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="contents">
 						<CardContent className="space-y-4">
 							<div className="flex flex-col gap-4">
-								{renderField("email", "อีเมล", "email")}
+								{renderField("email", t("auth.resetPassword.email"), "email")}
 
 								<Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-									{form.formState.isSubmitting ? <LuLoader className="animate-spin" /> : "ถัดไป"}
+									{form.formState.isSubmitting ? <LuLoader className="animate-spin" /> : t("common.actions.continue")}
 								</Button>
 
 								<div className="flex gap-1 justify-center items-center text-sm">
-									จำรหัสผ่านได้แล้ว?
+									{t("auth.resetPassword.loginPrompt")}
 									<ExtendLink linkComponent={linkComponent} href="/login">
-										กลับไปหน้าเข้าสู่ระบบ
+										{t("auth.resetPassword.loginCta")}
 									</ExtendLink>
 								</div>
 							</div>

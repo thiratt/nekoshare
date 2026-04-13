@@ -4,7 +4,7 @@ import {
   invalidateSessionCache,
 } from "@workspace/app-ui/lib/auth";
 
-import { getThaiAuthErrorMessage } from "@/lib/auth-error";
+import type { AppLanguage } from "@workspace/i18n/core";
 
 function resolveCallbackUrl(path: string): string {
   if (typeof window === "undefined") {
@@ -17,21 +17,18 @@ function resolveCallbackUrl(path: string): string {
 export async function signInWithGoogle(
   errorPath: string = "/login",
   requestSignUp: boolean = false,
+  language?: AppLanguage,
 ): Promise<void> {
   const result = await authClient.signIn.social({
     provider: "google",
     callbackURL: resolveCallbackUrl("/home"),
     errorCallbackURL: resolveCallbackUrl(errorPath),
     requestSignUp,
+    additionalData: language ? { language } : undefined,
   });
 
   if (result.error) {
-    throw new Error(
-      getThaiAuthErrorMessage(
-        result.error,
-        "ไม่สามารถเริ่มเข้าสู่ระบบด้วย Google ได้ในขณะนี้",
-      ),
-    );
+    throw result.error;
   }
 }
 

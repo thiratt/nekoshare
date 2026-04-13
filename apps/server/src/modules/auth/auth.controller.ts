@@ -24,16 +24,19 @@ import { auth } from "@/modules/auth/lib";
 import { handleControllerError, jsonSuccess } from "@/shared/http";
 import type { AppContext } from "@/shared/http/router";
 import { error, success } from "@/types";
+import { getServerT, resolveRequestLanguage } from "@workspace/i18n/server";
 
 const appEmailSignInBodySchema = z.object({
 	callbackURL: z.string().url().optional(),
 	email: z.string().email(),
+	language: z.enum(["th", "en"]).optional(),
 	password: z.string().min(1),
 });
 
 const appEmailSignUpBodySchema = z.object({
 	callbackURL: z.string().url().optional(),
 	email: z.string().email(),
+	language: z.enum(["th", "en"]).optional(),
 	name: z.string().trim().min(1),
 	password: z.string().min(1),
 	username: z.string().trim().min(1).optional(),
@@ -42,6 +45,7 @@ const appEmailSignUpBodySchema = z.object({
 const appPasswordHelpBodySchema = z.object({
 	callbackURL: z.string().url().optional(),
 	email: z.string().email(),
+	language: z.enum(["th", "en"]).optional(),
 });
 
 const appResultExchangeBodySchema = z.object({
@@ -49,6 +53,7 @@ const appResultExchangeBodySchema = z.object({
 });
 
 const passwordSetupBodySchema = z.object({
+	language: z.enum(["th", "en"]).optional(),
 	newPassword: z.string().min(1),
 	token: z.string().min(1),
 });
@@ -71,66 +76,85 @@ function jsonWithHeaders(body: unknown, status: number, headers: Headers) {
 	});
 }
 
-function getAccountStatusErrorContent(kind: string, errorCode?: string) {
+async function getContextLanguage(
+	c: AppContext,
+	explicitLanguage?: string | null,
+	options?: { includeSession?: boolean },
+) {
+	let sessionLanguage: string | null | undefined;
+
+	if (options?.includeSession) {
+		const session = await auth.api.getSession({ headers: c.req.raw.headers }).catch(() => null);
+		sessionLanguage = (session?.user as { language?: string | null } | undefined)?.language;
+	}
+
+	return resolveRequestLanguage({
+		explicitLanguage,
+		headers: c.req.raw.headers,
+		sessionLanguage,
+	});
+}
+
+async function getAccountStatusErrorContent(language: string, kind: string, errorCode?: string) {
+	const t = await getServerT(language);
 	const normalizedKind = kind.trim().toLowerCase();
 	const normalizedCode = errorCode?.trim().toLowerCase();
 
 	if (normalizedKind === "email-change") {
 		if (!normalizedCode) {
 			return {
-				message: "Your new email has been verified. You can close this page and return to Nekoshare.",
+				message: t("serverAuth.accountStatus.emailChange.successMessage"),
 				status: 200,
-				title: "Email updated",
+				title: t("serverAuth.accountStatus.emailChange.successTitle"),
 			};
 		}
 
 		switch (normalizedCode) {
 			case "invalid_token":
 				return {
-					message: "This verification link is invalid.",
+					message: t("serverAuth.accountStatus.emailChange.invalidMessage"),
 					status: 400,
-					title: "Unable to verify email",
+					title: t("serverAuth.accountStatus.emailChange.invalidTitle"),
 				};
 			case "token_expired":
 				return {
-					message:
-						"This verification link has expired. Please request a new email change from account settings.",
+					message: t("serverAuth.accountStatus.emailChange.expiredMessage"),
 					status: 400,
-					title: "Verification link expired",
+					title: t("serverAuth.accountStatus.emailChange.expiredTitle"),
 				};
 			case "invalid_user":
 				return {
-					message: "This verification link belongs to a different signed-in user.",
+					message: t("serverAuth.accountStatus.emailChange.wrongUserMessage"),
 					status: 400,
-					title: "Unable to verify email",
+					title: t("serverAuth.accountStatus.emailChange.wrongUserTitle"),
 				};
 			case "user_not_found":
 				return {
-					message: "The account for this verification link could not be found.",
+					message: t("serverAuth.accountStatus.emailChange.accountNotFoundMessage"),
 					status: 404,
-					title: "Account not found",
+					title: t("serverAuth.accountStatus.emailChange.accountNotFoundTitle"),
 				};
 			default:
 				return {
-					message: "We could not verify your new email. Please try again from account settings.",
+					message: t("serverAuth.accountStatus.emailChange.invalidMessage"),
 					status: 400,
-					title: "Unable to verify email",
+					title: t("serverAuth.accountStatus.emailChange.invalidTitle"),
 				};
 		}
 	}
 
 	if (!normalizedCode) {
 		return {
-			message: "The request finished successfully. You can close this page and return to Nekoshare.",
+			message: t("serverAuth.accountStatus.defaultSuccessMessage"),
 			status: 200,
-			title: "Done",
+			title: t("serverAuth.accountStatus.defaultSuccessTitle"),
 		};
 	}
 
 	return {
-		message: "This request could not be completed.",
+		message: t("serverAuth.accountStatus.defaultErrorMessage"),
 		status: 400,
-		title: "Unable to continue",
+		title: t("serverAuth.accountStatus.defaultErrorTitle"),
 	};
 }
 
@@ -147,6 +171,7 @@ async function readPasswordSetupSubmission(c: AppContext) {
 	return {
 		isJson: false,
 		payload: passwordSetupBodySchema.parse({
+			language: formData.get("language"),
 			newPassword: formData.get("newPassword"),
 			token: formData.get("token"),
 		}),
@@ -171,31 +196,40 @@ export const authController = {
 			}
 
 			Logger.warn("Auth", "Failed to complete account set-password request", err);
-			return c.json(error("SET_PASSWORD_FAILED", "Unable to save password right now."), 500);
+			const language = await getContextLanguage(c);
+			const t = await getServerT(language);
+			return c.json(error("SET_PASSWORD_FAILED", t("serverAuth.pages.passwordSaveFailed.message")), 500);
 		}
 	},
-	handleAccountStatus(c: AppContext) {
+	async handleAccountStatus(c: AppContext) {
+		const language = await getContextLanguage(c, c.req.query("lng"), { includeSession: true });
 		const kind = c.req.query("kind") ?? "default";
 		const errorCode = c.req.query("error") ?? undefined;
-		const statusContent = getAccountStatusErrorContent(kind, errorCode);
+		const statusContent = await getAccountStatusErrorContent(language, kind, errorCode);
 
-		return c.html(
-			getStatusPageHtml(statusContent.title, statusContent.message),
-			statusContent.status as 200 | 400 | 404,
-		);
+		return c.html(await getStatusPageHtml(language, statusContent.title, statusContent.message), statusContent.status as 200 | 400 | 404);
 	},
 	handleAccountAvatarRead,
 	handleAccountAvatarUpload,
 	async handleAppChallengeConsume(c: AppContext) {
+		const language = await getContextLanguage(c, c.req.query("lng"));
+		const t = await getServerT(language);
 		const token = c.req.query("token");
 		if (!token) {
-			return c.html(getStatusPageHtml("Invalid request", "A verification token is required."), 400);
+			return c.html(
+				await getStatusPageHtml(
+					language,
+					t("serverAuth.pages.invalidRequest.title"),
+					t("serverAuth.pages.invalidRequest.message"),
+				),
+				400,
+			);
 		}
 
-		const result = await consumeAuthChallenge(token);
+		const result = await consumeAuthChallenge(token, language);
 
 		if (result.kind === "render_setup_password_form") {
-			return c.html(getPasswordSetupPageHtml(result.email, token));
+			return c.html(await getPasswordSetupPageHtml(result.email, token, undefined, language));
 		}
 
 		if (result.kind === "error") {
@@ -205,7 +239,7 @@ export const authController = {
 				);
 			}
 
-			return c.html(getStatusPageHtml(result.title, result.message), 400);
+			return c.html(await getStatusPageHtml(language, result.title, result.message), 400);
 		}
 
 		if (result.callbackURL && result.redirectToken) {
@@ -216,7 +250,7 @@ export const authController = {
 			return c.redirect(buildCallbackRedirectURL(result.callbackURL, { error: "oauth_failed" }));
 		}
 
-		return c.html(getStatusPageHtml(result.title, result.message));
+		return c.html(await getStatusPageHtml(language, result.title, result.message));
 	},
 	async handleAppEmailSignIn(c: AppContext) {
 		try {
@@ -224,6 +258,7 @@ export const authController = {
 			const result = await resolveEmailSignIn({
 				callbackURL: payload.callbackURL,
 				email: payload.email,
+				language: payload.language,
 				password: payload.password,
 				publicBaseURL: getPublicBaseUrlFromContext(),
 			});
@@ -235,9 +270,11 @@ export const authController = {
 			}
 
 			Logger.warn("Auth", "Failed to resolve app email sign-in", error);
+			const language = await getContextLanguage(c);
+			const t = await getServerT(language);
 			return jsonSuccess(c, {
 				code: "oauth_failed",
-				message: "Unable to complete sign-in right now.",
+				message: t("errors.auth.codes.oauth_failed"),
 				status: "terminal_error",
 			});
 		}
@@ -248,6 +285,7 @@ export const authController = {
 			const result = await resolveEmailSignUp({
 				callbackURL: payload.callbackURL,
 				email: payload.email,
+				language: payload.language,
 				name: payload.name,
 				password: payload.password,
 				publicBaseURL: getPublicBaseUrlFromContext(),
@@ -261,9 +299,11 @@ export const authController = {
 			}
 
 			Logger.warn("Auth", "Failed to resolve app email sign-up", error);
+			const language = await getContextLanguage(c);
+			const t = await getServerT(language);
 			return jsonSuccess(c, {
 				code: "oauth_failed",
-				message: "Unable to complete sign-up right now.",
+				message: t("errors.auth.codes.oauth_failed"),
 				status: "terminal_error",
 			});
 		}
@@ -276,6 +316,7 @@ export const authController = {
 			const result = await resolvePasswordHelp({
 				callbackURL: payload.callbackURL,
 				email: payload.email,
+				language: payload.language,
 				publicBaseURL: getPublicBaseUrlFromContext(),
 			});
 
@@ -286,9 +327,11 @@ export const authController = {
 			}
 
 			Logger.warn("Auth", "Failed to resolve password help flow", error);
+			const language = await getContextLanguage(c);
+			const t = await getServerT(language);
 			return jsonSuccess(c, {
 				code: "oauth_failed",
-				message: "Unable to start password help right now.",
+				message: t("errors.auth.codes.oauth_failed"),
 				status: "terminal_error",
 			});
 		}
@@ -296,7 +339,8 @@ export const authController = {
 	async handleAppPasswordSetup(c: AppContext) {
 		try {
 			const { isJson, payload } = await readPasswordSetupSubmission(c);
-			const result = await completePasswordSetup(payload.token, payload.newPassword);
+			const language = await getContextLanguage(c, payload.language ?? c.req.query("lng"));
+			const result = await completePasswordSetup(payload.token, payload.newPassword, language);
 
 			if (result.kind === "error") {
 				if (isJson) {
@@ -304,10 +348,10 @@ export const authController = {
 				}
 
 				if (result.renderForm && result.email) {
-					return c.html(getPasswordSetupPageHtml(result.email, payload.token, result.message), 400);
+					return c.html(await getPasswordSetupPageHtml(result.email, payload.token, result.message, language), 400);
 				}
 
-				return c.html(getStatusPageHtml(result.title, result.message), 400);
+				return c.html(await getStatusPageHtml(language, result.title, result.message), 400);
 			}
 
 			if (result.callbackURL && result.redirectToken) {
@@ -322,18 +366,29 @@ export const authController = {
 				return jsonSuccess(c, { status: true });
 			}
 
-			return c.html(getStatusPageHtml(result.title, result.message));
+			return c.html(await getStatusPageHtml(language, result.title, result.message));
 		} catch (error) {
 			if (error instanceof z.ZodError) {
 				return handleControllerError(c, error, { withValidation: true });
 			}
 
 			Logger.warn("Auth", "Failed to complete password setup flow", error);
-			return c.html(getStatusPageHtml("Unable to save password", "Please try again later."), 500);
+			const language = await getContextLanguage(c);
+			const t = await getServerT(language);
+			return c.html(
+				await getStatusPageHtml(
+					language,
+					t("serverAuth.pages.passwordSaveFailed.title"),
+					t("serverAuth.pages.passwordSaveFailed.message"),
+				),
+				500,
+			);
 		}
 	},
 	async handleAppResultExchange(c: AppContext) {
 		try {
+			const language = await getContextLanguage(c);
+			const t = await getServerT(language);
 			const payload = appResultExchangeBodySchema.parse(await c.req.json());
 			const authResponse = await auth.api.verifyOneTimeToken({
 				asResponse: true,
@@ -355,7 +410,9 @@ export const authController = {
 				return jsonWithHeaders(
 					error(
 						typeof errorPayload?.error === "string" ? errorPayload.error : "invalid_token",
-						typeof errorPayload?.message === "string" ? errorPayload.message : "Invalid or expired token.",
+						typeof errorPayload?.message === "string"
+							? errorPayload.message
+							: t("serverAuth.flow.errors.tokenInvalid"),
 					),
 					authResponse.status,
 					authResponse.headers,
@@ -386,7 +443,9 @@ export const authController = {
 			}
 
 			Logger.warn("Auth", "Failed to exchange auth result token", err);
-			return c.json(error("invalid_token", "Invalid or expired token."), 400);
+			const language = await getContextLanguage(c);
+			const t = await getServerT(language);
+			return c.json(error("invalid_token", t("serverAuth.flow.errors.tokenInvalid")), 400);
 		}
 	},
 	handleDesktopGoogleStart,

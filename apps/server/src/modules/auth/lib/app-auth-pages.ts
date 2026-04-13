@@ -1,3 +1,6 @@
+import { normalizeLanguage } from "@workspace/i18n/core";
+import { getServerT } from "@workspace/i18n/server";
+
 function escapeHtml(value: string): string {
 	return value
 		.replace(/&/g, "&amp;")
@@ -7,14 +10,20 @@ function escapeHtml(value: string): string {
 		.replace(/'/g, "&#39;");
 }
 
-export function getStatusPageHtml(title: string, message: string, detail?: string): string {
+export async function getStatusPageHtml(
+	language: string | undefined,
+	title: string,
+	message: string,
+	detail?: string,
+): Promise<string> {
 	const safeTitle = escapeHtml(title);
 	const safeMessage = escapeHtml(message);
 	const safeDetail = detail ? `<p style="margin:0;color:#6b7280;font-size:13px;">${escapeHtml(detail)}</p>` : "";
+	const htmlLang = normalizeLanguage(language);
 
 	return [
 		"<!doctype html>",
-		'<html lang="en">',
+		`<html lang="${htmlLang}">`,
 		"<head>",
 		'<meta charset="utf-8" />',
 		'<meta name="viewport" content="width=device-width, initial-scale=1" />',
@@ -38,20 +47,28 @@ export function getStatusPageHtml(title: string, message: string, detail?: strin
 	].join("");
 }
 
-export function getPasswordSetupPageHtml(email: string, token: string, error?: string): string {
+export async function getPasswordSetupPageHtml(
+	email: string,
+	token: string,
+	error?: string,
+	language?: string,
+): Promise<string> {
+	const t = await getServerT(language);
 	const safeEmail = escapeHtml(email);
 	const safeToken = escapeHtml(token);
+	const safeLanguage = language ? escapeHtml(normalizeLanguage(language)) : "";
 	const errorBlock = error
 		? `<p style="margin:0;padding:12px 14px;border-radius:14px;background:#fff1f2;color:#b91c1c;border:1px solid rgba(185,28,28,.16);">${escapeHtml(error)}</p>`
 		: "";
+	const htmlLang = normalizeLanguage(language);
 
 	return [
 		"<!doctype html>",
-		'<html lang="en">',
+		`<html lang="${htmlLang}">`,
 		"<head>",
 		'<meta charset="utf-8" />',
 		'<meta name="viewport" content="width=device-width, initial-scale=1" />',
-		"<title>Set password</title>",
+		`<title>${escapeHtml(t("serverAuth.pages.passwordForm.title"))}</title>`,
 		"<style>",
 		':root{color-scheme:light;font-family:"Segoe UI",Arial,sans-serif;background:#f8f5ee;color:#1f2937;}',
 		"body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at top,rgba(221,180,128,.28),transparent 42%),linear-gradient(180deg,#fffaf3 0%,#f4ead8 100%);}",
@@ -66,13 +83,14 @@ export function getPasswordSetupPageHtml(email: string, token: string, error?: s
 		"</head>",
 		"<body>",
 		"<main>",
-		"<h1>Set your password</h1>",
-		`<p>Choose a new password for <strong>${safeEmail}</strong>.</p>`,
+		`<h1>${escapeHtml(t("serverAuth.pages.passwordForm.title"))}</h1>`,
+		`<p>${escapeHtml(t("serverAuth.pages.passwordForm.description", { email })).replace(escapeHtml(email), `<strong>${safeEmail}</strong>`)}</p>`,
 		errorBlock,
 		'<form method="post" action="/auth/app/password/setup" style="display:grid;gap:16px;">',
 		`<input type="hidden" name="token" value="${safeToken}" />`,
-		'<label>New password<input type="password" name="newPassword" minlength="8" maxlength="128" autocomplete="new-password" required /></label>',
-		'<button type="submit">Save password</button>',
+		(safeLanguage ? `<input type="hidden" name="language" value="${safeLanguage}" />` : ""),
+		`<label>${escapeHtml(t("serverAuth.pages.passwordForm.passwordLabel"))}<input type="password" name="newPassword" minlength="8" maxlength="128" autocomplete="new-password" required /></label>`,
+		`<button type="submit">${escapeHtml(t("serverAuth.pages.passwordForm.submit"))}</button>`,
 		"</form>",
 		"</main>",
 		"</body>",

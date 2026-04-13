@@ -1,5 +1,7 @@
 import { xfetch } from "@workspace/app-ui/lib/xfetch";
 
+import type { AppLanguage } from "@workspace/i18n/core";
+
 export interface AuthUserSummary {
   email: string;
   id: string;
@@ -87,12 +89,14 @@ async function postAuthFlow(
 
 export async function continueDesktopEmailSignIn(params: {
   email: string;
+  language?: AppLanguage;
   password: string;
 }): Promise<AuthFlowResult> {
   return await postAuthFlow(
     "auth/app/email/sign-in",
     {
       email: params.email,
+      language: params.language,
       password: params.password,
     },
     "Email sign-in",
@@ -101,6 +105,7 @@ export async function continueDesktopEmailSignIn(params: {
 
 export async function continueDesktopEmailSignUp(params: {
   email: string;
+  language?: AppLanguage;
   name: string;
   password: string;
   username?: string;
@@ -109,6 +114,7 @@ export async function continueDesktopEmailSignUp(params: {
     "auth/app/email/sign-up",
     {
       email: params.email,
+      language: params.language,
       name: params.name,
       password: params.password,
       username: params.username,
@@ -119,11 +125,13 @@ export async function continueDesktopEmailSignUp(params: {
 
 export async function requestDesktopPasswordHelp(
   email: string,
+  language?: AppLanguage,
 ): Promise<AuthFlowResult> {
   return await postAuthFlow(
     "auth/app/password/help",
     {
       email,
+      language,
     },
     "Password help",
   );

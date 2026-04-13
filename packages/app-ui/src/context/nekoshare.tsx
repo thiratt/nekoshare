@@ -16,6 +16,8 @@ import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
 import { authClient, invalidateSessionCache } from "../lib/auth";
 import { useTheme } from "../providers/theme-provider";
 
+import { useAppI18n } from "@workspace/i18n/react";
+
 interface NekoShareContextValue {
 	readonly router: Router;
 	readonly currentDevice: LocalDeviceInfo | undefined;
@@ -87,6 +89,7 @@ const NekoShareProvider = <TRouter extends Router>({
 	const [sessionTerminated, setSessionTerminated] = useState<SessionTerminatedState>(INITIAL_SESSION_STATE);
 	const [mounted, setMounted] = useState(false);
 	const { theme } = useTheme();
+	const { t } = useAppI18n();
 
 	const mode = useMode();
 	const setMode = useSetMode();
@@ -225,7 +228,7 @@ const NekoShareProvider = <TRouter extends Router>({
 							initial={{ opacity: 1 }}
 							exit={{ opacity: 0 }}
 						>
-							<span>กำลังโหลดข้อมูลอุปกรณ์...</span>
+							<span>{t("common.loading.deviceData")}</span>
 						</motion.div>
 					)}
 				</AnimatePresence>

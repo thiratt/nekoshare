@@ -1,4 +1,4 @@
-﻿import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { bearer, customSession, oneTimeToken, username } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
 import type { BetterAuthOptions } from "better-auth";
@@ -10,6 +10,7 @@ import { cacheDeviceIdBySessionId, collectTrustedOrigins, readCachedDeviceIdBySe
 import { env } from "@/config/env";
 import { db } from "@/infrastructure/db";
 import { Logger } from "@/infrastructure/logger";
+import { getServerT } from "@workspace/i18n/server";
 
 const RESERVED_USERNAMES = ["admin", "dev", "system", "root", "nekoshare"] as const;
 
@@ -29,10 +30,12 @@ const emailAndPasswordOptions: BetterAuthOptions["emailAndPassword"] = {
 
 const emailVerificationOptions: BetterAuthOptions["emailVerification"] = {
 	sendVerificationEmail: async ({ user, url }) => {
+		const userLanguage = (user as { language?: string | null }).language ?? undefined;
+		const t = await getServerT(userLanguage);
 		const sent = await sendAuthEmail({
-			html: createEmailVerificationEmailHtml(user.email, url),
-			subject: "Verify your new Nekoshare email",
-			text: `Open this link to verify your new Nekoshare email: ${url}`,
+			html: await createEmailVerificationEmailHtml(user.email, url, userLanguage),
+			subject: t("serverAuth.email.changeEmail.subject"),
+			text: t("serverAuth.email.changeEmail.text", { url }),
 			to: user.email,
 		});
 

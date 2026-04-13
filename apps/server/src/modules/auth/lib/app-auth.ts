@@ -13,6 +13,8 @@ import type {
 	AuthTerminalErrorCode,
 	AuthUserSummary,
 } from "@workspace/contracts/api";
+import type { AppLanguage } from "@workspace/i18n/core";
+import { getServerT } from "@workspace/i18n/server";
 
 const AUTH_CHALLENGE_PREFIX = "auth-challenge:";
 const AUTH_CHALLENGE_TTL_MS = 15 * 60 * 1000;
@@ -23,6 +25,7 @@ const SUPPORTED_ANDROID_CALLBACK = "nekoshare://auth/complete";
 
 interface AppAuthRequestContext {
 	callbackURL?: string;
+	language?: AppLanguage;
 	publicBaseURL: string;
 }
 
@@ -181,6 +184,10 @@ function getChallengeIdentifier(token: string): string {
 	return `${AUTH_CHALLENGE_PREFIX}${token}`;
 }
 
+async function getFlowT(language?: string | null) {
+	return await getServerT(language);
+}
+
 export function normalizeCallbackURL(input?: string): string | undefined {
 	if (!input) {
 		return undefined;
@@ -268,11 +275,12 @@ async function createChallenge(payload: AuthChallengePayload): Promise<string> {
 	return token;
 }
 
-async function createResultTokenForUser(userId: string): Promise<AuthFlowResult> {
+async function createResultTokenForUser(userId: string, language?: string | null): Promise<AuthFlowResult> {
 	const authContext = await auth.$context;
 	const user = await authContext.internalAdapter.findUserById(userId);
 	if (!user) {
-		return createTerminalErrorResult("user_not_found", "User was not found.");
+		const t = await getFlowT(language);
+		return createTerminalErrorResult("user_not_found", t("errors.auth.codes.user_not_found"));
 	}
 
 	const session = await authContext.internalAdapter.createSession(userId);
@@ -303,8 +311,15 @@ async function findUserByEmail(email: string) {
 	});
 }
 
-function buildChallengeLink(publicBaseURL: string, token: string): string {
-	return `${publicBaseURL.replace(/\/+$/, "")}/auth/app/challenge/consume?token=${encodeURIComponent(token)}`;
+function buildChallengeLink(publicBaseURL: string, token: string, language?: string): string {
+	const challengeUrl = new URL("/auth/app/challenge/consume", publicBaseURL.replace(/\/+$/, "") + "/");
+	challengeUrl.searchParams.set("token", token);
+
+	if (language) {
+		challengeUrl.searchParams.set("lng", language);
+	}
+
+	return challengeUrl.toString();
 }
 
 export function buildCallbackRedirectURL(callbackURL: string, params: { error?: string; token?: string }): string {
@@ -330,6 +345,7 @@ async function sendLinkProviderChallenge(
 	account: ProviderAccountPayload,
 	requestContext: AppAuthRequestContext,
 ): Promise<AuthFlowResult> {
+	const t = await getFlowT(requestContext.language);
 	const token = await createChallenge({
 		account: serializeProviderAccount(account),
 		callbackURL: normalizeCallbackURL(requestContext.callbackURL),
@@ -337,11 +353,11 @@ async function sendLinkProviderChallenge(
 		type: "link_provider",
 		userId,
 	});
-	const linkURL = buildChallengeLink(requestContext.publicBaseURL, token);
+	const linkURL = buildChallengeLink(requestContext.publicBaseURL, token, requestContext.language);
 	const sent = await sendAuthEmail({
-		html: createLinkProviderEmailHtml(account.email, "Google", linkURL),
-		subject: "Confirm your Google sign-in",
-		text: `Open this link to link Google to your Nekoshare account: ${linkURL}`,
+		html: await createLinkProviderEmailHtml(account.email, "Google", linkURL, requestContext.language),
+		subject: t("serverAuth.email.linkProvider.subject"),
+		text: t("serverAuth.email.linkProvider.text", { url: linkURL }),
 		to: account.email,
 	});
 
@@ -349,7 +365,7 @@ async function sendLinkProviderChallenge(
 		await deleteChallenge(token);
 		return createTerminalErrorResult(
 			"email_delivery_unavailable",
-			"Email delivery is unavailable right now. Please try again later.",
+			t("errors.auth.codes.email_delivery_unavailable"),
 		);
 	}
 
@@ -357,7 +373,7 @@ async function sendLinkProviderChallenge(
 		"link_provider",
 		"link_provider_email_sent",
 		account.email,
-		"We sent a confirmation email to continue linking Google.",
+		t("serverAuth.flow.messages.linkProviderEmailSent"),
 	);
 }
 
@@ -366,6 +382,7 @@ async function sendSetupPasswordChallenge(
 	email: string,
 	requestContext: AppAuthRequestContext,
 ): Promise<AuthFlowResult> {
+	const t = await getFlowT(requestContext.language);
 	const normalizedEmail = normalizeEmail(email);
 	const token = await createChallenge({
 		callbackURL: normalizeCallbackURL(requestContext.callbackURL),
@@ -373,11 +390,11 @@ async function sendSetupPasswordChallenge(
 		type: "setup_password",
 		userId,
 	});
-	const linkURL = buildChallengeLink(requestContext.publicBaseURL, token);
+	const linkURL = buildChallengeLink(requestContext.publicBaseURL, token, requestContext.language);
 	const sent = await sendAuthEmail({
-		html: createSetupPasswordEmailHtml(normalizedEmail, linkURL),
-		subject: "Set your Nekoshare password",
-		text: `Open this link to set your Nekoshare password: ${linkURL}`,
+		html: await createSetupPasswordEmailHtml(normalizedEmail, linkURL, requestContext.language),
+		subject: t("serverAuth.email.passwordSetup.subject"),
+		text: t("serverAuth.email.passwordSetup.text", { url: linkURL }),
 		to: normalizedEmail,
 	});
 
@@ -385,7 +402,7 @@ async function sendSetupPasswordChallenge(
 		await deleteChallenge(token);
 		return createTerminalErrorResult(
 			"email_delivery_unavailable",
-			"Email delivery is unavailable right now. Please try again later.",
+			t("errors.auth.codes.email_delivery_unavailable"),
 		);
 	}
 
@@ -393,7 +410,7 @@ async function sendSetupPasswordChallenge(
 		"setup_password",
 		"setup_password_email_sent",
 		normalizedEmail,
-		"We sent a secure password setup email.",
+		t("serverAuth.flow.messages.passwordSetupEmailSent"),
 	);
 }
 
@@ -405,12 +422,19 @@ async function upsertEmailVerified(userId: string) {
 	}
 }
 
-async function createCredentialUser(params: { email: string; name: string; password: string; username?: string }) {
+async function createCredentialUser(params: {
+	email: string;
+	language?: AppLanguage;
+	name: string;
+	password: string;
+	username?: string;
+}) {
 	const authContext = await auth.$context;
 	const passwordHash = await hashPassword(params.password);
 	const createdUser = await authContext.internalAdapter.createUser({
 		email: normalizeEmail(params.email),
 		emailVerified: false,
+		language: params.language,
 		name: params.name,
 		username: params.username || buildUsername(params.name, params.email),
 	});
@@ -425,12 +449,13 @@ async function createCredentialUser(params: { email: string; name: string; passw
 	return createdUser;
 }
 
-async function createProviderUser(account: ProviderAccountPayload) {
+async function createProviderUser(account: ProviderAccountPayload, language?: AppLanguage) {
 	const authContext = await auth.$context;
 	const createdUser = await authContext.internalAdapter.createUser({
 		email: normalizeEmail(account.email),
 		emailVerified: true,
 		image: account.image,
+		language,
 		name: defaultName(account.name, account.email),
 	});
 
@@ -470,13 +495,17 @@ async function readChallenge(token: string): Promise<AuthChallengePayload | null
 	}
 }
 
-export async function consumeAuthChallenge(token: string): Promise<ChallengeConsumeResult> {
+export async function consumeAuthChallenge(
+	token: string,
+	language?: string | null,
+): Promise<ChallengeConsumeResult> {
+	const t = await getFlowT(language);
 	const challenge = await readChallenge(token);
 	if (!challenge) {
 		return {
 			kind: "error",
-			message: "This verification link is invalid or has expired.",
-			title: "Link expired",
+			message: t("serverAuth.flow.errors.challengeExpired"),
+			title: t("serverAuth.flow.titles.challengeExpired"),
 		};
 	}
 
@@ -500,8 +529,8 @@ export async function consumeAuthChallenge(token: string): Promise<ChallengeCons
 		return {
 			callbackURL: challenge.callbackURL,
 			kind: "error",
-			message: "This Google account is already linked to another Nekoshare user.",
-			title: "Unable to link account",
+			message: t("serverAuth.flow.errors.accountAlreadyLinked"),
+			title: t("serverAuth.flow.titles.accountLinkFailed"),
 		};
 	}
 
@@ -512,8 +541,8 @@ export async function consumeAuthChallenge(token: string): Promise<ChallengeCons
 			return {
 				callbackURL: challenge.callbackURL,
 				kind: "error",
-				message: "The requested user no longer exists.",
-				title: "Unable to link account",
+				message: t("serverAuth.flow.errors.userRemoved"),
+				title: t("serverAuth.flow.titles.accountLinkFailed"),
 			};
 		}
 
@@ -532,33 +561,38 @@ export async function consumeAuthChallenge(token: string): Promise<ChallengeCons
 
 	await upsertEmailVerified(challenge.userId);
 	await deleteChallenge(token);
-	const result = await createResultTokenForUser(challenge.userId);
+	const result = await createResultTokenForUser(challenge.userId, language);
 
 	if (result.status !== "signed_in") {
 		return {
 			callbackURL: challenge.callbackURL,
 			kind: "error",
 			message: result.message,
-			title: "Unable to link account",
+			title: t("serverAuth.flow.titles.accountLinkFailed"),
 		};
 	}
 
 	return {
 		callbackURL: challenge.callbackURL,
 		kind: "link_provider_completed",
-		message: "Google was linked successfully. You can return to the app.",
+		message: t("serverAuth.flow.messages.googleLinked"),
 		redirectToken: result.resultToken.token,
-		title: "Google linked",
+		title: t("serverAuth.flow.titles.accountLinked"),
 	};
 }
 
-export async function completePasswordSetup(token: string, newPassword: string): Promise<CompletePasswordSetupResult> {
+export async function completePasswordSetup(
+	token: string,
+	newPassword: string,
+	language?: string | null,
+): Promise<CompletePasswordSetupResult> {
+	const t = await getFlowT(language);
 	const challenge = await readChallenge(token);
 	if (!challenge || challenge.type !== "setup_password") {
 		return {
 			kind: "error",
-			message: "This password setup link is invalid or has expired.",
-			title: "Link expired",
+			message: t("serverAuth.flow.errors.passwordSetupExpired"),
+			title: t("serverAuth.flow.titles.challengeExpired"),
 		};
 	}
 
@@ -571,9 +605,9 @@ export async function completePasswordSetup(token: string, newPassword: string):
 			callbackURL: challenge.callbackURL,
 			email: challenge.email,
 			kind: "error",
-			message: `Password must be at least ${minPasswordLength} characters long.`,
+			message: t("serverAuth.flow.errors.passwordTooShort", { min: minPasswordLength }),
 			renderForm: true,
-			title: "Password is too short",
+			title: t("serverAuth.flow.titles.passwordTooShort"),
 		};
 	}
 
@@ -582,9 +616,9 @@ export async function completePasswordSetup(token: string, newPassword: string):
 			callbackURL: challenge.callbackURL,
 			email: challenge.email,
 			kind: "error",
-			message: `Password must be at most ${maxPasswordLength} characters long.`,
+			message: t("serverAuth.flow.errors.passwordTooLong", { max: maxPasswordLength }),
 			renderForm: true,
-			title: "Password is too long",
+			title: t("serverAuth.flow.titles.passwordTooLong"),
 		};
 	}
 
@@ -594,8 +628,8 @@ export async function completePasswordSetup(token: string, newPassword: string):
 		return {
 			callbackURL: challenge.callbackURL,
 			kind: "error",
-			message: "The requested user no longer exists.",
-			title: "Unable to save password",
+			message: t("serverAuth.flow.errors.userRemoved"),
+			title: t("serverAuth.flow.titles.passwordSaveFailed"),
 		};
 	}
 
@@ -620,27 +654,27 @@ export async function completePasswordSetup(token: string, newPassword: string):
 	if (!challenge.callbackURL) {
 		return {
 			kind: "success",
-			message: "Your password was saved successfully. Return to the app and sign in.",
-			title: "Password updated",
+			message: t("serverAuth.flow.messages.passwordSavedSignIn"),
+			title: t("serverAuth.flow.titles.passwordSaved"),
 		};
 	}
 
-	const result = await createResultTokenForUser(challenge.userId);
+	const result = await createResultTokenForUser(challenge.userId, language);
 	if (result.status !== "signed_in") {
 		return {
 			callbackURL: challenge.callbackURL,
 			kind: "error",
 			message: result.message,
-			title: "Unable to complete sign-in",
+			title: t("serverAuth.flow.titles.signInFailed"),
 		};
 	}
 
 	return {
 		callbackURL: challenge.callbackURL,
 		kind: "success",
-		message: "Your password was saved successfully.",
+		message: t("serverAuth.flow.messages.passwordSaved"),
 		redirectToken: result.resultToken.token,
-		title: "Password updated",
+		title: t("serverAuth.flow.titles.passwordSaved"),
 	};
 }
 
@@ -651,48 +685,57 @@ export function getPublicBaseURL(): string {
 export async function resolveEmailSignIn(params: {
 	callbackURL?: string;
 	email: string;
+	language?: AppLanguage;
 	password: string;
 	publicBaseURL: string;
 }): Promise<AuthFlowResult> {
+	const t = await getFlowT(params.language);
 	const normalizedEmail = normalizeEmail(params.email);
 	const existingUser = await findUserByEmail(normalizedEmail);
 	if (!existingUser) {
-		return createTerminalErrorResult("user_not_found", "User was not found.");
+		return createTerminalErrorResult("user_not_found", t("errors.auth.codes.user_not_found"));
 	}
 
 	const credentialAccount = findCredentialAccount(existingUser.accounts);
 	if (!credentialAccount?.password) {
 		return await sendSetupPasswordChallenge(existingUser.user.id, normalizedEmail, {
 			callbackURL: params.callbackURL,
+			language: params.language,
 			publicBaseURL: params.publicBaseURL,
 		});
 	}
 
 	const isValidPassword = await verifyPassword(credentialAccount.password, params.password);
 	if (!isValidPassword) {
-		return createTerminalErrorResult("invalid_email_or_password", "Invalid email or password.");
+		return createTerminalErrorResult(
+			"invalid_email_or_password",
+			t("errors.auth.codes.invalid_email_or_password"),
+		);
 	}
 
-	return await createResultTokenForUser(existingUser.user.id);
+	return await createResultTokenForUser(existingUser.user.id, params.language);
 }
 
 export async function resolveEmailSignUp(params: {
 	callbackURL?: string;
 	email: string;
+	language?: AppLanguage;
 	name: string;
 	password: string;
 	publicBaseURL: string;
 	username?: string;
 }): Promise<AuthFlowResult> {
+	const t = await getFlowT(params.language);
 	const normalizedEmail = normalizeEmail(params.email);
 	const existingUser = await findUserByEmail(normalizedEmail);
 	if (existingUser) {
 		if (findCredentialAccount(existingUser.accounts)) {
-			return createTerminalErrorResult("email_already_exists", "This email address is already in use.");
+			return createTerminalErrorResult("email_already_exists", t("errors.auth.codes.email_already_exists"));
 		}
 
 		return await sendSetupPasswordChallenge(existingUser.user.id, normalizedEmail, {
 			callbackURL: params.callbackURL,
+			language: params.language,
 			publicBaseURL: params.publicBaseURL,
 		});
 	}
@@ -700,14 +743,15 @@ export async function resolveEmailSignUp(params: {
 	try {
 		const createdUser = await createCredentialUser({
 			email: normalizedEmail,
+			language: params.language,
 			name: params.name,
 			password: params.password,
 			username: params.username,
 		});
-		return await createResultTokenForUser(createdUser.id);
+		return await createResultTokenForUser(createdUser.id, params.language);
 	} catch (error) {
 		Logger.warn("Auth", "Failed to create credential user during app auth sign-up", error);
-		return createTerminalErrorResult("email_already_exists", "This email address is already in use.");
+		return createTerminalErrorResult("email_already_exists", t("errors.auth.codes.email_already_exists"));
 	}
 }
 
@@ -715,12 +759,13 @@ export async function resolveGoogleContinue(
 	account: ProviderAccountPayload,
 	requestContext: AppAuthRequestContext,
 ): Promise<AuthFlowResult> {
+	const t = await getFlowT(requestContext.language);
 	if (!account.email) {
-		return createTerminalErrorResult("email_not_found", "The provider did not return an email address.");
+		return createTerminalErrorResult("email_not_found", t("errors.auth.codes.email_not_found"));
 	}
 
 	if (!account.emailVerified) {
-		return createTerminalErrorResult("email_not_verified", "The provider email address is not verified.");
+		return createTerminalErrorResult("email_not_verified", t("errors.auth.codes.email_not_verified"));
 	}
 
 	const authContext = await auth.$context;
@@ -730,7 +775,7 @@ export async function resolveGoogleContinue(
 		account.providerId,
 	);
 	if (existing?.linkedAccount) {
-		return await createResultTokenForUser(existing.user.id);
+		return await createResultTokenForUser(existing.user.id, requestContext.language);
 	}
 
 	if (existing?.user) {
@@ -738,8 +783,8 @@ export async function resolveGoogleContinue(
 	}
 
 	try {
-		const createdUser = await createProviderUser(account);
-		return await createResultTokenForUser(createdUser.id);
+		const createdUser = await createProviderUser(account, requestContext.language);
+		return await createResultTokenForUser(createdUser.id, requestContext.language);
 	} catch (error) {
 		Logger.warn("Auth", "Failed to create provider user during app auth continue flow", error);
 
@@ -748,23 +793,26 @@ export async function resolveGoogleContinue(
 			return await sendLinkProviderChallenge(fallbackUser.user.id, account, requestContext);
 		}
 
-		return createTerminalErrorResult("oauth_failed", "Unable to complete provider sign-in right now.");
+		return createTerminalErrorResult("oauth_failed", t("errors.auth.codes.oauth_failed"));
 	}
 }
 
 export async function resolvePasswordHelp(params: {
 	callbackURL?: string;
 	email: string;
+	language?: AppLanguage;
 	publicBaseURL: string;
 }): Promise<AuthFlowResult> {
+	const t = await getFlowT(params.language);
 	const normalizedEmail = normalizeEmail(params.email);
 	const existingUser = await findUserByEmail(normalizedEmail);
 	if (!existingUser) {
-		return createTerminalErrorResult("user_not_found", "User was not found.");
+		return createTerminalErrorResult("user_not_found", t("errors.auth.codes.user_not_found"));
 	}
 
 	return await sendSetupPasswordChallenge(existingUser.user.id, normalizedEmail, {
 		callbackURL: params.callbackURL,
+		language: params.language,
 		publicBaseURL: params.publicBaseURL,
 	});
 }
@@ -772,7 +820,9 @@ export async function resolvePasswordHelp(params: {
 export async function resolveAuthenticatedGoogleLink(
 	userId: string,
 	account: ProviderAccountPayload,
+	language?: AppLanguage,
 ): Promise<AuthFlowResult> {
+	const t = await getFlowT(language);
 	const authContext = await auth.$context;
 	const existing = await authContext.internalAdapter.findOAuthUser(
 		account.email,
@@ -782,7 +832,7 @@ export async function resolveAuthenticatedGoogleLink(
 	if (existing?.linkedAccount && existing.user.id !== userId) {
 		return createTerminalErrorResult(
 			"account_already_linked_to_different_user",
-			"This Google account is already linked to another Nekoshare user.",
+			t("errors.auth.codes.account_already_linked_to_different_user"),
 		);
 	}
 
@@ -791,7 +841,7 @@ export async function resolveAuthenticatedGoogleLink(
 	if (currentProviderAccount && currentProviderAccount.accountId !== account.accountId) {
 		return createTerminalErrorResult(
 			"provider_requires_manual_link",
-			"A different Google account is already linked.",
+			t("errors.auth.codes.provider_requires_manual_link"),
 		);
 	}
 
@@ -809,5 +859,5 @@ export async function resolveAuthenticatedGoogleLink(
 		});
 	}
 
-	return await createResultTokenForUser(userId);
+	return await createResultTokenForUser(userId, language);
 }

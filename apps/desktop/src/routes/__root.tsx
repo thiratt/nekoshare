@@ -8,6 +8,17 @@ import { ErrorComponent } from "@/components/error";
 import { NSDesktopProvider } from "@/context/NSDesktopContext";
 import { getDeviceInfo } from "@/lib/device";
 import { clearMasterKeyForCurrentSession } from "@/lib/security/master-key-sync";
+import { AppI18nProvider, useAppI18n } from "@workspace/i18n/react";
+
+function PendingScreen() {
+  const { t } = useAppI18n();
+
+  return (
+    <div className="flex h-screen bg-background items-center justify-center animate-in fade-in duration-500">
+      {t("common.loading.deviceData")}
+    </div>
+  );
+}
 
 export const Route = createRootRoute({
   component: RouteComponent,
@@ -23,9 +34,9 @@ export const Route = createRootRoute({
   },
   pendingComponent: () => (
     <ThemeProvider>
-      <div className="flex h-screen bg-background items-center justify-center animate-in fade-in duration-500">
-        กำลังโหลดข้อมูลอุปกรณ์...
-      </div>
+      <AppI18nProvider>
+        <PendingScreen />
+      </AppI18nProvider>
     </ThemeProvider>
   ),
   pendingMs: 0,
@@ -39,16 +50,18 @@ function RouteComponent() {
 
   return (
     <ThemeProvider>
-      <NekoShareProvider
-        router={router}
-        currentDevice={deviceInfo}
-        appMode="desktop"
-        onBeforeSignOut={clearMasterKeyForCurrentSession}
-      >
-        <NSDesktopProvider initialMaximized={isMaximized}>
-          <Outlet />
-        </NSDesktopProvider>
-      </NekoShareProvider>
+      <AppI18nProvider>
+        <NekoShareProvider
+          router={router}
+          currentDevice={deviceInfo}
+          appMode="desktop"
+          onBeforeSignOut={clearMasterKeyForCurrentSession}
+        >
+          <NSDesktopProvider initialMaximized={isMaximized}>
+            <Outlet />
+          </NSDesktopProvider>
+        </NekoShareProvider>
+      </AppI18nProvider>
     </ThemeProvider>
   );
 }

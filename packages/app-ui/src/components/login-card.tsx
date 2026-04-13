@@ -13,9 +13,11 @@ import { Input } from "@workspace/ui/components/input";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
 import { ExtendLink } from "@workspace/app-ui/components/ext/link";
-import { loginFormSchema } from "@workspace/app-ui/schemas/auth";
+import { createLoginFormSchema } from "@workspace/app-ui/schemas/auth";
 import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
 import type { TLoginSchema } from "@workspace/app-ui/types/schema";
+
+import { useAppI18n } from "@workspace/i18n/react";
 
 interface ExampleDataLoginProps {
 	identifier: string;
@@ -37,17 +39,15 @@ export function LoginCard({
 	socialErrorMessage,
 }: LoginCardProps): JSX.Element {
 	const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+	const { t } = useAppI18n();
 	const form = useForm<TLoginSchema>({
 		mode: "onSubmit",
-		resolver: zodResolver(loginFormSchema),
+		resolver: zodResolver(createLoginFormSchema(t)),
 		defaultValues: {
 			identifier: data ? data.identifier : "",
 			password: data ? data.password : "",
 		},
 	});
-
-	// const authMessage = (key: string, value?: Record<string, string>) => t(`auth.login.${key}`, { ...value });
-	const authMessage = (key: string) => key;
 
 	const renderField = useCallback(
 		(name: keyof TLoginSchema, label: string, type: string = "text") => (
@@ -65,7 +65,7 @@ export function LoginCard({
 									href="/reset-pwd"
 									tabIndex={-1}
 								>
-									ลืมรหัสผ่าน?
+									{t("auth.login.forgotPassword")}
 								</ExtendLink>
 							)}
 						</div>
@@ -82,15 +82,15 @@ export function LoginCard({
 				)}
 			/>
 		),
-		[form.control, form.formState.isSubmitting, linkComponent],
+		[form.control, form.formState.isSubmitting, linkComponent, t],
 	);
 
 	return (
 		<div className="space-y-4 w-full max-w-sm md:max-w-4xl">
 			<CardTransition className="shadow-xl" tag="auth-card">
 				<CardHeader>
-					<CardTitle className="text-2xl font-semibold">เข้าสู่ระบบ</CardTitle>
-					<CardDescription>ยินดีต้อนรับกลับมา!</CardDescription>
+					<CardTitle className="text-2xl font-semibold">{t("auth.login.title")}</CardTitle>
+					<CardDescription>{t("auth.login.description")}</CardDescription>
 				</CardHeader>
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="contents">
@@ -101,19 +101,15 @@ export function LoginCard({
 										<AlertTitle>{socialErrorMessage}</AlertTitle>
 									</Alert>
 								) : null}
-								{renderField("identifier", "อีเมล")}
-								{renderField("password", "รหัสผ่าน", "password")}
+								{renderField("identifier", t("auth.login.identifier"))}
+								{renderField("password", t("auth.login.password"), "password")}
 
 								<Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-									{!form.formState.isSubmitting ? (
-										authMessage("เข้าสู่ระบบ")
-									) : (
-										<LuLoader className="animate-spin" />
-									)}
+									{!form.formState.isSubmitting ? t("auth.login.submit") : <LuLoader className="animate-spin" />}
 								</Button>
 								<div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
 									<span className="relative z-10 bg-card px-2 text-muted-foreground uppercase">
-										{authMessage("หรือดำเนินการต่อด้วย")}
+										{t("auth.login.divider")}
 									</span>
 								</div>
 								<Button
@@ -134,24 +130,21 @@ export function LoginCard({
 										<LuLoader className="animate-spin" />
 									) : (
 										<>
-											<FaGoogle className="size-3" /> {authMessage("ดำเนินการต่อด้วย Google")}
+											<FaGoogle className="size-3" /> {t("auth.login.google")}
 										</>
 									)}
 								</Button>
 								<div className="flex gap-1 justify-center items-center text-sm">
-									ยังไม่มีบัญชี?{" "}
+									{t("auth.login.signUpPrompt")}{" "}
 									<ExtendLink linkComponent={linkComponent} href="/signup">
-										{authMessage("สมัครเลย")}
+										{t("auth.login.signUpCta")}
 									</ExtendLink>
 								</div>
 							</div>
-							{/* <AuthLoginWithQrCode t={authMessage} /> */}
 						</CardContent>
 					</form>
 				</Form>
-				{/* <div className="grid grid-cols-[65%_auto]"><AuthLoginWithQrCode t={() => ""} /></div> */}
 			</CardTransition>
-			{/* <AuthFooter /> */}
 		</div>
 	);
 }

@@ -4,14 +4,15 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { config } from "@workspace/app-ui/lib/config";
 
 import { exchangeDesktopAuthResultToken } from "@/lib/app-auth";
-import { getThaiAuthErrorMessage } from "@/lib/auth-error";
+import type { AppLanguage } from "@workspace/i18n/core";
 
 export type GoogleAuthFlow = "login" | "signup";
 
 export type GoogleAuthResult =
   | {
-      status: "action_required";
+      code: string;
       message: string;
+      status: "action_required";
     }
   | {
       status: "signed_in";
@@ -21,9 +22,8 @@ const ACTION_REQUIRED_CODES = new Set([
   "link_provider_email_sent",
   "setup_password_email_sent",
 ]);
-const GOOGLE_AUTH_CANCELLED_MESSAGE = "คุณยกเลิกการเข้าสู่ระบบด้วย Google";
-const GOOGLE_AUTH_ERROR_FALLBACK =
-  "ไม่สามารถดำเนินการต่อด้วย Google ได้ในขณะนี้";
+const GOOGLE_AUTH_CANCELLED_MESSAGE = "google_login_cancelled";
+const GOOGLE_AUTH_ERROR_FALLBACK = "oauth_failed";
 
 interface GoogleAuthCallbackServerStartResponse {
   callbackUrl: string;
@@ -48,6 +48,7 @@ function createDesktopGoogleStartUrl(
   flow: GoogleAuthFlow,
   attempt: string,
   callbackUrl: string,
+  language?: AppLanguage,
 ): string {
   const startUrl = new URL(
     "/auth/app/provider/google/desktop/start",
@@ -56,16 +57,10 @@ function createDesktopGoogleStartUrl(
   startUrl.searchParams.set("attempt", attempt);
   startUrl.searchParams.set("callback_url", callbackUrl);
   startUrl.searchParams.set("flow", flow);
-  return startUrl.toString();
-}
-
-function toGoogleAuthErrorMessage(error: string): string {
-  const mapped = getThaiAuthErrorMessage(error, GOOGLE_AUTH_ERROR_FALLBACK);
-  if (mapped !== error) {
-    return mapped;
+  if (language) {
+    startUrl.searchParams.set("lng", language);
   }
-
-  return /^[a-z0-9_-]+$/i.test(error) ? GOOGLE_AUTH_ERROR_FALLBACK : mapped;
+  return startUrl.toString();
 }
 
 function toError(error: unknown, fallback: string): Error {
@@ -94,7 +89,7 @@ async function startGoogleAuthCallbackServer(
     { attempt },
   );
   if (!payload || typeof payload !== "object") {
-    throw new Error("ไม่สามารถเริ่มตัวรับ callback สำหรับ Google ได้");
+    throw new Error("desktop_callback_missing");
   }
 
   const serverId =
@@ -107,7 +102,7 @@ async function startGoogleAuthCallbackServer(
       : null;
 
   if (!serverId || !callbackUrl) {
-    throw new Error("ไม่สามารถอ่านที่อยู่ callback สำหรับ Google ได้");
+    throw new Error("desktop_callback_missing");
   }
 
   return { callbackUrl, serverId };
@@ -120,7 +115,7 @@ async function waitForGoogleAuthCallback(
     serverId,
   });
   if (!payload || typeof payload !== "object") {
-    throw new Error("ข้อมูล callback จาก Google ไม่ถูกต้อง");
+    throw new Error("oauth_failed");
   }
 
   const token =
@@ -133,7 +128,7 @@ async function waitForGoogleAuthCallback(
       : undefined;
 
   if (!token && !error) {
-    throw new Error("ข้อมูล callback จาก Google ไม่ครบถ้วน");
+    throw new Error("oauth_failed");
   }
 
   return { error, token };
@@ -155,11 +150,17 @@ export async function cancelPendingGoogleAuthSignIn(): Promise<void> {
 
 export async function signInWithGoogle(
   flow: GoogleAuthFlow,
+  language?: AppLanguage,
 ): Promise<GoogleAuthResult> {
   const attempt = crypto.randomUUID();
   const { callbackUrl, serverId } =
     await startGoogleAuthCallbackServer(attempt);
-  const redirectUrl = createDesktopGoogleStartUrl(flow, attempt, callbackUrl);
+  const redirectUrl = createDesktopGoogleStartUrl(
+    flow,
+    attempt,
+    callbackUrl,
+    language,
+  );
   const callbackPromise = waitForGoogleAuthCallback(serverId).catch((error) => {
     const normalizedError = toError(error, GOOGLE_AUTH_ERROR_FALLBACK);
     if (normalizedError.message === GOOGLE_AUTH_CANCELLED_MESSAGE) {
@@ -180,15 +181,13 @@ export async function signInWithGoogle(
     if (callbackPayload.error) {
       if (ACTION_REQUIRED_CODES.has(callbackPayload.error)) {
         return {
-          message: getThaiAuthErrorMessage(
-            callbackPayload.error,
-            "เราได้ส่งอีเมลสำหรับดำเนินการต่อให้แล้ว",
-          ),
+          code: callbackPayload.error,
+          message: callbackPayload.error,
           status: "action_required",
         };
       }
 
-      throw new Error(toGoogleAuthErrorMessage(callbackPayload.error));
+      throw new Error(callbackPayload.error);
     }
 
     if (!callbackPayload.token) {

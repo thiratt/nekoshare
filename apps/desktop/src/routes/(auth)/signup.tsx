@@ -13,11 +13,12 @@ import {
 } from "@/lib/app-auth";
 import { invalidateSessionCache } from "@/lib/auth";
 import { bootstrapAuthenticatedDesktopSession } from "@/lib/auth-bootstrap";
-import { getThaiAuthErrorMessage } from "@/lib/auth-error";
 import {
   isGoogleAuthCancelledError,
   signInWithGoogle,
 } from "@/lib/google-auth";
+import { getAuthErrorMessage } from "@workspace/i18n/messages";
+import { useAppI18n } from "@workspace/i18n/react";
 
 export const Route = createFileRoute("/(auth)/signup")({
   component: RouteComponent,
@@ -27,15 +28,16 @@ function RouteComponent() {
   const router = useRouter();
   const { setGlobalLoading } = useNekoShare();
   const { toast } = useToast();
+  const { language, t } = useAppI18n();
   const { hideGoogleAuthProgress, showGoogleAuthProgress } =
     useGoogleAuthProgress();
 
   const onGoogle = async () => {
     try {
       showGoogleAuthProgress();
-      const result = await signInWithGoogle("signup");
+      const result = await signInWithGoogle("signup", language);
       if (result.status === "action_required") {
-        toast.info(result.message);
+        toast.info(getAuthErrorMessage(t, result.code, "errors.auth.fallbacks.googleActionRequired"));
         return;
       }
 
@@ -49,7 +51,7 @@ function RouteComponent() {
       }
 
       toast.error(
-        getThaiAuthErrorMessage(error, "ไม่สามารถสมัครด้วย Google ได้ในขณะนี้"),
+        getAuthErrorMessage(t, error, "errors.auth.fallbacks.googleSignup"),
       );
     } finally {
       hideGoogleAuthProgress();
@@ -61,21 +63,19 @@ function RouteComponent() {
     try {
       const result = await continueDesktopEmailSignUp({
         email: data.email,
+        language,
         name: data.username,
         password: data.password,
       });
 
       if (result.status === "action_required") {
-        toast.info(getThaiAuthErrorMessage(result.code, result.message));
+        toast.info(getAuthErrorMessage(t, result.code, "errors.auth.fallbacks.googleActionRequired"));
         return;
       }
 
       if (result.status === "terminal_error") {
         toast.error(
-          getThaiAuthErrorMessage(
-            result.code,
-            "ไม่สามารถสร้างบัญชีได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง",
-          ),
+          getAuthErrorMessage(t, result.code, "errors.auth.fallbacks.signup"),
         );
         return;
       }
@@ -87,10 +87,7 @@ function RouteComponent() {
       await router.navigate({ to: "/home", replace: true });
     } catch (error) {
       toast.error(
-        getThaiAuthErrorMessage(
-          error,
-          "ไม่สามารถสร้างบัญชีได้ในขณะนี้ โปรดลองอีกครั้งในภายหลัง",
-        ),
+        getAuthErrorMessage(t, error, "errors.auth.fallbacks.signup"),
       );
     } finally {
       setGlobalLoading(false);

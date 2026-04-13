@@ -10,6 +10,8 @@ import { ExtendLink } from "@workspace/app-ui/components/ext/link";
 import { useSidebar } from "@workspace/app-ui/hooks/use-sidebar";
 import type { IncludeLinkComponentProps, LinkComponent } from "@workspace/app-ui/types/link";
 
+import { useAppI18n } from "@workspace/i18n/react";
+
 interface HomeSidebarProps extends IncludeLinkComponentProps {
 	pathname: string;
 	mode?: "desktop" | "website";
@@ -53,30 +55,29 @@ const SidebarButton = ({ label, link, icon: Icon, isActive, isOpen, linkComponen
 };
 
 export function HomeSidebar({ linkComponent, pathname, collapseWhenNotificationOpen = false }: HomeSidebarProps) {
+	const { t } = useAppI18n();
 	const { isOpen, toggleSidebar } = useSidebar();
-
-	// Force collapse when notification sidebar is open
 	const effectiveIsOpen = collapseWhenNotificationOpen ? false : isOpen;
 
 	const sidebarLink = useMemo(
 		() => [
 			{
-				label: "หน้าหลัก",
+				label: t("common.navigation.home"),
 				link: "/home",
 				icon: LuHouse,
 			},
 			{
-				label: "เพื่อน",
+				label: t("common.navigation.friends"),
 				link: "/home/friends",
 				icon: LuUsers,
 			},
 			{
-				label: "อุปกรณ์",
+				label: t("common.navigation.devices"),
 				link: "/home/devices",
 				icon: LuMonitorSmartphone,
 			},
 		],
-		[],
+		[t],
 	);
 
 	const normalizePath = useMemo(() => {

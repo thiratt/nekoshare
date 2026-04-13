@@ -14,6 +14,8 @@ import { auth } from "@/modules/auth/lib";
 import { handleControllerError, HttpServiceError, jsonSuccess } from "@/shared/http";
 import type { AppContext } from "@/shared/http/router";
 import { error } from "@/types";
+import type { AppLanguage } from "@workspace/i18n/core";
+import { getServerT, resolveRequestLanguage } from "@workspace/i18n/server";
 
 const DESKTOP_GOOGLE_STATE_PREFIX = "desktop-google-oauth:";
 const DESKTOP_GOOGLE_STATE_TTL_MS = 10 * 60 * 1000;
@@ -27,6 +29,7 @@ interface DesktopGoogleStatePayload {
 	callbackUrl?: string;
 	codeVerifier: string;
 	flow: DesktopAuthFlow;
+	language?: AppLanguage;
 }
 
 interface GoogleIdentityProfile {
@@ -40,10 +43,12 @@ interface GoogleIdentityProfile {
 const appGoogleContinueBodySchema = z.object({
 	callbackURL: z.string().url().optional(),
 	idToken: z.string().min(1),
+	language: z.enum(["th", "en"]).optional(),
 });
 
 const appGoogleLinkBodySchema = z.object({
 	idToken: z.string().min(1),
+	language: z.enum(["th", "en"]).optional(),
 });
 
 const googleTokenInfoSchema = z.object({
@@ -114,6 +119,25 @@ function getDesktopGoogleStartCallbackUrl(c: AppContext, baseUrl?: string): stri
 
 function getPublicBaseUrlFromContext(): string {
 	return getPublicBaseURL();
+}
+
+async function getContextLanguage(
+	c: AppContext,
+	explicitLanguage?: string | null,
+	options?: { includeSession?: boolean },
+) {
+	let sessionLanguage: string | null | undefined;
+
+	if (options?.includeSession) {
+		const session = await auth.api.getSession({ headers: c.req.raw.headers }).catch(() => null);
+		sessionLanguage = (session?.user as { language?: string | null } | undefined)?.language;
+	}
+
+	return resolveRequestLanguage({
+		explicitLanguage,
+		headers: c.req.raw.headers,
+		sessionLanguage,
+	});
 }
 
 function normalizeDesktopAuthError(error: unknown): string {
@@ -196,30 +220,30 @@ function toProviderAccount(
 	};
 }
 
-function terminalFlowFromHttpError(error: HttpServiceError) {
+function terminalFlowFromHttpError(error: HttpServiceError, message: string) {
 	switch (error.code) {
 		case "email_not_verified":
 			return {
 				code: "email_not_verified",
-				message: error.message,
+				message,
 				status: "terminal_error",
 			} as const;
 		case "invalid_token":
 			return {
 				code: "invalid_token",
-				message: error.message,
+				message,
 				status: "terminal_error",
 			} as const;
 		case "token_expired":
 			return {
 				code: "token_expired",
-				message: error.message,
+				message,
 				status: "terminal_error",
 			} as const;
 		default:
 			return {
 				code: "oauth_failed",
-				message: error.message,
+				message,
 				status: "terminal_error",
 			} as const;
 	}
@@ -277,16 +301,32 @@ async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdentityProfi
 export async function handleAppGoogleContinue(c: AppContext) {
 	try {
 		const payload = appGoogleContinueBodySchema.parse(await c.req.json());
+		const language = await getContextLanguage(c, payload.language);
 		const profile = await verifyGoogleIdToken(payload.idToken);
 		const result = await resolveGoogleContinue(toProviderAccount(profile, { idToken: payload.idToken }), {
 			callbackURL: payload.callbackURL,
+			language,
 			publicBaseURL: getPublicBaseUrlFromContext(),
 		});
 
 		return jsonSuccess(c, result);
 	} catch (error) {
 		if (error instanceof HttpServiceError) {
-			return jsonSuccess(c, terminalFlowFromHttpError(error));
+			const language = await getContextLanguage(c);
+			const t = await getServerT(language);
+			return jsonSuccess(
+				c,
+				terminalFlowFromHttpError(
+					error,
+					error.code === "email_not_verified"
+						? t("errors.auth.codes.email_not_verified")
+						: error.code === "token_expired"
+							? t("errors.auth.codes.token_expired")
+							: error.code === "invalid_token"
+								? t("errors.auth.codes.invalid_token")
+								: t("errors.auth.codes.oauth_failed"),
+				),
+			);
 		}
 
 		if (error instanceof z.ZodError) {
@@ -294,9 +334,11 @@ export async function handleAppGoogleContinue(c: AppContext) {
 		}
 
 		Logger.warn("Auth", "Failed to resolve app Google continue flow", error);
+		const language = await getContextLanguage(c);
+		const t = await getServerT(language);
 		return jsonSuccess(c, {
 			code: "oauth_failed",
-			message: "Unable to continue with Google right now.",
+			message: t("errors.auth.codes.oauth_failed"),
 			status: "terminal_error",
 		});
 	}
@@ -310,16 +352,32 @@ export async function handleAppGoogleLink(c: AppContext) {
 		}
 
 		const payload = appGoogleLinkBodySchema.parse(await c.req.json());
+		const language = await getContextLanguage(c, payload.language, { includeSession: true });
 		const profile = await verifyGoogleIdToken(payload.idToken);
 		const result = await resolveAuthenticatedGoogleLink(
 			session.user.id,
 			toProviderAccount(profile, { idToken: payload.idToken }),
+			language,
 		);
 
 		return jsonSuccess(c, result);
 	} catch (error) {
 		if (error instanceof HttpServiceError) {
-			return jsonSuccess(c, terminalFlowFromHttpError(error));
+			const language = await getContextLanguage(c, undefined, { includeSession: true });
+			const t = await getServerT(language);
+			return jsonSuccess(
+				c,
+				terminalFlowFromHttpError(
+					error,
+					error.code === "email_not_verified"
+						? t("errors.auth.codes.email_not_verified")
+						: error.code === "token_expired"
+							? t("errors.auth.codes.token_expired")
+							: error.code === "invalid_token"
+								? t("errors.auth.codes.invalid_token")
+								: t("errors.auth.codes.oauth_failed"),
+				),
+			);
 		}
 
 		if (error instanceof z.ZodError) {
@@ -327,9 +385,11 @@ export async function handleAppGoogleLink(c: AppContext) {
 		}
 
 		Logger.warn("Auth", "Failed to resolve authenticated Google link", error);
+		const language = await getContextLanguage(c, undefined, { includeSession: true });
+		const t = await getServerT(language);
 		return jsonSuccess(c, {
 			code: "oauth_failed",
-			message: "Unable to link Google right now.",
+			message: t("errors.auth.codes.unable_to_link_account"),
 			status: "terminal_error",
 		});
 	}
@@ -339,6 +399,7 @@ export async function handleDesktopGoogleStart(c: AppContext) {
 	const flow = getDesktopAuthFlow(c);
 	const attempt = c.req.query("attempt") ?? undefined;
 	const callbackUrl = c.req.query("callback_url") ?? undefined;
+	const language = await getContextLanguage(c, c.req.query("lng"));
 
 	try {
 		if (!callbackUrl) {
@@ -378,6 +439,7 @@ export async function handleDesktopGoogleStart(c: AppContext) {
 				callbackUrl: normalizedCallbackURL.toString(),
 				codeVerifier,
 				flow,
+				language,
 			} satisfies DesktopGoogleStatePayload),
 		});
 
@@ -412,6 +474,7 @@ export async function handleGoogleCallback(c: AppContext) {
 	let callbackUrl: string | undefined;
 	let codeVerifier = "";
 	let flow: DesktopAuthFlow = "login";
+	let language: AppLanguage | undefined;
 
 	try {
 		const payload = JSON.parse(storedState.value) as Partial<DesktopGoogleStatePayload>;
@@ -419,6 +482,7 @@ export async function handleGoogleCallback(c: AppContext) {
 		callbackUrl = typeof payload.callbackUrl === "string" ? payload.callbackUrl : undefined;
 		codeVerifier = typeof payload.codeVerifier === "string" ? payload.codeVerifier : "";
 		flow = payload.flow === "signup" ? "signup" : "login";
+		language = payload.language;
 	} catch (error) {
 		Logger.warn("Auth", "Failed to parse stored desktop Google state", error);
 	}
@@ -483,6 +547,7 @@ export async function handleGoogleCallback(c: AppContext) {
 				},
 			),
 			{
+				language,
 				publicBaseURL: getPublicBaseUrlFromContext(),
 			},
 		);

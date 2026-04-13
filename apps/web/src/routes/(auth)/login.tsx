@@ -18,26 +18,21 @@ import {
   invalidateSessionCache,
   signInWithGoogle,
 } from "@/lib/auth";
-import {
-  getThaiAuthCallbackErrorMessage,
-  getThaiAuthErrorMessage,
-} from "@/lib/auth-error";
+import { getAuthCallbackErrorMessage, getAuthErrorMessage } from "@workspace/i18n/messages";
+import { useAppI18n } from "@workspace/i18n/react";
 
 export const Route = createFileRoute("/(auth)/login")({
   component: RouteComponent,
 });
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const GOOGLE_LOGIN_ERROR_FALLBACK =
-  "ไม่สามารถเข้าสู่ระบบด้วย Google ได้ในขณะนี้";
-const LOGIN_ERROR_FALLBACK =
-  "ไม่สามารถเข้าสู่ระบบได้ กรุณาตรวจสอบข้อมูลแล้วลองใหม่อีกครั้ง";
 
 function RouteComponent() {
   const location = useLocation();
   const router = useRouter();
   const { setGlobalLoading } = useNekoShare();
   const { toast } = useToast();
+  const { language, t } = useAppI18n();
   const [socialErrorMessage, setSocialErrorMessage] = useState<string | null>(
     null,
   );
@@ -49,9 +44,10 @@ function RouteComponent() {
       return;
     }
 
-    const errorMessage = getThaiAuthCallbackErrorMessage(
+    const errorMessage = getAuthCallbackErrorMessage(
+      t,
       currentSearch,
-      GOOGLE_LOGIN_ERROR_FALLBACK,
+      "auth.callbacks.googleLoginFailed",
     );
     if (!errorMessage) {
       return;
@@ -68,15 +64,17 @@ function RouteComponent() {
     const nextSearch = params.toString();
     const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
     window.history.replaceState({}, "", nextUrl);
-  }, [location, toast]);
+  }, [location, t, toast]);
 
   const onGoogle = async () => {
     try {
       setSocialErrorMessage(null);
       setGlobalLoading(true);
-      await signInWithGoogle("/login");
+      await signInWithGoogle("/login", false, language);
     } catch (error) {
-      toast.error(getThaiAuthErrorMessage(error, GOOGLE_LOGIN_ERROR_FALLBACK));
+      toast.error(
+        getAuthErrorMessage(t, error, "errors.auth.fallbacks.googleLogin"),
+      );
       setGlobalLoading(false);
     }
   };
@@ -105,7 +103,7 @@ function RouteComponent() {
       await router.navigate({ to: "/home" });
     } catch (error) {
       console.error("Login failed:", error);
-      toast.error(getThaiAuthErrorMessage(error, LOGIN_ERROR_FALLBACK));
+      toast.error(getAuthErrorMessage(t, error, "errors.auth.fallbacks.login"));
       setGlobalLoading(false);
     }
   };

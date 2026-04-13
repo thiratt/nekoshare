@@ -18,23 +18,19 @@ import {
   invalidateSessionCache,
   signInWithGoogle,
 } from "@/lib/auth";
-import {
-  getThaiAuthCallbackErrorMessage,
-  getThaiAuthErrorMessage,
-} from "@/lib/auth-error";
+import { getAuthCallbackErrorMessage, getAuthErrorMessage } from "@workspace/i18n/messages";
+import { useAppI18n } from "@workspace/i18n/react";
 
 export const Route = createFileRoute("/(auth)/signup")({
   component: RouteComponent,
 });
-
-const GOOGLE_SIGNUP_ERROR_FALLBACK = "ไม่สามารถสมัครด้วย Google ได้ในขณะนี้";
-const SIGNUP_ERROR_FALLBACK = "ไม่สามารถสร้างบัญชีได้ในขณะนี้";
 
 function RouteComponent() {
   const location = useLocation();
   const router = useRouter();
   const { setGlobalLoading } = useNekoShare();
   const { toast } = useToast();
+  const { language, t } = useAppI18n();
   const [socialErrorMessage, setSocialErrorMessage] = useState<string | null>(
     null,
   );
@@ -46,9 +42,10 @@ function RouteComponent() {
       return;
     }
 
-    const errorMessage = getThaiAuthCallbackErrorMessage(
+    const errorMessage = getAuthCallbackErrorMessage(
+      t,
       currentSearch,
-      GOOGLE_SIGNUP_ERROR_FALLBACK,
+      "auth.callbacks.googleSignUpFailed",
     );
     if (!errorMessage) {
       return;
@@ -65,15 +62,17 @@ function RouteComponent() {
     const nextSearch = params.toString();
     const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
     window.history.replaceState({}, "", nextUrl);
-  }, [location, toast]);
+  }, [location, t, toast]);
 
   const onGoogle = async () => {
     try {
       setSocialErrorMessage(null);
       setGlobalLoading(true);
-      await signInWithGoogle("/signup", true);
+      await signInWithGoogle("/signup", true, language);
     } catch (error) {
-      toast.error(getThaiAuthErrorMessage(error, GOOGLE_SIGNUP_ERROR_FALLBACK));
+      toast.error(
+        getAuthErrorMessage(t, error, "errors.auth.fallbacks.googleSignup"),
+      );
       setGlobalLoading(false);
     }
   };
@@ -83,14 +82,15 @@ function RouteComponent() {
 
     const { error } = await authClient.signUp.email({
       email: data.email,
+      language,
       password: data.password,
       name: data.username,
       username: data.username,
-    });
+    } as Parameters<typeof authClient.signUp.email>[0] & { language: typeof language });
 
     if (error) {
       console.error("Signup failed:", error);
-      toast.error(getThaiAuthErrorMessage(error, SIGNUP_ERROR_FALLBACK));
+      toast.error(getAuthErrorMessage(t, error, "errors.auth.fallbacks.signup"));
       return;
     }
 

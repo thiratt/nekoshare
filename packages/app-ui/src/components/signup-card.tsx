@@ -11,12 +11,14 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
 
-import { signupFormSchema } from "@workspace/app-ui/schemas/auth";
+import { createSignupFormSchema } from "@workspace/app-ui/schemas/auth";
 import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
 import type { TSignupSchema } from "@workspace/app-ui/types/schema";
 
 import { CardTransition } from "./ext/card-transition";
 import { ExtendLink } from "./ext/link";
+
+import { useAppI18n } from "@workspace/i18n/react";
 
 interface ExampleDataSignupProps {
 	username: string;
@@ -39,9 +41,10 @@ export function SignupCard({
 	socialErrorMessage,
 }: SignupCardProps): JSX.Element {
 	const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+	const { t } = useAppI18n();
 	const form = useForm<TSignupSchema>({
 		mode: "onSubmit",
-		resolver: zodResolver(signupFormSchema),
+		resolver: zodResolver(createSignupFormSchema(t)),
 		defaultValues: {
 			username: data ? data.username : "",
 			email: data ? data.email : "",
@@ -73,8 +76,8 @@ export function SignupCard({
 		<div className="space-y-4 w-full max-w-sm md:max-w-4xl">
 			<CardTransition className="shadow-xl" tag="auth-card">
 				<CardHeader>
-					<CardTitle className="text-2xl font-semibold">สร้างบัญชี</CardTitle>
-					<CardDescription>กรอกรายละเอียดข้างล่างเพื่อสร้างบัญชี</CardDescription>
+					<CardTitle className="text-2xl font-semibold">{t("auth.signup.title")}</CardTitle>
+					<CardDescription>{t("auth.signup.description")}</CardDescription>
 				</CardHeader>
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off">
@@ -85,19 +88,19 @@ export function SignupCard({
 										<AlertTitle>{socialErrorMessage}</AlertTitle>
 									</Alert>
 								) : null}
-								{renderField("username", "ชื่อผู้ใช้งาน", "name")}
-								{renderField("email", "อีเมล", "email")}
+								{renderField("username", t("auth.signup.username"), "name")}
+								{renderField("email", t("auth.signup.email"), "email")}
 								<div className="grid grid-cols-2 gap-4">
-									{renderField("password", "รหัสผ่าน", "password")}
-									{renderField("confirmPassword", "ยืนยันรหัสผ่าน", "password")}
+									{renderField("password", t("auth.signup.password"), "password")}
+									{renderField("confirmPassword", t("auth.signup.confirmPassword"), "password")}
 								</div>
 
 								<Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-									ถัดไป
+									{t("common.actions.continue")}
 								</Button>
 								<div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
 									<span className="relative z-10 bg-card px-2 text-muted-foreground uppercase">
-										หรือดำเนินการต่อด้วย
+										{t("auth.signup.divider")}
 									</span>
 								</div>
 								<Button
@@ -122,14 +125,14 @@ export function SignupCard({
 										<LuLoader className="animate-spin" />
 									) : (
 										<>
-											<FaGoogle className="size-3" /> ดำเนินการต่อด้วย Google
+											<FaGoogle className="size-3" /> {t("auth.signup.google")}
 										</>
 									)}
 								</Button>
 								<div className="flex gap-1 justify-center items-center text-sm">
-									มีบัญชีอยู่แล้ว?
+									{t("auth.signup.loginPrompt")}
 									<ExtendLink linkComponent={linkComponent} href="/login">
-										เข้าสู่ระบบ
+										{t("auth.signup.loginCta")}
 									</ExtendLink>
 								</div>
 							</div>
@@ -137,16 +140,6 @@ export function SignupCard({
 					</form>
 				</Form>
 			</CardTransition>
-			{/* <div className="flex gap-1 text-xs text-muted-foreground">
-				<p>By clicking continue, you agree to our</p>
-				<ExtendLink linkComponent={linkComponent} href="/">
-					Terms of Service
-				</ExtendLink>
-				<p>and</p>
-				<ExtendLink linkComponent={linkComponent} href="/">
-					Privacy Policy.
-				</ExtendLink>
-			</div> */}
 		</div>
 	);
 }
