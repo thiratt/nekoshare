@@ -1,0 +1,32 @@
+{
+  "appName": "Nekoshare",
+  "loading": {
+    "app": "กำลังโหลด NekoShare...",
+    "deviceData": "กำลังโหลดข้อมูลอุปกรณ์..."
+  },
+  "actions": {
+    "backToLogin": "กลับไปหน้าเข้าสู่ระบบ",
+    "cancel": "ยกเลิก",
+    "close": "ปิด",
+    "continue": "ถัดไป",
+    "save": "บันทึก",
+    "signOut": "ออกจากระบบ"
+  },
+  "language": {
+    "english": "English",
+    "englishNative": "English",
+    "thai": "Thai",
+    "thaiNative": "ไทย"
+  },
+  "navigation": {
+    "devices": "อุปกรณ์",
+    "friends": "เพื่อน",
+    "home": "หน้าหลัก"
+  },
+  "messages": {
+    "unexpectedError": "เกิดข้อผิดพลาดที่ไม่คาดคิด"
+  },
+  "search": {
+    "settings": "ค้นหาการตั้งค่า"
+  }
+}

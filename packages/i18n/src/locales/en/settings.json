@@ -1,0 +1,102 @@
+{
+  "appearance": {
+    "description": "Adjust how Nekoshare looks on this device.",
+    "language": {
+      "description": "Choose the language used on this device.",
+      "saveError": "Unable to save language settings.",
+      "saveSuccess": "Language settings saved.",
+      "syncDescription": "When enabled, this device uses your account language after sign-in.",
+      "syncLabel": "Sync language from account",
+      "title": "Language"
+    },
+    "saveError": "Unable to save appearance settings.",
+    "saveSuccess": "Appearance settings saved.",
+    "theme": {
+      "dark": "Dark theme",
+      "description": "Choose the look you want to use.",
+      "light": "Light theme",
+      "saveError": "Unable to save theme settings.",
+      "saveSuccess": "Theme settings saved.",
+      "syncDescription": "When enabled, this device uses your account theme after sign-in.",
+      "syncLabel": "Sync theme from account",
+      "system": "System theme",
+      "title": "Theme"
+    }
+  },
+  "accessibility": {
+    "general": {
+      "description": "Tune the app for better accessibility.",
+      "title": "General"
+    },
+    "reduceMotion": {
+      "description": "Reduce motion and transitions.",
+      "label": "Reduce motion"
+    }
+  },
+  "categories": {
+    "accessibility": "Accessibility",
+    "account": "Account",
+    "appearance": "Appearance",
+    "data": "Data",
+    "notifications": "Notifications",
+    "privacy": "Privacy",
+    "shortcuts": "Shortcuts"
+  },
+  "data": {
+    "storage": {
+      "clearCache": "Clear cache",
+      "description": "Manage your data and storage settings.",
+      "title": "Storage",
+      "usedLabel": "Storage used",
+      "usedValue": "20 GB of 1 TB used"
+    }
+  },
+  "logout": {
+    "description": "Are you sure you want to sign out?",
+    "title": "Sign out"
+  },
+  "notifications": {
+    "email": {
+      "description": "Receive updates by email.",
+      "label": "Email notifications"
+    },
+    "general": {
+      "description": "Choose how you want to receive notifications.",
+      "title": "General"
+    },
+    "push": {
+      "description": "Receive push notifications.",
+      "label": "Push notifications"
+    },
+    "system": {
+      "description": "Receive notifications from the app.",
+      "label": "Enable notifications"
+    }
+  },
+  "privacy": {
+    "analytics": {
+      "description": "Allow anonymous usage analytics.",
+      "label": "Analytics"
+    },
+    "general": {
+      "description": "Control privacy and sharing settings.",
+      "title": "General"
+    }
+  },
+  "shortcuts": {
+    "closeSettings": "Close settings",
+    "customize": "Customize shortcuts",
+    "description": "View and customize keyboard shortcuts.",
+    "newItem": "New item",
+    "openSettings": "Open settings",
+    "search": "Search",
+    "title": "Keyboard shortcuts"
+  },
+  "unsaved": {
+    "description": "You have unsaved changes. Leave without saving?",
+    "discard": "Leave without saving",
+    "stay": "Keep editing",
+    "title": "Unsaved changes"
+  },
+  "title": "Settings"
+}

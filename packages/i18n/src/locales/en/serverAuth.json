@@ -1,0 +1,97 @@
+{
+  "accountStatus": {
+    "defaultErrorMessage": "This request could not be completed.",
+    "defaultErrorTitle": "Unable to continue",
+    "defaultSuccessMessage": "The request finished successfully. You can close this page and return to Nekoshare.",
+    "defaultSuccessTitle": "Done",
+    "emailChange": {
+      "accountNotFoundMessage": "The account for this verification link could not be found.",
+      "accountNotFoundTitle": "Account not found",
+      "expiredMessage": "This verification link has expired. Please request a new email change from account settings.",
+      "expiredTitle": "Verification link expired",
+      "invalidMessage": "This verification link is invalid.",
+      "invalidTitle": "Unable to verify email",
+      "successMessage": "Your new email has been verified. You can close this page and return to Nekoshare.",
+      "successTitle": "Email updated",
+      "wrongUserMessage": "This verification link belongs to a different signed-in user.",
+      "wrongUserTitle": "Unable to verify email"
+    }
+  },
+  "email": {
+    "changeEmail": {
+      "button": "Verify email",
+      "hint": "If the button does not work, open this link:",
+      "paragraph": "Confirm that {{email}} should become the new email for your Nekoshare account.",
+      "subject": "Verify your new Nekoshare email",
+      "text": "Open this link to verify your new Nekoshare email: {{url}}",
+      "title": "Verify your new Nekoshare email"
+    },
+    "linkProvider": {
+      "button": "Link {{provider}}",
+      "hint": "If the button does not work, open this link:",
+      "paragraph": "We found an existing Nekoshare account for {{email}}. Confirm this link to continue with {{provider}}.",
+      "subject": "Confirm your Google sign-in",
+      "text": "Open this link to link Google to your Nekoshare account: {{url}}",
+      "title": "Confirm {{provider}} sign-in"
+    },
+    "passwordSetup": {
+      "button": "Set password",
+      "hint": "If the button does not work, open this link:",
+      "paragraph": "Use this secure link to set or reset the password for {{email}}.",
+      "subject": "Set your Nekoshare password",
+      "text": "Open this link to set your Nekoshare password: {{url}}",
+      "title": "Set your Nekoshare password"
+    }
+  },
+  "flow": {
+    "errors": {
+      "accountAlreadyLinked": "This Google account is already linked to another Nekoshare user.",
+      "challengeExpired": "This verification link is invalid or has expired.",
+      "emailDeliveryUnavailable": "Email delivery is unavailable right now. Please try again later.",
+      "emailNotFound": "The provider did not return an email address.",
+      "emailNotVerified": "The provider email address is not verified.",
+      "invalidEmailOrPassword": "Invalid email or password.",
+      "oauthFailed": "Unable to complete provider sign-in right now.",
+      "passwordTooLong": "Password must be at most {{max}} characters long.",
+      "passwordTooShort": "Password must be at least {{min}} characters long.",
+      "passwordSetupExpired": "This password setup link is invalid or has expired.",
+      "providerAlreadyLinked": "A different Google account is already linked.",
+      "tokenInvalid": "Invalid or expired token.",
+      "userNotFound": "User was not found.",
+      "userRemoved": "The requested user no longer exists."
+    },
+    "messages": {
+      "googleLinked": "Google was linked successfully. You can return to the app.",
+      "linkProviderEmailSent": "We sent a confirmation email to continue linking Google.",
+      "passwordSaved": "Your password was saved successfully.",
+      "passwordSavedSignIn": "Your password was saved successfully. Return to the app and sign in.",
+      "passwordSetupEmailSent": "We sent a secure password setup email."
+    },
+    "titles": {
+      "accountLinked": "Google linked",
+      "accountLinkFailed": "Unable to link account",
+      "challengeExpired": "Link expired",
+      "passwordSaved": "Password updated",
+      "passwordSaveFailed": "Unable to save password",
+      "passwordTooLong": "Password is too long",
+      "passwordTooShort": "Password is too short",
+      "signInFailed": "Unable to complete sign-in"
+    }
+  },
+  "pages": {
+    "invalidRequest": {
+      "message": "A verification token is required.",
+      "title": "Invalid request"
+    },
+    "passwordForm": {
+      "description": "Choose a new password for {{email}}.",
+      "passwordLabel": "New password",
+      "submit": "Save password",
+      "title": "Set your password"
+    },
+    "passwordSaveFailed": {
+      "message": "Please try again later.",
+      "title": "Unable to save password"
+    }
+  }
+}

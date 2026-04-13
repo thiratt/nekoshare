@@ -1,0 +1,97 @@
+{
+  "accountStatus": {
+    "defaultErrorMessage": "ไม่สามารถดำเนินการตามคำขอนี้ได้",
+    "defaultErrorTitle": "ไม่สามารถดำเนินการต่อได้",
+    "defaultSuccessMessage": "ดำเนินการเสร็จเรียบร้อยแล้ว คุณสามารถปิดหน้านี้และกลับไปที่ Nekoshare ได้",
+    "defaultSuccessTitle": "เสร็จสิ้น",
+    "emailChange": {
+      "accountNotFoundMessage": "ไม่พบบัญชีสำหรับลิงก์ยืนยันนี้",
+      "accountNotFoundTitle": "ไม่พบบัญชี",
+      "expiredMessage": "ลิงก์ยืนยันนี้หมดอายุแล้ว กรุณาขอเปลี่ยนอีเมลใหม่จากหน้าตั้งค่าบัญชี",
+      "expiredTitle": "ลิงก์ยืนยันหมดอายุ",
+      "invalidMessage": "ลิงก์ยืนยันนี้ไม่ถูกต้อง",
+      "invalidTitle": "ไม่สามารถยืนยันอีเมลได้",
+      "successMessage": "ยืนยันอีเมลใหม่เรียบร้อยแล้ว คุณสามารถปิดหน้านี้และกลับไปที่ Nekoshare ได้",
+      "successTitle": "อัปเดตอีเมลแล้ว",
+      "wrongUserMessage": "ลิงก์ยืนยันนี้เป็นของผู้ใช้ที่เข้าสู่ระบบคนอื่น",
+      "wrongUserTitle": "ไม่สามารถยืนยันอีเมลได้"
+    }
+  },
+  "email": {
+    "changeEmail": {
+      "button": "ยืนยันอีเมล",
+      "hint": "หากปุ่มใช้งานไม่ได้ ให้เปิดลิงก์นี้แทน:",
+      "paragraph": "ยืนยันว่า {{email}} ควรเป็นอีเมลใหม่สำหรับบัญชี Nekoshare ของคุณ",
+      "subject": "ยืนยันอีเมลใหม่ของ Nekoshare",
+      "text": "เปิดลิงก์นี้เพื่อยืนยันอีเมลใหม่ของ Nekoshare: {{url}}",
+      "title": "ยืนยันอีเมลใหม่ของ Nekoshare"
+    },
+    "linkProvider": {
+      "button": "เชื่อม {{provider}}",
+      "hint": "หากปุ่มใช้งานไม่ได้ ให้เปิดลิงก์นี้แทน:",
+      "paragraph": "เราพบบัญชี Nekoshare เดิมสำหรับ {{email}} ยืนยันลิงก์นี้เพื่อดำเนินการต่อด้วย {{provider}}",
+      "subject": "ยืนยันการเข้าสู่ระบบด้วย Google",
+      "text": "เปิดลิงก์นี้เพื่อเชื่อม Google กับบัญชี Nekoshare ของคุณ: {{url}}",
+      "title": "ยืนยันการเข้าสู่ระบบด้วย {{provider}}"
+    },
+    "passwordSetup": {
+      "button": "ตั้งรหัสผ่าน",
+      "hint": "หากปุ่มใช้งานไม่ได้ ให้เปิดลิงก์นี้แทน:",
+      "paragraph": "ใช้ลิงก์นี้เพื่อตั้งหรือรีเซ็ตรหัสผ่านสำหรับ {{email}}",
+      "subject": "ตั้งรหัสผ่าน Nekoshare ของคุณ",
+      "text": "เปิดลิงก์นี้เพื่อตั้งรหัสผ่าน Nekoshare ของคุณ: {{url}}",
+      "title": "ตั้งรหัสผ่าน Nekoshare ของคุณ"
+    }
+  },
+  "flow": {
+    "errors": {
+      "accountAlreadyLinked": "บัญชี Google นี้เชื่อมกับผู้ใช้ Nekoshare คนอื่นอยู่แล้ว",
+      "challengeExpired": "ลิงก์ยืนยันนี้ไม่ถูกต้องหรือหมดอายุแล้ว",
+      "emailDeliveryUnavailable": "ระบบส่งอีเมลยังไม่พร้อมใช้งาน กรุณาลองใหม่อีกครั้งภายหลัง",
+      "emailNotFound": "ผู้ให้บริการไม่ได้ส่งอีเมลกลับมา",
+      "emailNotVerified": "อีเมลจากผู้ให้บริการยังไม่ได้รับการยืนยัน",
+      "invalidEmailOrPassword": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+      "oauthFailed": "ไม่สามารถดำเนินการเข้าสู่ระบบด้วยผู้ให้บริการได้ในขณะนี้",
+      "passwordTooLong": "รหัสผ่านต้องยาวไม่เกิน {{max}} ตัวอักษร",
+      "passwordTooShort": "รหัสผ่านต้องมีอย่างน้อย {{min}} ตัวอักษร",
+      "passwordSetupExpired": "ลิงก์ตั้งรหัสผ่านนี้ไม่ถูกต้องหรือหมดอายุแล้ว",
+      "providerAlreadyLinked": "มีบัญชี Google อื่นเชื่อมอยู่แล้ว",
+      "tokenInvalid": "โทเคนไม่ถูกต้องหรือหมดอายุแล้ว",
+      "userNotFound": "ไม่พบบัญชีผู้ใช้",
+      "userRemoved": "ไม่มีผู้ใช้ที่ร้องขอแล้ว"
+    },
+    "messages": {
+      "googleLinked": "เชื่อม Google สำเร็จแล้ว คุณสามารถกลับไปที่แอปได้",
+      "linkProviderEmailSent": "เราได้ส่งอีเมลยืนยันเพื่อดำเนินการเชื่อม Google ต่อแล้ว",
+      "passwordSaved": "บันทึกรหัสผ่านเรียบร้อยแล้ว",
+      "passwordSavedSignIn": "บันทึกรหัสผ่านเรียบร้อยแล้ว กลับไปที่แอปและเข้าสู่ระบบได้เลย",
+      "passwordSetupEmailSent": "เราได้ส่งอีเมลสำหรับตั้งรหัสผ่านอย่างปลอดภัยให้แล้ว"
+    },
+    "titles": {
+      "accountLinked": "เชื่อม Google แล้ว",
+      "accountLinkFailed": "ไม่สามารถเชื่อมบัญชีได้",
+      "challengeExpired": "ลิงก์หมดอายุ",
+      "passwordSaved": "อัปเดตรหัสผ่านแล้ว",
+      "passwordSaveFailed": "ไม่สามารถบันทึกรหัสผ่านได้",
+      "passwordTooLong": "รหัสผ่านยาวเกินไป",
+      "passwordTooShort": "รหัสผ่านสั้นเกินไป",
+      "signInFailed": "ไม่สามารถเข้าสู่ระบบต่อได้"
+    }
+  },
+  "pages": {
+    "invalidRequest": {
+      "message": "จำเป็นต้องมีโทเคนยืนยัน",
+      "title": "คำขอไม่ถูกต้อง"
+    },
+    "passwordForm": {
+      "description": "เลือกรหัสผ่านใหม่สำหรับ {{email}}",
+      "passwordLabel": "รหัสผ่านใหม่",
+      "submit": "บันทึกรหัสผ่าน",
+      "title": "ตั้งรหัสผ่าน"
+    },
+    "passwordSaveFailed": {
+      "message": "กรุณาลองใหม่อีกครั้งในภายหลัง",
+      "title": "ไม่สามารถบันทึกรหัสผ่านได้"
+    }
+  }
+}

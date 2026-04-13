@@ -21,6 +21,7 @@
     "@tauri-apps/plugin-opener": "~2.5.2",
     "@tauri-apps/plugin-store": "~2.4.1",
     "@workspace/app-ui": "workspace:*",
+    "@workspace/i18n": "workspace:*",
     "@workspace/ui": "workspace:*",
     "lucide-react": "^0.545.0",
     "react": "^19.2.1",

@@ -1,0 +1,32 @@
+{
+  "appName": "Nekoshare",
+  "loading": {
+    "app": "Loading NekoShare...",
+    "deviceData": "Loading device data..."
+  },
+  "actions": {
+    "backToLogin": "Back to login",
+    "cancel": "Cancel",
+    "close": "Close",
+    "continue": "Continue",
+    "save": "Save",
+    "signOut": "Sign out"
+  },
+  "language": {
+    "english": "English",
+    "englishNative": "English",
+    "thai": "Thai",
+    "thaiNative": "ไทย"
+  },
+  "navigation": {
+    "devices": "Devices",
+    "friends": "Friends",
+    "home": "Home"
+  },
+  "messages": {
+    "unexpectedError": "Something went wrong."
+  },
+  "search": {
+    "settings": "Search settings"
+  }
+}

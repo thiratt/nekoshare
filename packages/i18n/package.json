@@ -1,0 +1,31 @@
+{
+  "name": "@workspace/i18n",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "check": "node scripts/check-locale-parity.mjs && tsc --noEmit",
+    "check:locales": "node scripts/check-locale-parity.mjs",
+    "lint": "eslint . --max-warnings 0"
+  },
+  "dependencies": {
+    "i18next": "^25.6.0",
+    "react": "^19.2.1",
+    "react-i18next": "^16.3.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "^10.0.3",
+    "typescript": "^5.9.3"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./core": "./src/core.ts",
+    "./messages": "./src/messages.ts",
+    "./react": "./src/react.tsx",
+    "./resources": "./src/resources.ts",
+    "./server": "./src/server.ts"
+  }
+}

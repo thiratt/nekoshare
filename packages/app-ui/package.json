@@ -11,6 +11,7 @@
 		"@tanstack/react-table": "^8.21.3",
 		"@tanstack/react-virtual": "^3.13.18",
 		"@workspace/contracts": "workspace:*",
+		"@workspace/i18n": "workspace:*",
 		"@workspace/ui": "workspace:*",
 		"better-auth": "^1.5.3",
 		"motion": "^12.23.24",
