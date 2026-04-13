@@ -1,4 +1,4 @@
-import { acquireLock, getRedisClient, releaseLock } from "@/infrastructure/redis";
+import { getRedisClient, withRedisLock } from "@/infrastructure/redis";
 import { safeJsonParse } from "@/shared/utils/json-helper";
 
 type TransferSessionState = "offered" | "accepted";
@@ -33,21 +33,26 @@ function getTransferAcceptedPairKey(deviceA: string, deviceB: string): string {
 	return `${TRANSFER_PAIR_ACCEPTED_PREFIX}${getTransferPairId(deviceA, deviceB)}`;
 }
 
+function isTransferSessionState(value: unknown): value is TransferSessionState {
+	return value === "offered" || value === "accepted";
+}
+
 function parseTransferSession(raw: string | null): TransferSessionRecord | undefined {
 	if (!raw) {
 		return undefined;
 	}
 
-	try {
-		const parsed = JSON.parse(raw) as TransferSessionRecord;
-		if (!parsed?.transferId || !parsed?.senderDeviceId || !parsed?.receiverDeviceId || !parsed?.state) {
-			return undefined;
-		}
-
-		return parsed;
-	} catch {
+	const { data: parsed } = safeJsonParse<TransferSessionRecord>(raw);
+	if (
+		!parsed?.transferId ||
+		!parsed.senderDeviceId ||
+		!parsed.receiverDeviceId ||
+		!isTransferSessionState(parsed.state)
+	) {
 		return undefined;
 	}
+
+	return parsed;
 }
 
 async function getTransferSession(transferId: string): Promise<TransferSessionRecord | undefined> {
@@ -95,42 +100,40 @@ export async function registerTransferOffer(
 	senderDeviceId: string,
 	receiverDeviceId: string,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
-	const lock = await acquireLock(getTransferLockKey(transferId), TRANSFER_LOCK_TTL_MS);
-	if (!lock) {
-		return { ok: false, reason: "Transfer operation is in progress" };
-	}
+	return await withRedisLock<{ ok: true } | { ok: false; reason: string }>(
+		getTransferLockKey(transferId),
+		TRANSFER_LOCK_TTL_MS,
+		async () => {
+			const existing = await getTransferSession(transferId);
+			if (existing) {
+				if (existing.senderDeviceId === senderDeviceId && existing.receiverDeviceId === receiverDeviceId) {
+					const updated: TransferSessionRecord = {
+						...existing,
+						state: "offered",
+						updatedAt: Date.now(),
+					};
+					await saveTransferSession(updated);
+					return { ok: true };
+				}
 
-	try {
-		const existing = await getTransferSession(transferId);
-		if (existing) {
-			if (existing.senderDeviceId === senderDeviceId && existing.receiverDeviceId === receiverDeviceId) {
-				const updated: TransferSessionRecord = {
-					...existing,
-					state: "offered",
-					updatedAt: Date.now(),
+				return {
+					ok: false,
+					reason: "Transfer ID is already used by another transfer session",
 				};
-				await saveTransferSession(updated);
-				return { ok: true };
 			}
 
-			return {
-				ok: false,
-				reason: "Transfer ID is already used by another transfer session",
-			};
-		}
+			await saveTransferSession({
+				transferId,
+				senderDeviceId,
+				receiverDeviceId,
+				state: "offered",
+				updatedAt: Date.now(),
+			});
 
-		await saveTransferSession({
-			transferId,
-			senderDeviceId,
-			receiverDeviceId,
-			state: "offered",
-			updatedAt: Date.now(),
-		});
-
-		return { ok: true };
-	} finally {
-		await releaseLock(lock);
-	}
+			return { ok: true };
+		},
+		() => ({ ok: false, reason: "Transfer operation is in progress" }),
+	);
 }
 
 export async function ensureTransferParticipants(
@@ -138,72 +141,66 @@ export async function ensureTransferParticipants(
 	senderDeviceId: string,
 	receiverDeviceId: string,
 ): Promise<TransferSessionRecord | undefined> {
-	const lock = await acquireLock(getTransferLockKey(transferId), TRANSFER_LOCK_TTL_MS);
-	if (!lock) {
-		return undefined;
-	}
+	return await withRedisLock(
+		getTransferLockKey(transferId),
+		TRANSFER_LOCK_TTL_MS,
+		async () => {
+			const session = await getTransferSession(transferId);
+			if (!session) {
+				return undefined;
+			}
 
-	try {
-		const session = await getTransferSession(transferId);
-		if (!session) {
-			return undefined;
-		}
+			if (session.senderDeviceId !== senderDeviceId || session.receiverDeviceId !== receiverDeviceId) {
+				return undefined;
+			}
 
-		if (session.senderDeviceId !== senderDeviceId || session.receiverDeviceId !== receiverDeviceId) {
-			return undefined;
-		}
-
-		const updated: TransferSessionRecord = {
-			...session,
-			updatedAt: Date.now(),
-		};
-		await saveTransferSession(updated);
-		return updated;
-	} finally {
-		await releaseLock(lock);
-	}
+			const updated: TransferSessionRecord = {
+				...session,
+				updatedAt: Date.now(),
+			};
+			await saveTransferSession(updated);
+			return updated;
+		},
+		() => undefined,
+	);
 }
 
 export async function markTransferAccepted(transferId: string): Promise<void> {
-	const lock = await acquireLock(getTransferLockKey(transferId), TRANSFER_LOCK_TTL_MS);
-	if (!lock) {
-		return;
-	}
+	await withRedisLock(
+		getTransferLockKey(transferId),
+		TRANSFER_LOCK_TTL_MS,
+		async () => {
+			const session = await getTransferSession(transferId);
+			if (!session) {
+				return;
+			}
 
-	try {
-		const session = await getTransferSession(transferId);
-		if (!session) {
-			return;
-		}
-
-		const updated: TransferSessionRecord = {
-			...session,
-			state: "accepted",
-			updatedAt: Date.now(),
-		};
-		await saveTransferSession(updated);
-	} finally {
-		await releaseLock(lock);
-	}
+			const updated: TransferSessionRecord = {
+				...session,
+				state: "accepted",
+				updatedAt: Date.now(),
+			};
+			await saveTransferSession(updated);
+		},
+		() => undefined,
+	);
 }
 
 export async function removeTransferSession(transferId: string): Promise<void> {
-	const lock = await acquireLock(getTransferLockKey(transferId), TRANSFER_LOCK_TTL_MS);
-	if (!lock) {
-		return;
-	}
+	await withRedisLock(
+		getTransferLockKey(transferId),
+		TRANSFER_LOCK_TTL_MS,
+		async () => {
+			const session = await getTransferSession(transferId);
+			if (!session) {
+				await getRedisClient().del(getTransferSessionKey(transferId));
+				return;
+			}
 
-	try {
-		const session = await getTransferSession(transferId);
-		if (!session) {
-			await getRedisClient().del(getTransferSessionKey(transferId));
-			return;
-		}
-
-		await removeTransferSessionInternal(session);
-	} finally {
-		await releaseLock(lock);
-	}
+			await removeTransferSessionInternal(session);
+		},
+		() => undefined,
+	);
 }
 
 async function findAcceptedSessionsByPair(deviceA: string, deviceB: string): Promise<TransferSessionRecord[]> {
@@ -243,30 +240,28 @@ export async function resolveTransferForAck(
 	const transferId = parsedAck.data?.transferId?.trim();
 
 	if (transferId) {
-		const lock = await acquireLock(getTransferLockKey(transferId), TRANSFER_LOCK_TTL_MS);
-		if (!lock) {
-			return undefined;
-		}
+		return await withRedisLock(
+			getTransferLockKey(transferId),
+			TRANSFER_LOCK_TTL_MS,
+			async () => {
+				const session = await getTransferSession(transferId);
+				if (!session || session.state !== "accepted") {
+					return undefined;
+				}
 
-		try {
-			const session = await getTransferSession(transferId);
-			if (!session || session.state !== "accepted") {
-				return undefined;
-			}
+				if (!isTransferPair(session, senderDeviceId, targetDeviceId)) {
+					return undefined;
+				}
 
-			if (!isTransferPair(session, senderDeviceId, targetDeviceId)) {
-				return undefined;
-			}
-
-			const updated: TransferSessionRecord = {
-				...session,
-				updatedAt: Date.now(),
-			};
-			await saveTransferSession(updated);
-			return updated;
-		} finally {
-			await releaseLock(lock);
-		}
+				const updated: TransferSessionRecord = {
+					...session,
+					updatedAt: Date.now(),
+				};
+				await saveTransferSession(updated);
+				return updated;
+			},
+			() => undefined,
+		);
 	}
 
 	const pairSessions = await findAcceptedSessionsByPair(senderDeviceId, targetDeviceId);
@@ -275,30 +270,28 @@ export async function resolveTransferForAck(
 	}
 
 	const targetSession = pairSessions[0];
-	const lock = await acquireLock(getTransferLockKey(targetSession.transferId), TRANSFER_LOCK_TTL_MS);
-	if (!lock) {
-		return undefined;
-	}
+	return await withRedisLock(
+		getTransferLockKey(targetSession.transferId),
+		TRANSFER_LOCK_TTL_MS,
+		async () => {
+			const current = await getTransferSession(targetSession.transferId);
+			if (!current || current.state !== "accepted") {
+				return undefined;
+			}
 
-	try {
-		const current = await getTransferSession(targetSession.transferId);
-		if (!current || current.state !== "accepted") {
-			return undefined;
-		}
+			if (!isTransferPair(current, senderDeviceId, targetDeviceId)) {
+				return undefined;
+			}
 
-		if (!isTransferPair(current, senderDeviceId, targetDeviceId)) {
-			return undefined;
-		}
-
-		const updated: TransferSessionRecord = {
-			...current,
-			updatedAt: Date.now(),
-		};
-		await saveTransferSession(updated);
-		return updated;
-	} finally {
-		await releaseLock(lock);
-	}
+			const updated: TransferSessionRecord = {
+				...current,
+				updatedAt: Date.now(),
+			};
+			await saveTransferSession(updated);
+			return updated;
+		},
+		() => undefined,
+	);
 }
 
 export async function getTransferSessionForFallback(transferId: string): Promise<TransferSessionRecord | undefined> {

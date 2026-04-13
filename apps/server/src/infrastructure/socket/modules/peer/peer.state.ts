@@ -1,5 +1,6 @@
 import { Logger } from "@/infrastructure/logger";
-import { acquireLock, getRedisClient, releaseLock } from "@/infrastructure/redis";
+import { getRedisClient, withRedisLock } from "@/infrastructure/redis";
+import { safeJsonParse } from "@/shared/utils/json-helper";
 
 export enum PeerConnectionState {
 	PENDING = "PENDING",
@@ -91,6 +92,18 @@ function getPairLockKey(pairId: string): string {
 	return `${PEER_LOCK_PREFIX}${pairId}`;
 }
 
+function isPeerConnectionState(value: unknown): value is PeerConnectionState {
+	return Object.values(PeerConnectionState).includes(value as PeerConnectionState);
+}
+
+function isStateChangeReason(value: unknown): value is StateChangeReason {
+	return Object.values(StateChangeReason).includes(value as StateChangeReason);
+}
+
+function isSourceTransport(value: unknown): value is PeerConnectionInfo["sourceTransport"] {
+	return value === "TCP" || value === "WebSocket";
+}
+
 function isActiveState(state: PeerConnectionState): boolean {
 	return state !== PeerConnectionState.DISCONNECTED;
 }
@@ -126,15 +139,22 @@ function parseConnection(raw: string | null): PeerConnectionInfo | undefined {
 		return undefined;
 	}
 
-	try {
-		const parsed = JSON.parse(raw) as PeerConnectionInfo;
-		if (!parsed?.pairId || !parsed?.requestId || !parsed?.deviceA || !parsed?.deviceB || !parsed?.state) {
-			return undefined;
-		}
-		return parsed;
-	} catch {
+	const { data: parsed } = safeJsonParse<PeerConnectionInfo>(raw);
+	if (
+		!parsed?.pairId ||
+		!parsed.requestId ||
+		!parsed.deviceA ||
+		!parsed.deviceB ||
+		!parsed.initiator ||
+		!parsed.sourceConnectionId ||
+		!isPeerConnectionState(parsed.state) ||
+		!isStateChangeReason(parsed.lastChangeReason) ||
+		!isSourceTransport(parsed.sourceTransport)
+	) {
 		return undefined;
 	}
+
+	return parsed;
 }
 
 async function saveConnection(conn: PeerConnectionInfo): Promise<void> {
@@ -220,58 +240,56 @@ export async function attemptConnection(request: ConnectionRequest): Promise<Con
 		};
 	}
 
-	const lock = await acquireLock(getPairLockKey(pairId), CONFIG.LOCK_TTL_MS);
-	if (!lock) {
-		return {
-			success: false,
-			reason: "Another connection operation is in progress for this device pair",
-		};
-	}
+	return await withRedisLock<ConnectionAttemptResult>(
+		getPairLockKey(pairId),
+		CONFIG.LOCK_TTL_MS,
+		async () => {
+			const existing = await getConnectionByPairId(pairId);
 
-	try {
-		const existing = await getConnectionByPairId(pairId);
+			if (existing) {
+				if (isActiveState(existing.state) && !isExpired(existing)) {
+					Logger.info(
+						"PEER_STATE",
+						`Duplicate request for pair ${pairId}: existing connection in state ${existing.state}`,
+					);
 
-		if (existing) {
-			if (isActiveState(existing.state) && !isExpired(existing)) {
-				Logger.info(
-					"PEER_STATE",
-					`Duplicate request for pair ${pairId}: existing connection in state ${existing.state}`,
-				);
+					return {
+						success: false,
+						reason: `Connection already ${existing.state.toLowerCase()}`,
+						existingRequestId: existing.requestId,
+					};
+				}
 
-				return {
-					success: false,
-					reason: `Connection already ${existing.state.toLowerCase()}`,
-					existingRequestId: existing.requestId,
-				};
+				Logger.info("PEER_STATE", `Replacing expired/disconnected connection for pair ${pairId}`);
+				await removeConnection(existing);
 			}
 
-			Logger.info("PEER_STATE", `Replacing expired/disconnected connection for pair ${pairId}`);
-			await removeConnection(existing);
-		}
+			const requestId = generateRequestId();
+			const connection: PeerConnectionInfo = {
+				pairId,
+				deviceA: sourceDeviceId < targetDeviceId ? sourceDeviceId : targetDeviceId,
+				deviceB: sourceDeviceId < targetDeviceId ? targetDeviceId : sourceDeviceId,
+				initiator: sourceDeviceId,
+				state: PeerConnectionState.PENDING,
+				requestId,
+				createdAt: now,
+				updatedAt: now,
+				lastChangeReason: StateChangeReason.REQUEST_INITIATED,
+				sourceConnectionId,
+				sourceTransport,
+			};
 
-		const requestId = generateRequestId();
-		const connection: PeerConnectionInfo = {
-			pairId,
-			deviceA: sourceDeviceId < targetDeviceId ? sourceDeviceId : targetDeviceId,
-			deviceB: sourceDeviceId < targetDeviceId ? targetDeviceId : sourceDeviceId,
-			initiator: sourceDeviceId,
-			state: PeerConnectionState.PENDING,
-			requestId,
-			createdAt: now,
-			updatedAt: now,
-			lastChangeReason: StateChangeReason.REQUEST_INITIATED,
-			sourceConnectionId,
-			sourceTransport,
-		};
+			await saveConnection(connection);
 
-		await saveConnection(connection);
+			Logger.info("PEER_STATE", `Created new connection: ${pairId} (${requestId})`);
 
-		Logger.info("PEER_STATE", `Created new connection: ${pairId} (${requestId})`);
-
-		return { success: true, requestId, isNew: true };
-	} finally {
-		await releaseLock(lock);
-	}
+			return { success: true, requestId, isNew: true };
+		},
+		() => ({
+			success: false,
+			reason: "Another connection operation is in progress for this device pair",
+		}),
+	);
 }
 
 export async function getConnectionByPair(deviceA: string, deviceB: string): Promise<PeerConnectionInfo | undefined> {
@@ -314,39 +332,39 @@ export async function markTargetAccepted(
 		return null;
 	}
 
-	const lock = await acquireLock(getPairLockKey(conn.pairId), CONFIG.LOCK_TTL_MS);
-	if (!lock) {
-		Logger.warn("PEER_STATE", `Cannot mark accepted: lock busy for pair ${conn.pairId}`);
-		return null;
-	}
+	return await withRedisLock(
+		getPairLockKey(conn.pairId),
+		CONFIG.LOCK_TTL_MS,
+		async () => {
+			const current = await getConnectionByPairId(conn.pairId);
+			if (!current || current.requestId !== requestId) {
+				Logger.warn("PEER_STATE", `Cannot mark accepted: request ${requestId} not found`);
+				return null;
+			}
 
-	try {
-		const current = await getConnectionByPairId(conn.pairId);
-		if (!current || current.requestId !== requestId) {
-			Logger.warn("PEER_STATE", `Cannot mark accepted: request ${requestId} not found`);
+			if (current.state !== PeerConnectionState.PENDING) {
+				Logger.warn("PEER_STATE", `Cannot mark accepted: request ${requestId} in state ${current.state}`);
+				return null;
+			}
+
+			const updated: PeerConnectionInfo = {
+				...current,
+				state: PeerConnectionState.IN_PROGRESS,
+				lastChangeReason: StateChangeReason.TARGET_ACCEPTED,
+				updatedAt: Date.now(),
+				targetConnectionId,
+				targetPort,
+			};
+			await saveConnection(updated);
+
+			Logger.info("PEER_STATE", `Connection ${requestId} marked IN_PROGRESS`);
+			return updated;
+		},
+		() => {
+			Logger.warn("PEER_STATE", `Cannot mark accepted: lock busy for pair ${conn.pairId}`);
 			return null;
-		}
-
-		if (current.state !== PeerConnectionState.PENDING) {
-			Logger.warn("PEER_STATE", `Cannot mark accepted: request ${requestId} in state ${current.state}`);
-			return null;
-		}
-
-		const updated: PeerConnectionInfo = {
-			...current,
-			state: PeerConnectionState.IN_PROGRESS,
-			lastChangeReason: StateChangeReason.TARGET_ACCEPTED,
-			updatedAt: Date.now(),
-			targetConnectionId,
-			targetPort,
-		};
-		await saveConnection(updated);
-
-		Logger.info("PEER_STATE", `Connection ${requestId} marked IN_PROGRESS`);
-		return updated;
-	} finally {
-		await releaseLock(lock);
-	}
+		},
+	);
 }
 
 export async function markConnected(requestId: string): Promise<boolean> {
@@ -356,32 +374,32 @@ export async function markConnected(requestId: string): Promise<boolean> {
 		return false;
 	}
 
-	const lock = await acquireLock(getPairLockKey(conn.pairId), CONFIG.LOCK_TTL_MS);
-	if (!lock) {
-		Logger.warn("PEER_STATE", `Cannot mark connected: lock busy for pair ${conn.pairId}`);
-		return false;
-	}
+	return await withRedisLock(
+		getPairLockKey(conn.pairId),
+		CONFIG.LOCK_TTL_MS,
+		async () => {
+			const current = await getConnectionByPairId(conn.pairId);
+			if (!current || current.requestId !== requestId) {
+				Logger.warn("PEER_STATE", `Cannot mark connected: request ${requestId} not found`);
+				return false;
+			}
 
-	try {
-		const current = await getConnectionByPairId(conn.pairId);
-		if (!current || current.requestId !== requestId) {
-			Logger.warn("PEER_STATE", `Cannot mark connected: request ${requestId} not found`);
+			const updated: PeerConnectionInfo = {
+				...current,
+				state: PeerConnectionState.CONNECTED,
+				lastChangeReason: StateChangeReason.CONNECTION_STARTED,
+				updatedAt: Date.now(),
+			};
+			await saveConnection(updated);
+
+			Logger.info("PEER_STATE", `Connection ${requestId} marked CONNECTED`);
+			return true;
+		},
+		() => {
+			Logger.warn("PEER_STATE", `Cannot mark connected: lock busy for pair ${conn.pairId}`);
 			return false;
-		}
-
-		const updated: PeerConnectionInfo = {
-			...current,
-			state: PeerConnectionState.CONNECTED,
-			lastChangeReason: StateChangeReason.CONNECTION_STARTED,
-			updatedAt: Date.now(),
-		};
-		await saveConnection(updated);
-
-		Logger.info("PEER_STATE", `Connection ${requestId} marked CONNECTED`);
-		return true;
-	} finally {
-		await releaseLock(lock);
-	}
+		},
+	);
 }
 
 export async function markDisconnected(
@@ -390,30 +408,28 @@ export async function markDisconnected(
 	reason: StateChangeReason = StateChangeReason.EXPLICIT_DISCONNECT,
 ): Promise<boolean> {
 	const pairId = getPairId(deviceA, deviceB);
-	const lock = await acquireLock(getPairLockKey(pairId), CONFIG.LOCK_TTL_MS);
-	if (!lock) {
-		return false;
-	}
+	return await withRedisLock(
+		getPairLockKey(pairId),
+		CONFIG.LOCK_TTL_MS,
+		async () => {
+			const conn = await getConnectionByPairId(pairId);
+			if (!conn) {
+				return false;
+			}
 
-	try {
-		const conn = await getConnectionByPairId(pairId);
-		if (!conn) {
-			return false;
-		}
+			const updated: PeerConnectionInfo = {
+				...conn,
+				state: PeerConnectionState.DISCONNECTED,
+				lastChangeReason: reason,
+				updatedAt: Date.now(),
+			};
 
-		const updated: PeerConnectionInfo = {
-			...conn,
-			state: PeerConnectionState.DISCONNECTED,
-			lastChangeReason: reason,
-			updatedAt: Date.now(),
-		};
-
-		await saveConnection(updated);
-		Logger.info("PEER_STATE", `Connection ${updated.requestId} marked DISCONNECTED (${reason})`);
-		return true;
-	} finally {
-		await releaseLock(lock);
-	}
+			await saveConnection(updated);
+			Logger.info("PEER_STATE", `Connection ${updated.requestId} marked DISCONNECTED (${reason})`);
+			return true;
+		},
+		() => false,
+	);
 }
 
 export async function handleDeviceDisconnect(deviceId: string): Promise<number> {
@@ -422,38 +438,40 @@ export async function handleDeviceDisconnect(deviceId: string): Promise<number> 
 	let count = 0;
 
 	for (const pairId of pairIds) {
-		const lock = await acquireLock(getPairLockKey(pairId), CONFIG.LOCK_TTL_MS);
-		if (!lock) {
-			continue;
-		}
+		const didDisconnect = await withRedisLock(
+			getPairLockKey(pairId),
+			CONFIG.LOCK_TTL_MS,
+			async () => {
+				const conn = await getConnectionByPairId(pairId);
+				if (!conn) {
+					await redis.sRem(getDevicePairsKey(deviceId), pairId);
+					return false;
+				}
 
-		try {
-			const conn = await getConnectionByPairId(pairId);
-			if (!conn) {
-				await redis.sRem(getDevicePairsKey(deviceId), pairId);
-				continue;
-			}
+				const isParticipant = conn.deviceA === deviceId || conn.deviceB === deviceId;
+				if (!isParticipant) {
+					await redis.sRem(getDevicePairsKey(deviceId), pairId);
+					return false;
+				}
 
-			const isParticipant = conn.deviceA === deviceId || conn.deviceB === deviceId;
-			if (!isParticipant) {
-				await redis.sRem(getDevicePairsKey(deviceId), pairId);
-				continue;
-			}
+				if (!isActiveState(conn.state)) {
+					return false;
+				}
 
-			if (!isActiveState(conn.state)) {
-				continue;
-			}
+				const updated: PeerConnectionInfo = {
+					...conn,
+					state: PeerConnectionState.DISCONNECTED,
+					lastChangeReason: StateChangeReason.DEVICE_OFFLINE,
+					updatedAt: Date.now(),
+				};
+				await saveConnection(updated);
+				return true;
+			},
+			() => false,
+		);
 
-			const updated: PeerConnectionInfo = {
-				...conn,
-				state: PeerConnectionState.DISCONNECTED,
-				lastChangeReason: StateChangeReason.DEVICE_OFFLINE,
-				updatedAt: Date.now(),
-			};
-			await saveConnection(updated);
+		if (didDisconnect) {
 			count++;
-		} finally {
-			await releaseLock(lock);
 		}
 	}
 

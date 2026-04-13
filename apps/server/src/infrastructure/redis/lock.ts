@@ -15,6 +15,8 @@ export type RedisLock = {
 	token: string;
 };
 
+type RedisLockCallback<T> = () => T | Promise<T>;
+
 export async function acquireLock(key: string, ttlMs: number): Promise<RedisLock | null> {
 	const redis = getRedisClient();
 	const token = randomUUID();
@@ -32,4 +34,22 @@ export async function releaseLock(lock: RedisLock): Promise<void> {
 		keys: [lock.key],
 		arguments: [lock.token],
 	});
+}
+
+export async function withRedisLock<T>(
+	key: string,
+	ttlMs: number,
+	operation: RedisLockCallback<T>,
+	onUnavailable: RedisLockCallback<T>,
+): Promise<T> {
+	const lock = await acquireLock(key, ttlMs);
+	if (!lock) {
+		return await onUnavailable();
+	}
+
+	try {
+		return await operation();
+	} finally {
+		await releaseLock(lock);
+	}
 }
