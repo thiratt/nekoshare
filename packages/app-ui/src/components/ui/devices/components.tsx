@@ -82,7 +82,7 @@ export const DeviceCard = memo(function DeviceCard({ device, onManage, onDelete 
 				</div>
 			</CardContent>
 			<CardFooter>
-				<div className="pt-2 border-t flex gap-2 w-full">
+				<div className="flex gap-2 w-full">
 					<Button className="flex-1" variant="outline" size="sm" onClick={() => onManage(device.id)}>
 						<LuSettings />
 						Edit
