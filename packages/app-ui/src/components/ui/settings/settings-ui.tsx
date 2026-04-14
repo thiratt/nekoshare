@@ -204,7 +204,7 @@ export function SettingsUI() {
 							/>
 						</Button>
 					</header>
-					<div className="flex-1 p-6 h-1 pb-0">
+					<div className="min-h-0 flex-1 px-6 pt-4">
 						<AnimatePresence mode="wait" initial={false}>
 							<motion.div
 								key={activeCategory}
@@ -213,7 +213,7 @@ export function SettingsUI() {
 								animate="animate"
 								exit="exit"
 								transition={CONTENT_TRANSITION}
-								className="h-full"
+								className="h-full min-h-0 w-full"
 							>
 								<ContentComponent {...contentProps} />
 							</motion.div>

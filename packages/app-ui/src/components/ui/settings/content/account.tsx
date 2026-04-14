@@ -913,17 +913,20 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 	});
 
 	return (
-		<div className="space-y-2 rounded-full">
+		<>
 			<NTabs
+				className="h-full min-h-0"
+				contentClassName="h-full"
 				defaultValue="general"
 				listClassName="gap-1"
+				viewportClassName="min-h-0 flex-1"
 				items={[
 					{
 						value: "general",
 						label: t("account.ui.tabs.general"),
 						content: (
-							<ScrollArea className="h-[calc(100vh-14rem)]">
-								<div className="space-y-4">
+							<ScrollArea className="h-full">
+								<div className="space-y-4 pb-6">
 									<Card>
 										<CardHeader className="flex flex-row justify-between space-y-0 gap-4">
 											<div className="flex flex-col">
@@ -1106,8 +1109,8 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 						value: "security",
 						label: t("account.ui.tabs.security"),
 						content: (
-							<ScrollArea className="h-[calc(100vh-14rem)]">
-								<div className="space-y-4">
+							<ScrollArea className="h-full">
+								<div className="space-y-4 pb-6">
 									<Card>
 										<CardHeader>
 											<CardTitle>{t("account.ui.password.title")}</CardTitle>
@@ -1493,6 +1496,6 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 					)}
 				</DialogContent>
 			</Dialog>
-		</div>
+		</>
 	);
 });

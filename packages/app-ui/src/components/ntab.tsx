@@ -216,8 +216,12 @@ export function NTabs({
 			</TabsList>
 
 			{activeItem && (
-				<TabsContent className={cn("min-w-0 overflow-hidden", viewportClassName)} forceMount value={activeValue}>
-					<div className="relative overflow-hidden">
+				<TabsContent
+					className={cn("min-w-0 flex-1 overflow-hidden", viewportClassName)}
+					forceMount
+					value={activeValue}
+				>
+					<div className="relative h-full overflow-hidden">
 						<AnimatePresence custom={resolvedDirection} initial={false} mode="sync">
 							<motion.div
 								key={activeItem.value}
@@ -227,7 +231,7 @@ export function NTabs({
 								animate="center"
 								exit="exit"
 								transition={TAB_CONTENT_TRANSITION}
-								className={contentClassName}
+								className={cn("h-full", contentClassName)}
 							>
 								{activeItem.content}
 							</motion.div>
