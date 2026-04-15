@@ -1,41 +1,154 @@
 <!doctype html>
-<html lang="th">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#ffffff" />
-    <meta name="application-name" content="Nekoshare" />
+    <meta name="theme-color" content="#ffffff" id="theme-color-meta" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="application-name" content="Neko Share" />
+    <meta name="apple-mobile-web-app-title" content="Neko Share" />
     <meta
       name="description"
-      content="Nekoshare สำหรับเว็บ ช่วยให้คุณแชร์ไฟล์และจัดการอุปกรณ์ได้จากเบราว์เซอร์อย่างรวดเร็วและปลอดภัย"
+      content="Neko Share is an open-source, self-hostable file sharing app with secure transfers. Free to use."
     />
     <meta
       name="keywords"
-      content="Nekoshare, file sharing, แชร์ไฟล์, device management, web app"
+      content="Neko Share, open-source file sharing, self-hostable file sharing, cross-device file sharing, direct file transfer, secure file sharing"
     />
+    <meta name="robots" content="index,follow" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Nekoshare" />
-    <meta property="og:title" content="Nekoshare Web" />
+    <meta property="og:site_name" content="Neko Share" />
+    <meta property="og:url" content="https://nekoshare.app/" />
+    <meta
+      property="og:title"
+      content="Neko Share | Open-Source Self-Hostable File Sharing"
+    />
     <meta
       property="og:description"
-      content="Nekoshare สำหรับเว็บ ช่วยให้คุณแชร์ไฟล์และจัดการอุปกรณ์ได้จากเบราว์เซอร์อย่างรวดเร็วและปลอดภัย"
+      content="An open-source, self-hostable file sharing app with secure transfers. Free to use."
     />
-    <meta property="og:image" content="/android-chrome-512x512.png" />
+    <meta
+      property="og:image"
+      content="https://nekoshare.app/web-app-manifest-512x512.png"
+    />
+    <meta property="og:image:alt" content="Neko Share logo" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Nekoshare Web" />
+    <meta
+      name="twitter:title"
+      content="Neko Share | Open-Source Self-Hostable File Sharing"
+    />
     <meta
       name="twitter:description"
-      content="Nekoshare สำหรับเว็บ ช่วยให้คุณแชร์ไฟล์และจัดการอุปกรณ์ได้จากเบราว์เซอร์อย่างรวดเร็วและปลอดภัย"
+      content="An open-source, self-hostable file sharing app with secure transfers. Free to use."
     />
-    <meta name="twitter:image" content="/android-chrome-512x512.png" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="shortcut icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/manifest.json" />
-    <title>Nekoshare Web</title>
+    <meta
+      name="twitter:image"
+      content="https://nekoshare.app/web-app-manifest-512x512.png"
+    />
+    <link rel="canonical" href="https://nekoshare.app/" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/favicon.svg"
+      id="app-favicon-svg"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="96x96"
+      href="/favicon-96x96.png"
+      id="app-favicon-png"
+    />
+    <link rel="shortcut icon" href="/favicon.ico" id="app-favicon-ico" />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/apple-touch-icon.png"
+      id="app-apple-touch-icon"
+    />
+    <link rel="manifest" href="/site.webmanifest" id="app-manifest" />
+    <script>
+      (() => {
+        const storageKey = "nekoshare-ui-theme";
+        let storedTheme = null;
+
+        try {
+          storedTheme = window.localStorage.getItem(storageKey);
+        } catch (error) {}
+
+        const prefersDark =
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const resolvedTheme =
+          storedTheme === "dark"
+            ? "dark"
+            : storedTheme === "light"
+              ? "light"
+              : prefersDark
+                ? "dark"
+                : "light";
+        const themeColor = resolvedTheme === "dark" ? "#09090b" : "#ffffff";
+        const assets =
+          resolvedTheme === "dark"
+            ? {
+                svg: "/favicon-dark.svg",
+                png: "/favicon-96x96-dark.png",
+                ico: "/favicon-dark.ico",
+                apple: "/apple-touch-icon-dark.png",
+                manifest: "/site-dark.webmanifest",
+              }
+            : {
+                svg: "/favicon.svg",
+                png: "/favicon-96x96.png",
+                ico: "/favicon.ico",
+                apple: "/apple-touch-icon.png",
+                manifest: "/site.webmanifest",
+              };
+
+        const setHref = (id, href) => {
+          const element = document.getElementById(id);
+
+          if (element) {
+            element.setAttribute("href", href);
+          }
+        };
+
+        setHref("app-favicon-svg", assets.svg);
+        setHref("app-favicon-png", assets.png);
+        setHref("app-favicon-ico", assets.ico);
+        setHref("app-apple-touch-icon", assets.apple);
+        setHref("app-manifest", assets.manifest);
+
+        const themeColorMeta = document.getElementById("theme-color-meta");
+
+        if (themeColorMeta) {
+          themeColorMeta.setAttribute("content", themeColor);
+        }
+      })();
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "name": "Neko Share",
+            "url": "https://nekoshare.app/",
+            "description": "Neko Share is an open-source, self-hostable file sharing app with secure transfers. Free to use."
+          },
+          {
+            "@type": "Organization",
+            "name": "Neko Share",
+            "url": "https://nekoshare.app/",
+            "logo": "https://nekoshare.app/favicon.svg",
+            "sameAs": ["https://github.com/nekoshare/nekoshare"]
+          }
+        ]
+      }
+    </script>
+    <title>Neko Share | Open-Source Self-Hostable File Sharing</title>
   </head>
   <body>
     <div id="app"></div>
