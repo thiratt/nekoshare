@@ -12,6 +12,7 @@ COPY packages/ui/package.json packages/ui/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/nk-websocket/package.json packages/nk-websocket/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
+COPY packages/i18n/package.json packages/i18n/package.json
 COPY packages/typescript-config/package.json packages/typescript-config/package.json
 RUN pnpm install --frozen-lockfile --filter web...
 
@@ -24,6 +25,7 @@ COPY packages/ui packages/ui
 COPY packages/contracts packages/contracts
 COPY packages/nk-websocket packages/nk-websocket
 COPY packages/eslint-config packages/eslint-config
+COPY packages/i18n packages/i18n
 COPY packages/typescript-config packages/typescript-config
 RUN VITE_API_BASE_URL="$WEB_API_BASE_URL" VITE_WS_BASE_URL="$WEB_WS_BASE_URL" pnpm -C apps/web build
 
