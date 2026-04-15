@@ -1,6 +1,7 @@
 {
 	"name": "nekoshare",
 	"private": true,
+	"license": "MIT",
 	"scripts": {
 		"build": "turbo run build",
 		"build:server": "turbo run build --filter=server",
