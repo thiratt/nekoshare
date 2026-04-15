@@ -43,7 +43,7 @@ function RouteComponent() {
         <Platforms />
         <Security />
         <CTA />
-        <Footer />
+        <Footer theme={theme} />
       </div>
     </div>
   );

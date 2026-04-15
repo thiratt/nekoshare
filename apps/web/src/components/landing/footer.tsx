@@ -6,7 +6,7 @@ const navigation = [
   { name: "Pricing", href: "#pricing" },
 ];
 
-export function Footer() {
+export function Footer({ theme }: { theme: "light" | "dark" | "system" }) {
   return (
     <footer className="border-t border-border/40 bg-muted/15">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -14,7 +14,11 @@ export function Footer() {
           <div className="max-w-sm">
             <Link to="/" className="flex items-center gap-2">
               <div className="h-8 w-8">
-                <img src="/NekoShare-Dark.svg" alt="Neko Share Logo" />
+                {theme === "light" ? (
+                  <img src="/NekoShare-Light.svg" alt="Neko Share Light Logo" />
+                ) : (
+                  <img src="/NekoShare-Dark.svg" alt="Neko Share Dark Logo" />
+                )}
               </div>
               <span className="text-xl font-semibold tracking-tight text-foreground">
                 Neko Share
