@@ -1,27 +1,40 @@
 import { useEffect } from "react";
 
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouter } from "@tanstack/react-router";
 
-import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
+import {
+  NekoShareProvider,
+  useNekoShare,
+} from "@workspace/app-ui/context/nekoshare";
 
-import { getCachedSession } from "@/lib/auth";
+import { AppI18nProvider } from "@workspace/i18n/react";
 
 export const Route = createFileRoute("/(auth)")({
   async beforeLoad() {
-    const result = await getCachedSession();
+    const { redirectAuthenticatedUser } = await import("@/lib/route-auth");
 
-    if (result.status === "success" && result.data.isAuthenticated) {
-      throw redirect({ to: "/home" });
-    }
-
-    if (result.status === "error") {
-      console.error("Failed to fetch session:", result.error.toUserMessage());
-    }
+    await redirectAuthenticatedUser();
   },
   component: RouteComponent,
 });
 
 function RouteComponent() {
+  const router = useRouter();
+
+  return (
+    <AppI18nProvider>
+      <NekoShareProvider
+        router={router}
+        currentDevice={undefined}
+        appMode="web"
+      >
+        <AuthRouteContent />
+      </NekoShareProvider>
+    </AppI18nProvider>
+  );
+}
+
+function AuthRouteContent() {
   const { setGlobalLoading } = useNekoShare();
 
   useEffect(() => {

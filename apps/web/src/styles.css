@@ -3,6 +3,7 @@
   src: url("./assets/fonts/LINESeedSansTH_W_Th.woff2") format("woff2");
   font-weight: 100;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -10,6 +11,7 @@
   src: url("./assets/fonts/LINESeedSansTH_W_Rg.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -17,6 +19,7 @@
   src: url("./assets/fonts/LINESeedSansTH_W_Bd.woff2") format("woff2");
   font-weight: 700;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -24,6 +27,7 @@
   src: url("./assets/fonts/LINESeedSansTH_W_XBd.woff2") format("woff2");
   font-weight: 800;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -31,10 +35,19 @@
   src: url("./assets/fonts/LINESeedSansTH_W_He.woff2") format("woff2");
   font-weight: 900;
   font-style: normal;
+  font-display: swap;
 }
 
-* {
+html,
+body {
   font-family: "LINESeedSansTH", sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 html {

@@ -4,46 +4,52 @@ import {
   createFileRoute,
   Link,
   Outlet,
-  redirect,
   useLocation,
+  useRouter,
 } from "@tanstack/react-router";
 import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
 
 import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
-import { useNekoShare } from "@workspace/app-ui/context/nekoshare";
 import {
-  authClient,
-  getCachedSession,
-  type SessionUser,
-} from "@workspace/app-ui/lib/auth";
-import { useAccountThemeSync, useTheme } from "@workspace/app-ui/providers/theme-provider";
+  NekoShareProvider,
+  useNekoShare,
+} from "@workspace/app-ui/context/nekoshare";
+import { authClient, type SessionUser } from "@workspace/app-ui/lib/auth";
+import {
+  useAccountThemeSync,
+  useTheme,
+} from "@workspace/app-ui/providers/theme-provider";
 
 import { WebTitlebar } from "@/components/navbar";
-import { useAccountLanguageSync } from "@workspace/i18n/react";
+import { AppI18nProvider, useAccountLanguageSync } from "@workspace/i18n/react";
 
 export const Route = createFileRoute("/home")({
   async beforeLoad() {
-    const result = await getCachedSession();
+    const { requireAuthenticatedSession } = await import("@/lib/route-auth");
 
-    if (result.status === "success") {
-      if (!result.data.isAuthenticated || !result.data.session) {
-        throw redirect({ to: "/login" });
-      }
-
-      return {
-        session: result.data.session.session,
-        user: result.data.session.user,
-      };
-    }
-
-    console.error("Failed to fetch session:", result.error.toUserMessage());
-    throw redirect({ to: "/login" });
+    return requireAuthenticatedSession();
   },
   component: RouteComponent,
 });
 
 function RouteComponent() {
+  const router = useRouter();
+
+  return (
+    <AppI18nProvider>
+      <NekoShareProvider
+        router={router}
+        currentDevice={undefined}
+        appMode="web"
+      >
+        <HomeRouteContent />
+      </NekoShareProvider>
+    </AppI18nProvider>
+  );
+}
+
+function HomeRouteContent() {
   const location = useLocation();
   const { theme, setTheme } = useTheme();
   const { setGlobalLoading, setMode, toggleNotification, notificationStatus } =
@@ -59,16 +65,23 @@ function RouteComponent() {
     () => [
       {
         icon: theme === "dark" ? <LuMoon /> : <LuSun />,
+        label:
+          theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
         onClick: () => setTheme(theme === "dark" ? "light" : "dark"),
       },
       {
         icon: <LuBell />,
+        label:
+          notificationStatus === "on"
+            ? "Close notifications"
+            : "Open notifications",
         onClick: () => toggleNotification(),
         badge: true,
         actived: notificationStatus === "on",
       },
       {
         icon: <LuSettings />,
+        label: "Open settings",
         onClick: () => setMode("settings"),
       },
     ],

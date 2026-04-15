@@ -99,6 +99,10 @@ export function Platforms() {
                         <img
                           src="/NekoShare-Light.svg"
                           alt="Neko Share Light Logo"
+                          width="12"
+                          height="12"
+                          loading="lazy"
+                          decoding="async"
                         />
                       </div>
                       <span className="text-xs text-foreground">

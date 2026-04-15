@@ -4,7 +4,7 @@ import { cn } from "@workspace/ui/lib/utils";
 interface WebTitlebarHelperActionsProps {
   icon: React.ReactNode;
   onClick: () => void;
-  title?: string;
+  label: string;
   actived?: boolean;
   badge?: boolean;
 }
@@ -32,7 +32,8 @@ function WebTitlebar({ helperActions }: WebTitlebarProps) {
                   action.actived && "bg-muted/20 dark:bg-[#373737]",
                 )}
                 variant="ghost"
-                title={action.title}
+                aria-label={action.label}
+                title={action.label}
                 onClick={action.onClick}
                 tabIndex={-1}
               >

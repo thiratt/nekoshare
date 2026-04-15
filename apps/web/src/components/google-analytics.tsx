@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { useRouterState } from "@tanstack/react-router";
 
@@ -15,36 +15,67 @@ export function GoogleAnalytics() {
   const href = useRouterState({
     select: (state) => state.location.href,
   });
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     if (!measurementId || import.meta.env.DEV) {
       return;
     }
 
-    window.dataLayer = window.dataLayer || [];
+    let timeoutId: number | undefined;
 
-    if (!window.gtag) {
-      window.gtag = (...args: unknown[]) => {
-        window.dataLayer.push(args);
+    const initializeAnalytics = () => {
+      window.dataLayer = window.dataLayer || [];
+
+      if (!window.gtag) {
+        window.gtag = (...args: unknown[]) => {
+          window.dataLayer.push(args);
+        };
+      }
+
+      if (!document.getElementById("google-gtag")) {
+        const script = document.createElement("script");
+        script.id = "google-gtag";
+        script.async = true;
+        script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+        document.head.appendChild(script);
+      }
+
+      window.gtag("js", new Date());
+      window.gtag("config", measurementId, { send_page_view: false });
+      setIsReady(true);
+    };
+
+    const scheduleAnalytics = () => {
+      timeoutId = window.setTimeout(initializeAnalytics, 1_000);
+    };
+
+    if (document.readyState === "complete") {
+      scheduleAnalytics();
+      return () => {
+        if (timeoutId !== undefined) {
+          window.clearTimeout(timeoutId);
+        }
       };
     }
 
-    if (document.getElementById("google-gtag")) {
-      return;
-    }
+    const handleLoad = () => {
+      scheduleAnalytics();
+    };
 
-    window.gtag("js", new Date());
-    window.gtag("config", measurementId, { send_page_view: false });
+    window.addEventListener("load", handleLoad, { once: true });
 
-    const script = document.createElement("script");
-    script.id = "google-gtag";
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
-    document.head.appendChild(script);
+    return () => {
+      window.removeEventListener("load", handleLoad);
+
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   useEffect(() => {
-    if (!measurementId || import.meta.env.DEV || !window.gtag) {
+    if (!measurementId || import.meta.env.DEV || !isReady || !window.gtag) {
       return;
     }
 
@@ -53,7 +84,7 @@ export function GoogleAnalytics() {
       page_title: document.title,
       page_location: window.location.href,
     });
-  }, [href]);
+  }, [href, isReady]);
 
   return null;
 }

@@ -1,16 +1,61 @@
-import { type PointerEventHandler, useCallback, useState } from "react";
+import {
+  lazy,
+  type PointerEventHandler,
+  Suspense,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 
 import { Button } from "@workspace/ui/components/button";
 
-import { motion } from "@workspace/app-ui/components/provide-animate";
+const INTERACTIVE_BACKGROUND_QUERY =
+  "(min-width: 1024px) and (pointer: fine) and (prefers-reduced-motion: no-preference)";
 
-import { HexagonBackground } from "./background";
+const LazyHexagonBackground = lazy(async () => {
+  const module = await import("./background");
+
+  return { default: module.HexagonBackground };
+});
+
+function getInteractiveBackgroundState() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.matchMedia(INTERACTIVE_BACKGROUND_QUERY).matches;
+}
 
 export function Hero() {
   const [activePoint, setActivePoint] = useState<{
     x: number;
     y: number;
   } | null>(null);
+  const [showInteractiveBackground, setShowInteractiveBackground] = useState(
+    getInteractiveBackgroundState,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia(INTERACTIVE_BACKGROUND_QUERY);
+    const handleChange = () => {
+      setShowInteractiveBackground(mediaQuery.matches);
+    };
+
+    handleChange();
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (!showInteractiveBackground) {
+      setActivePoint(null);
+    }
+  }, [showInteractiveBackground]);
 
   const handlePointerMoveCapture = useCallback<
     PointerEventHandler<HTMLElement>
@@ -30,31 +75,32 @@ export function Hero() {
   return (
     <section
       className="relative min-h-screen overflow-hidden pt-24 pb-16"
-      onPointerMoveCapture={handlePointerMoveCapture}
-      onPointerLeave={handlePointerLeave}
+      onPointerMoveCapture={
+        showInteractiveBackground ? handlePointerMoveCapture : undefined
+      }
+      onPointerLeave={
+        showInteractiveBackground ? handlePointerLeave : undefined
+      }
     >
       <div className="absolute inset-0 z-0">
-        <HexagonBackground activePoint={activePoint} />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(148,163,184,0.18),transparent_55%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-48 bg-[linear-gradient(180deg,transparent,rgba(15,23,42,0.04))]" />
+        {showInteractiveBackground ? (
+          <Suspense fallback={null}>
+            <LazyHexagonBackground activePoint={activePoint} />
+          </Suspense>
+        ) : null}
       </div>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-8">
           <div className="relative z-10">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-              className="mb-4 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background px-4 py-2 text-sm backdrop-blur-sm"
-            >
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background px-4 py-2 text-sm backdrop-blur-sm">
               <span className="flex h-2 w-2 rounded-full bg-orange-500" />
               <span className="text-muted-foreground">Coming soon!</span>
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
+            <div>
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-foreground leading-[1.1]">
                 <span className="block">A Better Way</span>
                 <span className="block mt-1">to Share Files</span>
@@ -62,24 +108,14 @@ export function Hero() {
                   Across Your Devices
                 </span>
               </h1>
-            </motion.div>
+            </div>
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="mt-4 text-lg text-muted-foreground max-w-md leading-relaxed"
-            >
+            <p className="mt-4 max-w-md text-lg leading-relaxed text-muted-foreground">
               Send files to your own devices or share them with friends in a
               flow that stays simple, direct, and easy to trust.
-            </motion.p>
+            </p>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="mt-6 flex flex-col sm:flex-row gap-4"
-            >
+            <div className="mt-6 flex flex-col gap-4 sm:flex-row">
               <Button
                 size="lg"
                 className="group h-14 rounded-2xl px-8 text-base font-medium"
@@ -94,7 +130,7 @@ export function Hero() {
               >
                 See how it works
               </Button>
-            </motion.div>
+            </div>
           </div>
 
           <div className="z-10"></div>

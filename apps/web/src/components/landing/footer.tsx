@@ -15,9 +15,23 @@ export function Footer({ theme }: { theme: "light" | "dark" | "system" }) {
             <Link to="/" className="flex items-center gap-2">
               <div className="h-8 w-8">
                 {theme === "light" ? (
-                  <img src="/NekoShare-Light.svg" alt="Neko Share Light Logo" />
+                  <img
+                    src="/NekoShare-Light.svg"
+                    alt="Neko Share Light Logo"
+                    width="32"
+                    height="32"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 ) : (
-                  <img src="/NekoShare-Dark.svg" alt="Neko Share Dark Logo" />
+                  <img
+                    src="/NekoShare-Dark.svg"
+                    alt="Neko Share Dark Logo"
+                    width="32"
+                    height="32"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 )}
               </div>
               <span className="text-xl font-semibold tracking-tight text-foreground">
@@ -51,7 +65,8 @@ export function Footer({ theme }: { theme: "light" | "dark" | "system" }) {
             </nav>
 
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Neko Share. In active development.
+              &copy; {new Date().getFullYear()} Neko Share. In active
+              development.
             </p>
           </div>
         </div>
