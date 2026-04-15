@@ -3,6 +3,7 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useM
 import { AnimatePresence, motion, type Transition, type Variants } from "motion/react";
 
 import { Toaster } from "@workspace/ui/components/sonner";
+import { cn } from "@workspace/ui/lib/utils";
 
 import LoadingOverlay from "@workspace/app-ui/components/global-loading";
 import { SessionTerminatedDialog } from "@workspace/app-ui/components/session-terminated-dialog";
@@ -183,15 +184,19 @@ const NekoShareProvider = <TRouter extends Router>({
 
 	return (
 		<NekoShareContext.Provider value={contextValue}>
-			<div className="relative h-screen overflow-hidden">
-				<motion.div
-					className="h-full will-change-transform"
-					initial={CONTENT_INITIAL_HIDDEN}
-					animate={mounted ? contentAnimationState : CONTENT_ANIMATION_HIDDEN}
-					transition={SPRING_TRANSITION}
-				>
-					{children}
-				</motion.div>
+			<div className={cn("relative", appMode === "desktop" && "h-screen overflow-hidden")}>
+				{appMode === "desktop" ? (
+					<motion.div
+						className="h-full will-change-transform"
+						initial={CONTENT_INITIAL_HIDDEN}
+						animate={mounted ? contentAnimationState : CONTENT_ANIMATION_HIDDEN}
+						transition={SPRING_TRANSITION}
+					>
+						{children}
+					</motion.div>
+				) : (
+					children
+				)}
 				{!isHomeMode && (
 					<div className="absolute inset-0 bg-background/80 backdrop-blur-xs animate-in fade-in delay-75" />
 				)}
