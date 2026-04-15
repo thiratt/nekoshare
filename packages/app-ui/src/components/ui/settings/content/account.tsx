@@ -179,7 +179,11 @@ async function createOptimizedAvatarSourceUrl(file: File): Promise<string> {
 		try {
 			const bitmap = await createImageBitmap(file);
 			try {
-				const optimizedUrl = await createOptimizedAvatarSourceFromCanvasSource(bitmap, bitmap.width, bitmap.height);
+				const optimizedUrl = await createOptimizedAvatarSourceFromCanvasSource(
+					bitmap,
+					bitmap.width,
+					bitmap.height,
+				);
 				if (optimizedUrl) {
 					return optimizedUrl;
 				}
@@ -506,7 +510,9 @@ const AvatarDialog = memo(function AvatarDialog({
 								onClick={() => fileInputRef.current?.click()}
 							>
 								<LuCamera aria-hidden="true" />
-								{isPreparingImage ? t("account.ui.avatar.preparing") : t("account.ui.avatar.changeImage")}
+								{isPreparingImage
+									? t("account.ui.avatar.preparing")
+									: t("account.ui.avatar.changeImage")}
 							</Button>
 							<div className="flex-1 justify-end gap-2 sm:flex">
 								<Button
@@ -517,14 +523,24 @@ const AvatarDialog = memo(function AvatarDialog({
 								>
 									{t("account.ui.avatar.back")}
 								</Button>
-								<Button type="button" disabled={!cropAreaPixels || isSaving || isPreparingImage} onClick={handleSave}>
+								<Button
+									type="button"
+									disabled={!cropAreaPixels || isSaving || isPreparingImage}
+									onClick={handleSave}
+								>
 									{isSaving && <LuLoader className="size-4 animate-spin" aria-hidden="true" />}
 									{t("common.actions.save")}
 								</Button>
 							</div>
 						</DialogFooter>
 
-						<input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleSelectFile} />
+						<input
+							ref={fileInputRef}
+							type="file"
+							accept="image/*"
+							className="hidden"
+							onChange={handleSelectFile}
+						/>
 					</div>
 				) : (
 					<>
@@ -560,14 +576,27 @@ const AvatarDialog = memo(function AvatarDialog({
 								disabled={isPreparingImage}
 								onClick={() => fileInputRef.current?.click()}
 							>
-								{isPreparingImage ? t("account.ui.avatar.preparing") : t("account.ui.avatar.chooseFile")}
+								{isPreparingImage
+									? t("account.ui.avatar.preparing")
+									: t("account.ui.avatar.chooseFile")}
 							</Button>
 						</div>
 
-						<input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleSelectFile} />
+						<input
+							ref={fileInputRef}
+							type="file"
+							accept="image/*"
+							className="hidden"
+							onChange={handleSelectFile}
+						/>
 
 						<DialogFooter className="gap-2">
-							<Button type="button" variant="outline" disabled={isSaving} onClick={() => onOpenChange(false)}>
+							<Button
+								type="button"
+								variant="outline"
+								disabled={isSaving}
+								onClick={() => onOpenChange(false)}
+							>
 								{t("account.ui.avatar.close")}
 							</Button>
 						</DialogFooter>
@@ -656,7 +685,9 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 			[key]: open,
 		}));
 		setDialogStack((previous) =>
-			open ? [...previous.filter((openKey) => openKey !== key), key] : previous.filter((openKey) => openKey !== key),
+			open
+				? [...previous.filter((openKey) => openKey !== key), key]
+				: previous.filter((openKey) => openKey !== key),
 		);
 	}, []);
 
@@ -758,10 +789,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 				}
 
 				if (result.error) {
-					const message = getAccountActionErrorMessage(
-						result.error,
-						t("account.ui.linkedAccountsLoadError"),
-					);
+					const message = getAccountActionErrorMessage(result.error, t("account.ui.linkedAccountsLoadError"));
 					toast.error(message);
 					setLinkedAccountsError(message);
 					return;
@@ -951,15 +979,25 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 														<Avatar className="h-full w-full">
 															<AvatarImage
 																src={user?.image ?? undefined}
-																alt={t("account.ui.avatar.altWithName", { name: user?.name ?? t("common.appName") })}
+																alt={t("account.ui.avatar.altWithName", {
+																	name: user?.name ?? t("common.appName"),
+																})}
 															/>
-															<AvatarFallback className="text-lg">{userInitials}</AvatarFallback>
+															<AvatarFallback className="text-lg">
+																{userInitials}
+															</AvatarFallback>
 														</Avatar>
 
 														<div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
-															<LuCamera size={30} className="text-white" aria-hidden="true" />
+															<LuCamera
+																size={30}
+																className="text-white"
+																aria-hidden="true"
+															/>
 														</div>
-														<span className="sr-only">{t("account.ui.avatar.changeAria")}</span>
+														<span className="sr-only">
+															{t("account.ui.avatar.changeAria")}
+														</span>
 													</button>
 												)}
 											</div>
@@ -970,11 +1008,13 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									</Card>
 
 									<Form {...displayNameForm}>
-										<form onSubmit={handleSaveDisplayName}>
+										<form autoComplete="off" onSubmit={handleSaveDisplayName}>
 											<Card>
 												<CardHeader>
 													<CardTitle>{t("account.ui.displayName.title")}</CardTitle>
-													<CardDescription>{t("account.ui.displayName.description")}</CardDescription>
+													<CardDescription>
+														{t("account.ui.displayName.description")}
+													</CardDescription>
 												</CardHeader>
 												<CardContent>
 													<FormField
@@ -987,8 +1027,13 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 																		{...field}
 																		maxLength={ACCOUNT_DISPLAY_NAME_MAX_LENGTH}
 																		autoComplete="name"
-																		disabled={isPending || displayNameForm.formState.isSubmitting}
-																		placeholder={t("account.ui.displayName.placeholder")}
+																		disabled={
+																			isPending ||
+																			displayNameForm.formState.isSubmitting
+																		}
+																		placeholder={t(
+																			"account.ui.displayName.placeholder",
+																		)}
 																	/>
 																</FormControl>
 																<FormMessage />
@@ -997,7 +1042,9 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 													/>
 												</CardContent>
 												<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-													<p className="text-sm text-muted-foreground">{t("account.ui.displayName.hint")}</p>
+													<p className="text-sm text-muted-foreground">
+														{t("account.ui.displayName.hint")}
+													</p>
 													<Button
 														type="submit"
 														disabled={
@@ -1018,11 +1065,13 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									</Form>
 
 									<Form {...usernameForm}>
-										<form onSubmit={handleSaveUsername}>
+										<form autoComplete="off" onSubmit={handleSaveUsername}>
 											<Card>
 												<CardHeader>
 													<CardTitle>{t("account.ui.username.title")}</CardTitle>
-													<CardDescription>{t("account.ui.username.description")}</CardDescription>
+													<CardDescription>
+														{t("account.ui.username.description")}
+													</CardDescription>
 												</CardHeader>
 												<CardContent>
 													<FormField
@@ -1035,7 +1084,10 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 																		{...field}
 																		maxLength={ACCOUNT_USERNAME_MAX_LENGTH}
 																		autoComplete="username"
-																		disabled={isPending || usernameForm.formState.isSubmitting}
+																		disabled={
+																			isPending ||
+																			usernameForm.formState.isSubmitting
+																		}
 																		placeholder="username"
 																	/>
 																</FormControl>
@@ -1047,7 +1099,9 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 												</CardContent>
 												<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
 													<p className="text-sm text-muted-foreground">
-														{t("account.ui.username.hint", { max: ACCOUNT_USERNAME_MAX_LENGTH })}
+														{t("account.ui.username.hint", {
+															max: ACCOUNT_USERNAME_MAX_LENGTH,
+														})}
 													</p>
 													<Button
 														type="submit"
@@ -1059,7 +1113,10 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 														}
 													>
 														{usernameForm.formState.isSubmitting && (
-															<LuLoader className="mr-2 size-4 animate-spin" aria-hidden="true" />
+															<LuLoader
+																className="mr-2 size-4 animate-spin"
+																aria-hidden="true"
+															/>
 														)}
 														{t("common.actions.save")}
 													</Button>
@@ -1074,10 +1131,17 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 											<CardDescription>{t("account.ui.email.description")}</CardDescription>
 										</CardHeader>
 										<CardContent>
-											<Input className={ACCOUNT_FIELD_WIDTH_CLASS} value={user?.email ?? ""} readOnly tabIndex={-1} />
+											<Input
+												className={ACCOUNT_FIELD_WIDTH_CLASS}
+												value={user?.email ?? ""}
+												readOnly
+												tabIndex={-1}
+											/>
 										</CardContent>
 										<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-											<p className="text-sm text-muted-foreground">{t("account.ui.email.warning")}</p>
+											<p className="text-sm text-muted-foreground">
+												{t("account.ui.email.warning")}
+											</p>
 											<Button type="button" onClick={() => setDialogOpen("changeEmail", true)}>
 												{t("account.ui.email.changeButton")}
 											</Button>
@@ -1092,11 +1156,19 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 											</CardDescription>
 										</CardHeader>
 										<CardContent>
-											<p className="text-sm text-muted-foreground">{t("account.ui.deleteAccount.warning")}</p>
+											<p className="text-sm text-muted-foreground">
+												{t("account.ui.deleteAccount.warning")}
+											</p>
 										</CardContent>
 										<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-											<p className="text-sm text-muted-foreground">{t("account.ui.deleteAccount.irreversible")}</p>
-											<Button variant="destructive" type="button" onClick={() => setDialogOpen("deleteAccount", true)}>
+											<p className="text-sm text-muted-foreground">
+												{t("account.ui.deleteAccount.irreversible")}
+											</p>
+											<Button
+												variant="destructive"
+												type="button"
+												onClick={() => setDialogOpen("deleteAccount", true)}
+											>
 												{t("account.ui.deleteAccount.button")}
 											</Button>
 										</CardFooter>
@@ -1114,7 +1186,9 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									<Card>
 										<CardHeader>
 											<CardTitle>{t("account.ui.password.title")}</CardTitle>
-											<CardDescription>{t("account.ui.password.changeDescription")}</CardDescription>
+											<CardDescription>
+												{t("account.ui.password.changeDescription")}
+											</CardDescription>
 										</CardHeader>
 										<CardContent>
 											<p className="text-sm text-muted-foreground">
@@ -1125,7 +1199,9 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 											</p>
 										</CardContent>
 										<CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-											<p className="text-sm text-muted-foreground">{t("account.ui.password.socialHint")}</p>
+											<p className="text-sm text-muted-foreground">
+												{t("account.ui.password.socialHint")}
+											</p>
 											<Button type="button" onClick={() => setDialogOpen("changePassword", true)}>
 												{t("account.ui.password.button")}
 											</Button>
@@ -1147,17 +1223,17 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 				onSave={handleAvatarSave}
 			/>
 			<Dialog open={dialogs.changeEmail} onOpenChange={(open) => setDialogOpen("changeEmail", open)}>
-			<DialogContent
-				className="max-w-xl"
-				onEscapeKeyDown={(event) => handleDialogEscapeKeyDown("changeEmail", event)}
-			>
-				<DialogHeader>
-					<DialogTitle>{t("account.ui.email.dialogTitle")}</DialogTitle>
-					<DialogDescription>{t("account.ui.email.dialogDescription")}</DialogDescription>
-				</DialogHeader>
+				<DialogContent
+					className="max-w-xl"
+					onEscapeKeyDown={(event) => handleDialogEscapeKeyDown("changeEmail", event)}
+				>
+					<DialogHeader>
+						<DialogTitle>{t("account.ui.email.dialogTitle")}</DialogTitle>
+						<DialogDescription>{t("account.ui.email.dialogDescription")}</DialogDescription>
+					</DialogHeader>
 
 					<Form {...emailForm}>
-						<form className="space-y-4" onSubmit={handleEmailChange}>
+						<form autoComplete="off" className="space-y-4" onSubmit={handleEmailChange}>
 							<FormField
 								control={emailForm.control}
 								name="newEmail"
@@ -1220,20 +1296,22 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 			</Dialog>
 
 			<Dialog open={dialogs.changePassword} onOpenChange={(open) => setDialogOpen("changePassword", open)}>
-			<DialogContent
-				className="max-w-xl"
-				onEscapeKeyDown={(event) => handleDialogEscapeKeyDown("changePassword", event)}
-			>
-				<DialogHeader>
-					<DialogTitle>
-						{hasCredentialAccount === false ? t("account.ui.password.setTitle") : t("account.ui.password.changeTitle")}
-					</DialogTitle>
-					<DialogDescription>
-						{hasCredentialAccount === false
-							? t("account.ui.password.setDescription")
-							: t("account.ui.password.changeDescription")}
-					</DialogDescription>
-				</DialogHeader>
+				<DialogContent
+					className="max-w-xl"
+					onEscapeKeyDown={(event) => handleDialogEscapeKeyDown("changePassword", event)}
+				>
+					<DialogHeader>
+						<DialogTitle>
+							{hasCredentialAccount === false
+								? t("account.ui.password.setTitle")
+								: t("account.ui.password.changeTitle")}
+						</DialogTitle>
+						<DialogDescription>
+							{hasCredentialAccount === false
+								? t("account.ui.password.setDescription")
+								: t("account.ui.password.changeDescription")}
+						</DialogDescription>
+					</DialogHeader>
 
 					{isLoadingLinkedAccounts ? (
 						<div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
@@ -1246,7 +1324,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 						<p className="py-4 text-sm text-destructive">{t("account.ui.password.passwordStateError")}</p>
 					) : hasCredentialAccount ? (
 						<Form {...changePasswordForm}>
-							<form className="space-y-4" onSubmit={handlePasswordSubmit}>
+							<form autoComplete="off" className="space-y-4" onSubmit={handlePasswordSubmit}>
 								<FormField
 									control={changePasswordForm.control}
 									name="currentPassword"
@@ -1324,7 +1402,7 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 						</Form>
 					) : (
 						<Form {...setPasswordForm}>
-							<form className="space-y-4" onSubmit={handleSetPasswordSubmit}>
+							<form autoComplete="off" className="space-y-4" onSubmit={handleSetPasswordSubmit}>
 								<FormField
 									control={setPasswordForm.control}
 									name="newPassword"
@@ -1386,20 +1464,20 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 			</Dialog>
 
 			<Dialog open={dialogs.deleteAccount} onOpenChange={(open) => setDialogOpen("deleteAccount", open)}>
-			<DialogContent
-				className="max-w-xl"
-				onEscapeKeyDown={(event) => handleDialogEscapeKeyDown("deleteAccount", event)}
-			>
-				<DialogHeader>
-					<DialogTitle>{t("account.ui.deleteAccount.dialogTitle")}</DialogTitle>
-					<DialogDescription>
-						{t("account.ui.deleteAccount.dialogDescription")}{" "}
-						<strong>{ACCOUNT_DELETE_CONFIRMATION_PHRASE}</strong>{" "}
-						{hasCredentialAccount
-							? t("account.ui.deleteAccount.dialogDescriptionPassword")
-							: t("account.ui.deleteAccount.dialogDescriptionSuffix")}
-					</DialogDescription>
-				</DialogHeader>
+				<DialogContent
+					className="max-w-xl"
+					onEscapeKeyDown={(event) => handleDialogEscapeKeyDown("deleteAccount", event)}
+				>
+					<DialogHeader>
+						<DialogTitle>{t("account.ui.deleteAccount.dialogTitle")}</DialogTitle>
+						<DialogDescription>
+							{t("account.ui.deleteAccount.dialogDescription")}{" "}
+							<strong>{ACCOUNT_DELETE_CONFIRMATION_PHRASE}</strong>{" "}
+							{hasCredentialAccount
+								? t("account.ui.deleteAccount.dialogDescriptionPassword")
+								: t("account.ui.deleteAccount.dialogDescriptionSuffix")}
+						</DialogDescription>
+					</DialogHeader>
 
 					{isLoadingLinkedAccounts ? (
 						<div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
@@ -1409,20 +1487,28 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 					) : linkedAccountsError ? (
 						<p className="py-4 text-sm text-destructive">{linkedAccountsError}</p>
 					) : !isSensitiveAccountStateReady ? (
-						<p className="py-4 text-sm text-destructive">{t("account.ui.deleteAccount.deleteStateError")}</p>
+						<p className="py-4 text-sm text-destructive">
+							{t("account.ui.deleteAccount.deleteStateError")}
+						</p>
 					) : (
 						<Form {...deleteAccountForm}>
-							<form className="space-y-4" onSubmit={handleDeleteAccount}>
+							<form autoComplete="off" className="space-y-4" onSubmit={handleDeleteAccount}>
 								<FormField
 									control={deleteAccountForm.control}
 									name="username"
 									render={({ field }) => (
 										<FormItem>
 											<FormLabel>
-												{t("account.ui.deleteAccount.usernameLabel", { username: deleteConfirmationName || "-" })}
+												{t("account.ui.deleteAccount.usernameLabel", {
+													username: deleteConfirmationName || "-",
+												})}
 											</FormLabel>
 											<FormControl>
-												<Input {...field} autoComplete="off" disabled={deleteAccountForm.formState.isSubmitting} />
+												<Input
+													{...field}
+													autoComplete="off"
+													disabled={deleteAccountForm.formState.isSubmitting}
+												/>
 											</FormControl>
 											<FormMessage />
 										</FormItem>
@@ -1451,11 +1537,11 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 								{hasCredentialAccount && (
 									<FormField
 										control={deleteAccountForm.control}
-											name="password"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>{t("account.ui.deleteAccount.passwordLabel")}</FormLabel>
-													<FormControl>
+										name="password"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>{t("account.ui.deleteAccount.passwordLabel")}</FormLabel>
+												<FormControl>
 													<Input
 														{...field}
 														type="password"
@@ -1484,7 +1570,11 @@ export const SettingAccountContent = memo(function SettingAccountContent({
 									>
 										{t("common.actions.cancel")}
 									</Button>
-									<Button type="submit" variant="destructive" disabled={deleteAccountForm.formState.isSubmitting}>
+									<Button
+										type="submit"
+										variant="destructive"
+										disabled={deleteAccountForm.formState.isSubmitting}
+									>
 										{deleteAccountForm.formState.isSubmitting && (
 											<LuLoader className="mr-2 size-4 animate-spin" aria-hidden="true" />
 										)}
