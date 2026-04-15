@@ -340,9 +340,18 @@ def resolve_web_build_args(context: AppContext) -> dict[str, str]:
             web_env.get("VITE_WS_BASE_URL"),
             docker_env_example.get("WEB_WS_BASE_URL"),
         ),
+        "WEB_GA_MEASUREMENT_ID": first_non_empty(
+            docker_env.get("WEB_GA_MEASUREMENT_ID"),
+            web_env.get("VITE_GA_MEASUREMENT_ID"),
+            docker_env_example.get("WEB_GA_MEASUREMENT_ID"),
+        ),
     }
 
-    missing = [key for key, value in resolved.items() if not value]
+    missing = [
+        key
+        for key in ("WEB_API_BASE_URL", "WEB_WS_BASE_URL")
+        if not resolved[key]
+    ]
     if missing:
         missing_list = ", ".join(missing)
         raise NkError(

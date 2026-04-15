@@ -101,6 +101,7 @@ services:
             args:
                 WEB_API_BASE_URL: ${WEB_API_BASE_URL:?WEB_API_BASE_URL is required}
                 WEB_WS_BASE_URL: ${WEB_WS_BASE_URL:?WEB_WS_BASE_URL is required}
+                WEB_GA_MEASUREMENT_ID: ${WEB_GA_MEASUREMENT_ID:-}
         restart: unless-stopped
         expose:
             - "8080"

@@ -19,6 +19,7 @@ RUN pnpm install --frozen-lockfile --filter web...
 FROM deps AS build
 ARG WEB_API_BASE_URL
 ARG WEB_WS_BASE_URL
+ARG WEB_GA_MEASUREMENT_ID
 COPY apps/web apps/web
 COPY packages/app-ui packages/app-ui
 COPY packages/ui packages/ui
@@ -27,7 +28,7 @@ COPY packages/nk-websocket packages/nk-websocket
 COPY packages/eslint-config packages/eslint-config
 COPY packages/i18n packages/i18n
 COPY packages/typescript-config packages/typescript-config
-RUN VITE_API_BASE_URL="$WEB_API_BASE_URL" VITE_WS_BASE_URL="$WEB_WS_BASE_URL" pnpm -C apps/web build
+RUN VITE_API_BASE_URL="$WEB_API_BASE_URL" VITE_WS_BASE_URL="$WEB_WS_BASE_URL" VITE_GA_MEASUREMENT_ID="$WEB_GA_MEASUREMENT_ID" pnpm -C apps/web build
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine-slim AS runner
 COPY apps/web/docker/default.conf /etc/nginx/conf.d/default.conf
