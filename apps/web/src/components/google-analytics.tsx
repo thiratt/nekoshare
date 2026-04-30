@@ -10,6 +10,8 @@ declare global {
 }
 
 const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID?.trim();
+// eslint-disable-next-line turbo/no-undeclared-env-vars -- DEV is a Vite built-in, not deployment config.
+const isDevelopment = import.meta.env.DEV;
 
 export function GoogleAnalytics() {
   const href = useRouterState({
@@ -18,7 +20,7 @@ export function GoogleAnalytics() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (!measurementId || import.meta.env.DEV) {
+    if (!measurementId || isDevelopment) {
       return;
     }
 
@@ -75,7 +77,7 @@ export function GoogleAnalytics() {
   }, []);
 
   useEffect(() => {
-    if (!measurementId || import.meta.env.DEV || !isReady || !window.gtag) {
+    if (!measurementId || isDevelopment || !isReady || !window.gtag) {
       return;
     }
 

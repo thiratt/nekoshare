@@ -32,7 +32,7 @@ RUN VITE_API_BASE_URL="$WEB_API_BASE_URL" VITE_WS_BASE_URL="$WEB_WS_BASE_URL" VI
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine-slim AS runner
 COPY apps/web/docker/default.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /workspace/apps/web/dist /usr/share/nginx/html
+COPY --from=build /workspace/apps/web/dist/client /usr/share/nginx/html
 
 EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]
