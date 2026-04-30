@@ -1,7 +1,7 @@
 {
   "name": "Neko Share",
   "short_name": "Neko Share",
-  "description": "Open-source, self-hostable file sharing with secure transfers. Free to use.",
+  "description": "Neko Share is open-source, self-hostable file sharing with secure transfers. Free to use.",
   "icons": [
     {
       "src": "/web-app-manifest-192x192-dark.png",
