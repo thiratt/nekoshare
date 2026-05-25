@@ -1,504 +1,352 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
-import {
-	flexRender,
-	getCoreRowModel,
-	getSortedRowModel,
-	type RowSelectionState,
-	type SortingState,
-	useReactTable,
-} from "@tanstack/react-table";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import {
-	LuChevronDown,
-	LuCopy,
-	LuFile,
-	LuFolderInput,
-	LuGlobe,
-	LuLoader,
-	LuRefreshCcw,
-	LuTrash2,
-	LuType,
-} from "react-icons/lu";
+import { AnimatePresence, motion } from "motion/react";
+import { LuEllipsis, LuPause, LuPlay, LuRefreshCcw, LuTrash2 } from "react-icons/lu";
+import { TbDeselect, TbSelectAll } from "react-icons/tb";
 
 import { Button } from "@workspace/ui/components/button";
-import { ButtonGroup } from "@workspace/ui/components/button-group";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import {
-	ContextMenu,
-	ContextMenuContent,
-	ContextMenuItem,
-	ContextMenuSeparator,
-	ContextMenuTrigger,
-} from "@workspace/ui/components/context-menu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuGroup,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
+import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { SearchInput } from "@workspace/ui/components/search-input";
 import { Separator } from "@workspace/ui/components/separator";
-import { useToast } from "@workspace/ui/hooks/use-toast";
-import { cn } from "@workspace/ui/lib/utils";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
-import type { DeleteScope, HomeProps, ShareItem } from "@workspace/app-ui/types/home";
+import { useExplorerSelection } from "@workspace/app-ui/hooks/useExplorerSelection";
+import type { HomeProps } from "@workspace/app-ui/types/home";
 
-import { useColumns } from "./columns";
-import { DeleteBulkDialog, DeleteItemDialog } from "./dialogs";
-import { useShareData } from "./hooks";
-import { useFileSearch } from "./use-search";
+import { FilterTabs } from "./filter-tabs";
+import { type ActiveTransfer, ActiveTransferCard, mockActiveTransfers } from "./transfer-card";
 
-const ROW_HEIGHT = 48;
-const OVERSCAN_COUNT = 8;
-
-const COLUMN_CONFIG = {
-	select: { minWidth: 40, flex: 0 },
-	name: { minWidth: 150, flex: 3 },
-	from: { minWidth: 70, flex: 0.5 },
-	device: { minWidth: 120, flex: 1 },
-	size: { minWidth: 80, flex: 0.5 },
-	status: { minWidth: 90, flex: 0.5 },
-	uploadedAt: { minWidth: 140, flex: 1 },
-	actions: { minWidth: 80, flex: 0.5 },
+const TRANSFER_LIST_TRANSITION = {
+	type: "spring",
+	duration: 0.32,
+	bounce: 0,
 } as const;
 
-type ColumnId = keyof typeof COLUMN_CONFIG;
+const TRANSFER_ITEM_TRANSITION = {
+	type: "spring",
+	duration: 0.28,
+	bounce: 0,
+	opacity: {
+		duration: 0.14,
+	},
+} as const;
 
-interface VirtualRowProps {
-	row: ReturnType<ReturnType<typeof useReactTable<ShareItem>>["getRowModel"]>["rows"][number];
-	virtualStart: number;
-	isSelected: boolean;
-	onItemClick: (id: number) => void;
-	onItemReveal: (id: number) => void;
-	handleCopyFilename: (id: number) => void;
-	handleItemDelete: (id: number) => void;
+type TransferFilter = "all" | "active" | "failed";
+
+const ACTIVE_STATES = new Set<ActiveTransfer["state"]>([
+	"connecting",
+	"listening",
+	"handshaking",
+	"transferring",
+	"paused",
+	"recovering",
+	"verifying",
+]);
+
+function matchTransferFilter(transfer: ActiveTransfer, filter: TransferFilter) {
+	if (filter === "all") return true;
+	if (filter === "active") return ACTIVE_STATES.has(transfer.state);
+	if (filter === "failed") return transfer.state === "failed";
+
+	return true;
 }
 
-const VirtualRow = memo(
-	function VirtualRow({
-		row,
-		virtualStart,
+function normalizeSearchText(value: string) {
+	return value.trim().toLowerCase();
+}
+
+function matchTransferSearch(transfer: ActiveTransfer, query: string) {
+	const normalizedQuery = normalizeSearchText(query);
+
+	if (!normalizedQuery) return true;
+
+	const searchableText = [
+		transfer.name,
+		transfer.peerName,
+		transfer.deviceName,
+		transfer.path,
+		transfer.state,
+		transfer.direction,
+		transfer.encrypted ? "encrypted เข้ารหัส" : "encryption off ไม่เข้ารหัส",
+		transfer.isFolder ? "folder โฟลเดอร์" : "file ไฟล์",
+	]
+		.filter(Boolean)
+		.join(" ")
+		.toLowerCase();
+
+	return searchableText.includes(normalizedQuery);
+}
+
+function copyTransferInfo(transfer: ActiveTransfer) {
+	const lines = [
+		`Transfer: ${transfer.name}`,
+		`State: ${transfer.state}`,
+		`Direction: ${transfer.direction}`,
+		`Path: ${transfer.path}`,
+		`Encrypted: ${transfer.encrypted ? "Yes" : "No"}`,
+		`Peer: ${transfer.peerName}`,
+		transfer.deviceName ? `Device: ${transfer.deviceName}` : null,
+		`Transfer ID: ${transfer.id}`,
+	].filter(Boolean);
+
+	void window.navigator.clipboard.writeText(lines.join("\n"));
+}
+
+export function HomeUI(_props: HomeProps) {
+	const [query, setQuery] = useState("");
+	const [filter, setFilter] = useState<TransferFilter>("all");
+
+	const visibleTransfers = useMemo(() => {
+		return mockActiveTransfers.filter((transfer) => {
+			return matchTransferFilter(transfer, filter) && matchTransferSearch(transfer, query);
+		});
+	}, [filter, query]);
+
+	const {
+		selectedIds,
+		selectedCount,
+		hasSelection,
 		isSelected,
-		onItemClick,
-		onItemReveal,
-		handleCopyFilename,
-		handleItemDelete,
-	}: VirtualRowProps) {
-		return (
-			<ContextMenu>
-				<ContextMenuTrigger asChild>
-					<div
-						role="row"
-						onClick={() => onItemClick(row.original.id)}
-						data-state={isSelected ? "selected" : undefined}
-						className="hover:bg-muted/50 data-[state=selected]:bg-muted absolute left-0 flex items-center border-b border-border transition-colors"
-						style={{
-							height: `${ROW_HEIGHT}px`,
-							transform: `translateY(${virtualStart}px)`,
-							willChange: "transform",
-							width: "100%",
-						}}
-					>
-						{row.getVisibleCells().map((cell) => {
-							const columnId = cell.column.id as ColumnId;
-							const config = COLUMN_CONFIG[columnId] ?? { minWidth: 50, flex: 1 };
-
-							return (
-								<div
-									key={cell.id}
-									role="cell"
-									className="flex items-center px-2 shrink-0 overflow-hidden"
-									style={{
-										flex: `${config.flex} 1 0%`,
-										minWidth: `${config.minWidth}px`,
-										height: `${ROW_HEIGHT}px`,
-									}}
-								>
-									{flexRender(cell.column.columnDef.cell, cell.getContext())}
-								</div>
-							);
-						})}
-					</div>
-				</ContextMenuTrigger>
-				<ContextMenuContent className="w-52">
-					<ContextMenuItem>
-						<LuFile className="mr-2 h-4 w-4" />
-						คัดลอกไฟล์
-					</ContextMenuItem>
-					<ContextMenuItem onSelect={() => handleCopyFilename(row.original.id)}>
-						<LuType className="mr-2 h-4 w-4" />
-						คัดลอกชื่อไฟล์
-					</ContextMenuItem>
-					<ContextMenuSeparator />
-					<ContextMenuItem onSelect={() => onItemReveal(row.original.id)}>
-						<LuFolderInput className="mr-2 h-4 w-4" />
-						เปิดตำแหน่งไฟล์
-					</ContextMenuItem>
-					<ContextMenuSeparator />
-					<ContextMenuItem variant="destructive" onSelect={() => handleItemDelete(row.original.id)}>
-						<LuTrash2 className="mr-2 h-4 w-4" />
-						ลบ
-					</ContextMenuItem>
-				</ContextMenuContent>
-			</ContextMenu>
-		);
-	},
-	(prev, next) => {
-		return (
-			prev.isSelected === next.isSelected &&
-			prev.row.original === next.row.original &&
-			prev.virtualStart === next.virtualStart
-		);
-	},
-);
-
-export function HomeUI({
-	onItemClick,
-	onItemReveal,
-	onItemRemove,
-	onRefresh,
-	data,
-	loading: externalLoading,
-	invoke,
-}: HomeProps) {
-	const { items, loading, refreshData, setItems } = useShareData({ data, externalLoading, onRefresh });
-
-	const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
-	const [deleteBulkIds, setDeleteBulkIds] = useState<number[]>([]);
-	const [deleteItemAllowDeleteBoth, setDeleteItemAllowDeleteBoth] = useState(true);
-	const [deleteBulkAllowDeleteBoth, setDeleteBulkAllowDeleteBoth] = useState(true);
-	const [sorting, setSorting] = useState<SortingState>([]);
-	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-
-	const { toast } = useToast();
-	const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-	const rustSearchFn = useMemo(() => {
-		if (!invoke) return undefined;
-		return async (searchItems: ShareItem[], query: string, threshold: number) => {
-			const result = await invoke<{ items: ShareItem[] }>("search_items", {
-				items: searchItems,
-				query,
-				threshold,
-			});
-			return result.items;
-		};
-	}, [invoke]);
-
-	const { query, setQuery, filteredItems, isSearching, clearSearch, searchTimeMs } = useFileSearch({
-		items,
-		rustSearch: rustSearchFn,
-		debounceMs: 150,
+		selectItem,
+		selectAll,
+		clearSelection,
+		ensureSelectedForContextMenu,
+		handleKeyDown,
+	} = useExplorerSelection({
+		items: visibleTransfers,
+		getId: (item) => item.id,
 	});
 
-	const handleItemClick = useCallback(
-		(id: number) => {
-			onItemClick?.(id);
-		},
-		[onItemClick],
-	);
+	const refreshData = useCallback(() => {
+		console.log("refresh data");
+	}, []);
 
-	const handleItemReveal = useCallback(
-		(id: number) => {
-			onItemReveal?.(id);
-		},
-		[onItemReveal],
-	);
+	const clearSearch = useCallback(() => {
+		setQuery("");
+	}, []);
 
-	const handleItemDelete = useCallback(
-		(id: number) => {
-			const targetItem = items.find((item) => item.id === id);
-			setDeleteItemAllowDeleteBoth(targetItem ? targetItem.direction !== "send" : true);
-			setDeleteItemId(id);
-		},
-		[items],
-	);
+	const handleShareFiles = useCallback(() => {
+		console.log("share files");
+	}, []);
 
-	const columns = useColumns({
-		onItemReveal,
-		onItemDelete: handleItemDelete,
-	});
+	const handlePauseSelected = useCallback(() => {
+		console.log("pause selected transfers", selectedIds);
+	}, [selectedIds]);
 
-	const table = useReactTable({
-		data: filteredItems,
-		columns,
-		state: {
-			sorting,
-			rowSelection,
-		},
-		onSortingChange: setSorting,
-		onRowSelectionChange: setRowSelection,
-		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		enableRowSelection: true,
-		getRowId: (row) => String(row.id),
-	});
+	const handleResumeSelected = useCallback(() => {
+		console.log("resume selected transfers", selectedIds);
+	}, [selectedIds]);
 
-	const { rows } = table.getRowModel();
-
-	const virtualizer = useVirtualizer({
-		count: rows.length,
-		getScrollElement: () => scrollContainerRef.current,
-		estimateSize: useCallback(() => ROW_HEIGHT, []),
-		overscan: OVERSCAN_COUNT,
-	});
-
-	const virtualItems = virtualizer.getVirtualItems();
-	const totalHeight = virtualizer.getTotalSize();
-
-	useEffect(() => {
-		virtualizer.scrollToOffset(0);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [query]);
-
-	const selectedRowCount = table.getSelectedRowModel().rows.length;
-
-	const handleCopyFilename = useCallback(
-		(id: number) => {
-			const item = items.find((item) => item.id === id);
-			if (item) {
-				window.navigator.clipboard.writeText(item.name);
-				toast("คัดลอกชื่อไฟล์แล้ว");
-			}
-		},
-		[items, toast],
-	);
-
-	const handleCopyFiles = useCallback(() => {
-		const ids = table.getSelectedRowModel().rows.map((r) => r.original.id);
-		console.log("Copy files with ids:", ids);
-	}, [table]);
-
-	const handleBulkDelete = useCallback(() => {
-		const ids = table.getSelectedRowModel().rows.map((r) => r.original.id);
-		const idSet = new Set(ids);
-		const selectedItems = items.filter((item) => idSet.has(item.id));
-		setDeleteBulkAllowDeleteBoth(selectedItems.some((item) => item.direction !== "send"));
-		setDeleteBulkIds(ids);
-	}, [items, table]);
-
-	const handleConfirmDelete = useCallback(async (scope: DeleteScope) => {
-		if (deleteItemId !== null) {
-			const idToDelete = deleteItemId;
-			setDeleteItemId(null);
-			const resolvedScope = !deleteItemAllowDeleteBoth && scope === "both" ? "history" : scope;
-
-			setTimeout(async () => {
-				try {
-					await onItemRemove(idToDelete, resolvedScope);
-					if (resolvedScope === "both") {
-						toast.success("Deleted successfully");
-						return;
-					}
-					toast.success("Deleted history successfully");
-				} catch (error) {
-					console.error("Failed to delete item:", error);
-					toast.error("Failed to delete item");
-				}
-			}, 200);
-		}
-	}, [deleteItemAllowDeleteBoth, deleteItemId, onItemRemove, toast]);
-
-	const handleConfirmBulkDelete = useCallback(async (scope: DeleteScope) => {
-		const idsToDelete = [...deleteBulkIds];
-		setDeleteBulkIds([]);
-		setRowSelection({});
-		const resolvedScope = !deleteBulkAllowDeleteBoth && scope === "both" ? "history" : scope;
-
-		setTimeout(async () => {
-			const idsSet = new Set(idsToDelete);
-			try {
-				await Promise.all(idsToDelete.map((id) => onItemRemove(id, resolvedScope)));
-				setItems((prev) => prev.filter((item) => !idsSet.has(item.id)));
-
-				if (resolvedScope === "both") {
-					toast.success(`Deleted ${idsToDelete.length} items successfully`);
-					return;
-				}
-				toast.success(`Deleted history for ${idsToDelete.length} items`);
-			} catch (error) {
-				console.error("Failed to delete multiple items:", error);
-				toast.error("Failed to delete selected items");
-			}
-		}, 200);
-	}, [deleteBulkAllowDeleteBoth, deleteBulkIds, setItems, toast, onItemRemove]);
+	const handleRemoveSelected = useCallback(() => {
+		console.log("remove selected transfers", selectedIds);
+	}, [selectedIds]);
 
 	return (
-		<div className="h-full flex flex-col">
-			<CardTransition className="h-full flex flex-col gap-0" tag="home-card">
+		<div
+			className="flex h-full flex-col focus:outline-none focus:ring-0"
+			onClick={clearSelection}
+			onKeyDown={handleKeyDown}
+			tabIndex={0}
+		>
+			<CardTransition className="flex h-full flex-col gap-0" tag="home-card">
 				<CardHeader>
 					<div className="space-y-1">
 						<CardTitle>ประวัติการแชร์</CardTitle>
-						<CardDescription>ประวัติการแชร์ไฟล์ของคุณจะแสดงที่นี่</CardDescription>
+						<CardDescription>ไฟล์ที่กำลังรับส่งและประวัติการแชร์จะแสดงที่นี่</CardDescription>
 					</div>
-					<div className="flex">
-						<div className="flex items-center gap-2">
-							<Button variant="outline" onClick={refreshData}>
-								<LuRefreshCcw />
-							</Button>
-							<Button variant="outline" onClick={handleCopyFiles} disabled={selectedRowCount === 0}>
-								<LuCopy />
-							</Button>
+
+					<div className="flex items-center gap-2">
+						<div className="flex min-w-0 items-center gap-2">
 							<Button
-								variant="destructive"
-								size="sm"
-								onClick={handleBulkDelete}
-								disabled={selectedRowCount === 0}
+								variant="outline"
+								size="icon"
+								onClick={(event) => {
+									event.stopPropagation();
+									refreshData();
+								}}
 							>
-								<LuTrash2 />
+								<LuRefreshCcw className="h-4 w-4" />
 							</Button>
-						</div>
-						<div className="flex items-center ms-auto gap-2">
-							{isSearching && <LuLoader className="w-4 h-4 animate-spin text-muted-foreground" />}
+
 							<SearchInput
 								searchQuery={query}
 								onSearchQuery={setQuery}
 								onClearSearch={clearSearch}
 								className="w-64"
+								placeholder="ค้นหาไฟล์ อุปกรณ์ หรือสถานะ..."
 							/>
-							<ButtonGroup>
-								<Button>แชร์ไฟล์</Button>
+
+							<Separator orientation="vertical" />
+
+							<FilterTabs
+								value={filter}
+								onValueChange={setFilter}
+								items={[
+									{
+										value: "all",
+										label: "ทั้งหมด",
+									},
+									{
+										value: "active",
+										label: "กำลังดำเนินการ",
+									},
+									{
+										value: "failed",
+										label: "ล้มเหลว",
+									},
+								]}
+							/>
+
+							<Separator orientation="vertical" />
+
+							<div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+								<Button
+									variant="destructive"
+									size="icon"
+									onClick={handleRemoveSelected}
+									disabled={!hasSelection}
+								>
+									<LuTrash2 className="h-4 w-4" />
+								</Button>
+
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
-										<Button size="icon" aria-label="More Options">
-											<LuChevronDown />
+										<Button variant="outline" size="icon" aria-label="More options">
+											<LuEllipsis className="h-4 w-4" />
 										</Button>
 									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end" className="w-52">
+
+									<DropdownMenuContent className="w-52" align="start">
 										<DropdownMenuGroup>
-											<DropdownMenuItem>
-												<LuGlobe />
-												แชร์แบบสาธารณะ
+											<DropdownMenuItem
+												onSelect={() => (!hasSelection ? selectAll() : clearSelection())}
+											>
+												{!hasSelection ? <TbSelectAll /> : <TbDeselect />}
+												{!hasSelection ? "เลือกทั้งหมด" : "ยกเลิกการเลือกทั้งหมด"}
+											</DropdownMenuItem>
+										</DropdownMenuGroup>
+
+										<DropdownMenuSeparator />
+
+										<DropdownMenuGroup>
+											<DropdownMenuItem disabled={!hasSelection} onSelect={handlePauseSelected}>
+												<LuPause />
+												หยุดชั่วคราว
+											</DropdownMenuItem>
+
+											<DropdownMenuItem disabled={!hasSelection} onSelect={handleResumeSelected}>
+												<LuPlay />
+												ดำเนินการต่อ
 											</DropdownMenuItem>
 										</DropdownMenuGroup>
 									</DropdownMenuContent>
 								</DropdownMenu>
-							</ButtonGroup>
+							</div>
+						</div>
+
+						<div className="ms-auto flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
+							<Button onClick={handleShareFiles}>แชร์ไฟล์</Button>
 						</div>
 					</div>
-					<Separator />
+
+					<Separator className="my-1" />
 				</CardHeader>
 
-				<CardContent className="flex-1 min-h-0 flex flex-col overflow-hidden">
-					<div className="shrink-0 border-b border-border bg-card">
-						<div className="flex items-center" style={{ width: "100%", height: `${ROW_HEIGHT}px` }}>
-							{table.getHeaderGroups().map((headerGroup) =>
-								headerGroup.headers.map((header) => {
-									const columnId = header.id as ColumnId;
-									const config = COLUMN_CONFIG[columnId] ?? { minWidth: 50, flex: 1 };
-
-									return (
-										<div
-											key={header.id}
-											role="columnheader"
-											className="flex items-center px-2 shrink-0 text-sm font-medium text-muted-foreground [&:not(:first-child):not(:last-child)]:hover:bg-muted [&:not(:first-child):not(:last-child)]:cursor-pointer transition-colors"
+				<CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden">
+					<ScrollArea className="min-h-0 flex-1">
+						<motion.div layout className="relative flex min-h-full flex-col gap-2 py-2 pr-2.5">
+							<AnimatePresence initial={false} mode="popLayout">
+								{visibleTransfers.length === 0 ? (
+									<motion.div
+										key="empty"
+										layout
+										initial={{ opacity: 0, scale: 0.96 }}
+										animate={{ opacity: 1, scale: 1 }}
+										exit={{ opacity: 0, scale: 0.96 }}
+										transition={{
+											duration: 0.18,
+											ease: [0.16, 1, 0.3, 1],
+										}}
+										className="flex min-h-[calc(100vh-260px)] flex-1 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground"
+									>
+										ไม่พบรายการที่ตรงกับการค้นหา
+									</motion.div>
+								) : (
+									visibleTransfers.map((transfer) => (
+										<motion.div
+											key={transfer.id}
+											layout="position"
+											initial={{
+												opacity: 0,
+												scale: 0.985,
+												y: 10,
+											}}
+											animate={{
+												opacity: 1,
+												scale: 1,
+												y: 0,
+											}}
+											exit={{
+												opacity: 0,
+												scale: 0.985,
+												y: -8,
+												transition: {
+													duration: 0.16,
+													ease: [0.16, 1, 0.3, 1],
+												},
+											}}
+											transition={{
+												layout: TRANSFER_LIST_TRANSITION,
+												default: TRANSFER_ITEM_TRANSITION,
+											}}
 											style={{
-												flex: `${config.flex} 1 0%`,
-												minWidth: `${config.minWidth}px`,
-												height: `${ROW_HEIGHT}px`,
+												originY: 0.5,
 											}}
 										>
-											{header.isPlaceholder
-												? null
-												: flexRender(header.column.columnDef.header, header.getContext())}
-										</div>
-									);
-								}),
-							)}
-						</div>
-					</div>
+											<ActiveTransferCard
+												selected={isSelected(transfer.id)}
+												transfer={transfer}
+												onPause={(id) => console.log("pause", id)}
+												onResume={(id) => console.log("resume", id)}
+												onCancel={(id) => console.log("cancel", id)}
+												onRetry={(id) => console.log("retry", id)}
+												onShowDetails={(id) => console.log("show details", id)}
+												onCopyInfo={(id) => {
+													const item = mockActiveTransfers.find(
+														(transfer) => transfer.id === id,
+													);
+													if (item) copyTransferInfo(item);
+												}}
+												onCopyTransferId={(id) => {
+													void window.navigator.clipboard.writeText(id);
+												}}
+												onRevealFile={(id) => console.log("reveal file", id)}
+												onRemoveFromHistory={(id) => console.log("remove from history", id)}
+												onSelected={(event) => selectItem(transfer.id, event)}
+												onContextSelected={() => ensureSelectedForContextMenu(transfer.id)}
+											/>
+										</motion.div>
+									))
+								)}
+							</AnimatePresence>
+						</motion.div>
+					</ScrollArea>
 
-					<div
-						ref={scrollContainerRef}
-						className={cn(
-							"flex-1 overflow-auto",
-							"[&::-webkit-scrollbar]:w-2.5",
-							"[&::-webkit-scrollbar-track]:bg-transparent",
-							"[&::-webkit-scrollbar-thumb]:bg-primary/60 [&::-webkit-scrollbar-thumb]:rounded-full",
-							"[&::-webkit-scrollbar-thumb]:border [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-padding",
-							"hover:[&::-webkit-scrollbar-thumb]:bg-primary/80",
-							"transition-colors",
-						)}
-						style={{ contain: "strict" }}
-					>
-						{loading ? (
-							<div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
-								<LuLoader className="w-4 h-4 animate-spin" /> กำลังโหลด
-							</div>
-						) : rows.length === 0 ? (
-							<div className="flex items-center justify-center py-8 text-muted-foreground">
-								ไม่มีรายการ
-							</div>
-						) : (
-							<div
-								role="table"
-								className="relative"
-								style={{ height: `${totalHeight}px`, width: "100%" }}
-							>
-								{virtualItems.map((virtualItem) => {
-									const row = rows[virtualItem.index];
-									if (!row) return null;
-
-									return (
-										<VirtualRow
-											key={row.id}
-											row={row}
-											virtualStart={virtualItem.start}
-											isSelected={row.getIsSelected()}
-											onItemClick={handleItemClick}
-											onItemReveal={handleItemReveal}
-											handleCopyFilename={handleCopyFilename}
-											handleItemDelete={handleItemDelete}
-										/>
-									);
-								})}
-							</div>
-						)}
-					</div>
-
-					<div className="flex text-sm text-muted-foreground pt-4 gap-2 border-t shrink-0">
-						<p>{filteredItems.length} รายการ</p>
-						{selectedRowCount > 0 && <p>({selectedRowCount} รายการที่เลือก)</p>}
-						{searchTimeMs > 0 && <p className="ml-auto text-xs">ค้นหาใน {searchTimeMs.toFixed(1)}ms</p>}
+					<div className="flex shrink-0 gap-2 border-t pt-4 text-sm text-muted-foreground">
+						<p>{visibleTransfers.length} รายการ</p>
+						{selectedCount > 0 && <p>({selectedCount} รายการที่เลือก)</p>}
 					</div>
 				</CardContent>
 			</CardTransition>
-
-			<DeleteItemDialog
-				open={deleteItemId !== null}
-				onOpenChange={(open) => {
-					if (!open) {
-						setDeleteItemId(null);
-					}
-				}}
-				onDeleteHistoryOnly={() => {
-					void handleConfirmDelete("history");
-				}}
-				onDeleteBoth={() => {
-					void handleConfirmDelete("both");
-				}}
-				allowDeleteBoth={deleteItemAllowDeleteBoth}
-			/>
-
-			<DeleteBulkDialog
-				open={deleteBulkIds.length > 0}
-				itemCount={deleteBulkIds.length}
-				onOpenChange={(open) => {
-					if (!open) {
-						setDeleteBulkIds([]);
-					}
-				}}
-				onDeleteHistoryOnly={() => {
-					void handleConfirmBulkDelete("history");
-				}}
-				onDeleteBoth={() => {
-					void handleConfirmBulkDelete("both");
-				}}
-				allowDeleteBoth={deleteBulkAllowDeleteBoth}
-			/>
 		</div>
 	);
 }
