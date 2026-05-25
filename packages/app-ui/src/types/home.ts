@@ -53,6 +53,7 @@ export interface HomeProps {
 	onItemRemove: (id: number, scope?: DeleteScope) => Promise<void>;
 	onBulkDelete: (ids: number[]) => void;
 	onRefresh?: () => Promise<void> | void;
+	onNewShare?: () => void;
 	data: FileData[];
 	loading?: boolean;
 	invoke?: InvokeFunction;

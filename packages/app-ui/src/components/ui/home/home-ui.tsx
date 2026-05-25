@@ -298,28 +298,6 @@ export function HomeUI(_props: HomeProps) {
 		event.stopPropagation();
 	}, []);
 
-	const handleShareFiles = useCallback(() => {
-		setTransfers((currentTransfers) => [
-			{
-				id: `tr_mock_${Date.now()}`,
-				name: "new-share-bundle.zip",
-				fileCount: 1,
-				isFolder: false,
-				direction: "send",
-				peerName: "Nearby Device",
-				deviceName: "Neko Share",
-				path: "lan",
-				encrypted: true,
-				state: "transferring",
-				transferredBytes: 0,
-				totalBytes: 1.8 * 1024 ** 3,
-				speedBps: 42 * MB,
-				etaSeconds: 44,
-			},
-			...currentTransfers,
-		]);
-	}, []);
-
 	const pauseTransfers = useCallback((ids: string[]) => {
 		const idSet = new Set(ids);
 		setTransfers((currentTransfers) =>
@@ -644,7 +622,7 @@ export function HomeUI(_props: HomeProps) {
 						</div>
 
 						<div className="ms-auto flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
-							<Button onClick={handleShareFiles}>แชร์ไฟล์</Button>
+							<Button onClick={_props.onNewShare}>แชร์ไฟล์</Button>
 						</div>
 					</div>
 
