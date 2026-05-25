@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -16,6 +16,17 @@ import {
 } from "react-icons/lu";
 import { TbDeselect, TbSelectAll } from "react-icons/tb";
 
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogMedia,
+	AlertDialogTitle,
+} from "@workspace/ui/components/alert-dialog";
 import { Button } from "@workspace/ui/components/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import {
@@ -61,6 +72,9 @@ const TRANSFER_ITEM_TRANSITION = {
 } as const;
 
 type TransferFilter = "all" | "active" | "failed";
+type PendingRemove = {
+	ids: string[];
+};
 
 const ACTIVE_STATES = new Set<ActiveTransfer["state"]>([
 	"connecting",
@@ -74,6 +88,8 @@ const ACTIVE_STATES = new Set<ActiveTransfer["state"]>([
 
 const PAUSABLE_STATES = new Set<ActiveTransfer["state"]>(["transferring", "recovering"]);
 const TERMINAL_STATES = new Set<ActiveTransfer["state"]>(["completed", "failed", "cancelled"]);
+const MB = 1024 ** 2;
+const TRANSFER_TICK_MS = 800;
 
 function matchTransferFilter(transfer: ActiveTransfer, filter: TransferFilter) {
 	if (filter === "all") return true;
@@ -131,15 +147,71 @@ function formatTransferInfo(transfer: ActiveTransfer) {
 export function HomeUI(_props: HomeProps) {
 	const [query, setQuery] = useState("");
 	const [filter, setFilter] = useState<TransferFilter>("all");
+	const [transfers, setTransfers] = useState<ActiveTransfer[]>(() => mockActiveTransfers);
 	const [contextTransferId, setContextTransferId] = useState<string | null>(null);
 	const [isBackgroundContext, setIsBackgroundContext] = useState(false);
+	const [pendingRemove, setPendingRemove] = useState<PendingRemove | null>(null);
 	const scrollAreaRootRef = useRef<HTMLDivElement | null>(null);
 
+	useEffect(() => {
+		const interval = window.setInterval(() => {
+			setTransfers((currentTransfers) => {
+				let changed = false;
+				const nextTransfers: ActiveTransfer[] = currentTransfers.map((transfer): ActiveTransfer => {
+					if (transfer.state === "verifying") {
+						changed = true;
+						return {
+							...transfer,
+							state: "completed",
+							speedBps: 0,
+							etaSeconds: 0,
+							transferredBytes: transfer.totalBytes,
+						};
+					}
+
+					if (transfer.state !== "transferring") {
+						return transfer;
+					}
+
+					const currentSpeed = transfer.speedBps && transfer.speedBps > 0 ? transfer.speedBps : 18 * MB;
+					const speedJitter = 0.85 + Math.random() * 0.3;
+					const nextSpeed = Math.round(currentSpeed * speedJitter);
+					const nextTransferredBytes = Math.min(
+						transfer.totalBytes,
+						transfer.transferredBytes + nextSpeed * (TRANSFER_TICK_MS / 1000),
+					);
+					changed = true;
+
+					if (nextTransferredBytes >= transfer.totalBytes) {
+						return {
+							...transfer,
+							state: "completed",
+							transferredBytes: transfer.totalBytes,
+							speedBps: 0,
+							etaSeconds: 0,
+						};
+					}
+
+					return {
+						...transfer,
+						transferredBytes: nextTransferredBytes,
+						speedBps: nextSpeed,
+						etaSeconds: Math.ceil((transfer.totalBytes - nextTransferredBytes) / nextSpeed),
+					};
+				});
+
+				return changed ? nextTransfers : currentTransfers;
+			});
+		}, TRANSFER_TICK_MS);
+
+		return () => window.clearInterval(interval);
+	}, []);
+
 	const visibleTransfers = useMemo(() => {
-		return mockActiveTransfers.filter((transfer) => {
+		return transfers.filter((transfer) => {
 			return matchTransferFilter(transfer, filter) && matchTransferSearch(transfer, query);
 		});
-	}, [filter, query]);
+	}, [filter, query, transfers]);
 
 	const {
 		selectedIds,
@@ -196,68 +268,214 @@ export function HomeUI(_props: HomeProps) {
 		};
 	}, [contextTransfers]);
 
+	const selectedActionState = useMemo(() => {
+		const selectedTransfers = selectedIds
+			.map((id) => transferById.get(id))
+			.filter((transfer): transfer is ActiveTransfer => Boolean(transfer));
+
+		return {
+			canPause: selectedTransfers.some((transfer) => PAUSABLE_STATES.has(transfer.state)),
+			canRemove: selectedTransfers.some((transfer) => TERMINAL_STATES.has(transfer.state)),
+			canResume: selectedTransfers.some((transfer) => transfer.state === "paused"),
+		};
+	}, [selectedIds, transferById]);
+
 	const refreshData = useCallback(() => {
-		console.log("refresh data");
+		setTransfers(mockActiveTransfers);
 	}, []);
 
 	const clearSearch = useCallback(() => {
 		setQuery("");
 	}, []);
 
+	const handleSurfaceClick = useCallback(() => {
+		if (pendingRemove) return;
+
+		clearSelection();
+	}, [clearSelection, pendingRemove]);
+
 	const stopSurfaceEvent = useCallback((event: React.SyntheticEvent) => {
 		event.stopPropagation();
 	}, []);
 
 	const handleShareFiles = useCallback(() => {
-		console.log("share files");
+		setTransfers((currentTransfers) => [
+			{
+				id: `tr_mock_${Date.now()}`,
+				name: "new-share-bundle.zip",
+				fileCount: 1,
+				isFolder: false,
+				direction: "send",
+				peerName: "Nearby Device",
+				deviceName: "Neko Share",
+				path: "lan",
+				encrypted: true,
+				state: "transferring",
+				transferredBytes: 0,
+				totalBytes: 1.8 * 1024 ** 3,
+				speedBps: 42 * MB,
+				etaSeconds: 44,
+			},
+			...currentTransfers,
+		]);
 	}, []);
 
+	const pauseTransfers = useCallback((ids: string[]) => {
+		const idSet = new Set(ids);
+		setTransfers((currentTransfers) =>
+			currentTransfers.map((transfer) => {
+				if (!idSet.has(transfer.id) || !PAUSABLE_STATES.has(transfer.state)) return transfer;
+
+				return {
+					...transfer,
+					state: "paused",
+					speedBps: 0,
+					etaSeconds: undefined,
+				};
+			}),
+		);
+	}, []);
+
+	const resumeTransfers = useCallback((ids: string[]) => {
+		const idSet = new Set(ids);
+		setTransfers((currentTransfers) =>
+			currentTransfers.map((transfer) => {
+				if (!idSet.has(transfer.id) || transfer.state !== "paused") return transfer;
+
+				const speedBps = transfer.path === "lan" ? 72 * MB : 24 * MB;
+
+				return {
+					...transfer,
+					state: "transferring",
+					speedBps,
+					etaSeconds: Math.ceil((transfer.totalBytes - transfer.transferredBytes) / speedBps),
+				};
+			}),
+		);
+	}, []);
+
+	const retryTransfers = useCallback((ids: string[]) => {
+		const idSet = new Set(ids);
+		setTransfers((currentTransfers) =>
+			currentTransfers.map((transfer) => {
+				if (!idSet.has(transfer.id) || transfer.state !== "failed") return transfer;
+
+				const speedBps = transfer.path === "lan" ? 48 * MB : 16 * MB;
+
+				return {
+					...transfer,
+					state: "transferring",
+					speedBps,
+					etaSeconds: Math.ceil((transfer.totalBytes - transfer.transferredBytes) / speedBps),
+					errorMessage: undefined,
+				};
+			}),
+		);
+	}, []);
+
+	const cancelTransfers = useCallback((ids: string[]) => {
+		const idSet = new Set(ids);
+		setTransfers((currentTransfers) =>
+			currentTransfers.map((transfer) => {
+				if (!idSet.has(transfer.id) || TERMINAL_STATES.has(transfer.state)) return transfer;
+
+				return {
+					...transfer,
+					state: "cancelled",
+					speedBps: 0,
+					etaSeconds: undefined,
+					errorMessage: "Transfer cancelled.",
+				};
+			}),
+		);
+	}, []);
+
+	const removeTransfersFromHistory = useCallback(
+		(ids: string[]) => {
+			const idSet = new Set(ids);
+			setTransfers((currentTransfers) =>
+				currentTransfers.filter((transfer) => !idSet.has(transfer.id) || !TERMINAL_STATES.has(transfer.state)),
+			);
+			setContextTransferId((currentId) => (currentId && idSet.has(currentId) ? null : currentId));
+			replaceSelection(selectedIds.filter((id) => !idSet.has(id)));
+		},
+		[replaceSelection, selectedIds],
+	);
+
+	const requestRemoveTransfers = useCallback((ids: string[]) => {
+		const uniqueIds = Array.from(new Set(ids));
+		if (uniqueIds.length === 0) return;
+
+		setPendingRemove({ ids: uniqueIds });
+	}, []);
+
+	const handleRemoveDialogOpenChange = useCallback((open: boolean) => {
+		if (!open) {
+			setPendingRemove(null);
+		}
+	}, []);
+
+	const handleConfirmRemoveHistory = useCallback(() => {
+		if (!pendingRemove) return;
+
+		removeTransfersFromHistory(pendingRemove.ids);
+		setPendingRemove(null);
+	}, [pendingRemove, removeTransfersFromHistory]);
+
+	const handleConfirmRemoveFiles = useCallback(() => {
+		if (!pendingRemove) return;
+
+		// Mock UI only: the runtime file deletion path is not wired here yet.
+		removeTransfersFromHistory(pendingRemove.ids);
+		setPendingRemove(null);
+	}, [pendingRemove, removeTransfersFromHistory]);
+
 	const handlePauseSelected = useCallback(() => {
-		console.log("pause selected transfers", selectedIds);
-	}, [selectedIds]);
+		pauseTransfers(selectedIds);
+	}, [pauseTransfers, selectedIds]);
 
 	const handleResumeSelected = useCallback(() => {
-		console.log("resume selected transfers", selectedIds);
-	}, [selectedIds]);
+		resumeTransfers(selectedIds);
+	}, [resumeTransfers, selectedIds]);
 
 	const handleRemoveSelected = useCallback(() => {
-		console.log("remove selected transfers", selectedIds);
-	}, [selectedIds]);
+		requestRemoveTransfers(
+			selectedIds.filter((id) => {
+				const transfer = transferById.get(id);
+				return transfer ? TERMINAL_STATES.has(transfer.state) : false;
+			}),
+		);
+	}, [requestRemoveTransfers, selectedIds, transferById]);
 
 	const handleContextPause = useCallback(() => {
-		console.log(
-			"pause context transfers",
+		pauseTransfers(
 			contextTransfers.filter((transfer) => PAUSABLE_STATES.has(transfer.state)).map((transfer) => transfer.id),
 		);
-	}, [contextTransfers]);
+	}, [contextTransfers, pauseTransfers]);
 
 	const handleContextResume = useCallback(() => {
-		console.log(
-			"resume context transfers",
+		resumeTransfers(
 			contextTransfers.filter((transfer) => transfer.state === "paused").map((transfer) => transfer.id),
 		);
-	}, [contextTransfers]);
+	}, [contextTransfers, resumeTransfers]);
 
 	const handleContextRetry = useCallback(() => {
-		console.log(
-			"retry context transfers",
+		retryTransfers(
 			contextTransfers.filter((transfer) => transfer.state === "failed").map((transfer) => transfer.id),
 		);
-	}, [contextTransfers]);
+	}, [contextTransfers, retryTransfers]);
 
 	const handleContextCancel = useCallback(() => {
-		console.log(
-			"cancel context transfers",
+		cancelTransfers(
 			contextTransfers.filter((transfer) => !TERMINAL_STATES.has(transfer.state)).map((transfer) => transfer.id),
 		);
-	}, [contextTransfers]);
+	}, [cancelTransfers, contextTransfers]);
 
 	const handleContextRemove = useCallback(() => {
-		console.log(
-			"remove context transfers",
+		requestRemoveTransfers(
 			contextTransfers.filter((transfer) => TERMINAL_STATES.has(transfer.state)).map((transfer) => transfer.id),
 		);
-	}, [contextTransfers]);
+	}, [contextTransfers, requestRemoveTransfers]);
 
 	const handleContextDetails = useCallback(() => {
 		const transfer = contextTransfers[0];
@@ -273,6 +491,27 @@ export function HomeUI(_props: HomeProps) {
 		console.log("reveal file", transfer.id);
 	}, [contextTransfers]);
 
+	const handleCardPause = useCallback(
+		(id: string) => {
+			pauseTransfers([id]);
+		},
+		[pauseTransfers],
+	);
+
+	const handleCardResume = useCallback(
+		(id: string) => {
+			resumeTransfers([id]);
+		},
+		[resumeTransfers],
+	);
+
+	const handleCardCancel = useCallback(
+		(id: string) => {
+			cancelTransfers([id]);
+		},
+		[cancelTransfers],
+	);
+
 	const handleContextCopyInfo = useCallback(() => {
 		copyTransfersInfo(contextTransfers);
 	}, [contextTransfers]);
@@ -281,10 +520,24 @@ export function HomeUI(_props: HomeProps) {
 		void window.navigator.clipboard.writeText(contextTransfers.map((transfer) => transfer.id).join("\n"));
 	}, [contextTransfers]);
 
+	const pendingRemoveTransfers = useMemo(() => {
+		if (!pendingRemove) return [];
+
+		return pendingRemove.ids
+			.map((id) => transferById.get(id))
+			.filter((transfer): transfer is ActiveTransfer => Boolean(transfer));
+	}, [pendingRemove, transferById]);
+
+	const pendingRemoveCount = pendingRemoveTransfers.length;
+	const pendingRemoveTitle =
+		pendingRemoveCount > 1
+			? `ลบรายการ ${pendingRemoveCount} รายการ?`
+			: `ลบ ${pendingRemoveTransfers[0]?.name ?? "รายการนี้"}?`;
+
 	return (
 		<div
 			className="flex h-full flex-col focus:outline-none focus:ring-0"
-			onClick={clearSelection}
+			onClick={handleSurfaceClick}
 			onKeyDown={handleKeyDown}
 			tabIndex={0}
 		>
@@ -344,7 +597,7 @@ export function HomeUI(_props: HomeProps) {
 									variant="destructive"
 									size="icon"
 									onClick={handleRemoveSelected}
-									disabled={!hasSelection}
+									disabled={!selectedActionState.canRemove}
 								>
 									<LuTrash2 className="h-4 w-4" />
 								</Button>
@@ -369,12 +622,18 @@ export function HomeUI(_props: HomeProps) {
 										<DropdownMenuSeparator />
 
 										<DropdownMenuGroup>
-											<DropdownMenuItem disabled={!hasSelection} onSelect={handlePauseSelected}>
+											<DropdownMenuItem
+												disabled={!selectedActionState.canPause}
+												onSelect={handlePauseSelected}
+											>
 												<LuPause />
 												หยุดชั่วคราว
 											</DropdownMenuItem>
 
-											<DropdownMenuItem disabled={!hasSelection} onSelect={handleResumeSelected}>
+											<DropdownMenuItem
+												disabled={!selectedActionState.canResume}
+												onSelect={handleResumeSelected}
+											>
 												<LuPlay />
 												ดำเนินการต่อ
 											</DropdownMenuItem>
@@ -477,9 +736,9 @@ export function HomeUI(_props: HomeProps) {
 														<ActiveTransferCard
 															selected={isSelected(transfer.id)}
 															transfer={transfer}
-															onPause={(id) => console.log("pause", id)}
-															onResume={(id) => console.log("resume", id)}
-															onCancel={(id) => console.log("cancel", id)}
+															onPause={handleCardPause}
+															onResume={handleCardResume}
+															onCancel={handleCardCancel}
 															onShowDetails={(id) => console.log("show details", id)}
 															onSelected={(event) => selectItem(transfer.id, event)}
 															onContextSelected={() => {
@@ -590,6 +849,29 @@ export function HomeUI(_props: HomeProps) {
 					</div>
 				</CardContent>
 			</CardTransition>
+
+			<AlertDialog open={Boolean(pendingRemove)} onOpenChange={handleRemoveDialogOpenChange}>
+				<AlertDialogContent className="max-w-sm" onClick={stopSurfaceEvent} onPointerDown={stopSurfaceEvent}>
+					<AlertDialogHeader>
+						<AlertDialogMedia className="text-destructive">
+							<LuTrash2 />
+						</AlertDialogMedia>
+						<AlertDialogTitle>{pendingRemoveTitle}</AlertDialogTitle>
+						<AlertDialogDescription>
+							เลือกว่าจะลบเฉพาะประวัติการโอน หรือจะลบไฟล์ออกจากเครื่องพร้อมประวัติ
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter className="sm:flex-col sm:justify-start">
+						<AlertDialogCancel onClick={() => setPendingRemove(null)}>ยกเลิก</AlertDialogCancel>
+						<AlertDialogAction variant="outline" onClick={handleConfirmRemoveHistory}>
+							ลบเฉพาะประวัติ
+						</AlertDialogAction>
+						<AlertDialogAction variant="destructive" onClick={handleConfirmRemoveFiles}>
+							ลบไฟล์และประวัติ
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

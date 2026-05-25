@@ -144,7 +144,7 @@ export const mockActiveTransfers: ActiveTransfer[] = [
 		deviceName: "Ubuntu VPS",
 		path: "relay",
 		encrypted: true,
-		state: "verifying",
+		state: "completed",
 		transferredBytes: 1.6 * GB,
 		totalBytes: 1.6 * GB,
 		speedBps: 0,
@@ -165,7 +165,8 @@ export const mockActiveTransfers: ActiveTransfer[] = [
 		totalBytes: 3.2 * GB,
 		speedBps: 0,
 		etaSeconds: undefined,
-		errorMessage: "Connection lost. The receiver went offline before resume data was saved.",
+		errorMessage:
+			"Connection lost. The receiver went offline before resume data was saved.",
 	},
 ];
 
@@ -181,7 +182,10 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 }: ActiveTransferCardProps) {
 	const progress =
 		transfer.totalBytes > 0
-			? Math.min(100, Math.max(0, (transfer.transferredBytes / transfer.totalBytes) * 100))
+			? Math.min(
+					100,
+					Math.max(0, (transfer.transferredBytes / transfer.totalBytes) * 100),
+				)
 			: 0;
 
 	const isDone = transfer.state === "completed";
@@ -194,7 +198,10 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 		transfer.state === "recovering" ||
 		transfer.state === "verifying";
 
-	const peerText = transfer.direction === "send" ? `To ${transfer.peerName}` : `From ${transfer.peerName}`;
+	const peerText =
+		transfer.direction === "send"
+			? `To ${transfer.peerName}`
+			: `From ${transfer.peerName}`;
 
 	return (
 		<div
@@ -252,7 +259,9 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 						</div>
 
 						<div className="shrink-0 text-right">
-							<div className="text-sm font-medium tabular-nums">{Math.round(progress)}%</div>
+							<div className="text-sm font-medium tabular-nums">
+								{Math.round(progress)}%
+							</div>
 							<div className="mt-0.5 text-xs text-muted-foreground">
 								{formatBytes(transfer.totalBytes)}
 							</div>
@@ -267,11 +276,15 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 
 					<div className="mt-3 flex gap-3 items-center">
 						<div className="flex-1">
-							<Progress value={progress} className={cn(isFailed && "bg-destructive/30")} />
+							<Progress
+								value={progress}
+								className={cn(isFailed && "bg-destructive/30")}
+							/>
 
 							<div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
 								<span className="truncate tabular-nums">
-									{formatBytes(transfer.transferredBytes)} / {formatBytes(transfer.totalBytes)}
+									{formatBytes(transfer.transferredBytes)} /{" "}
+									{formatBytes(transfer.totalBytes)}
 								</span>
 
 								<span className="shrink-0 tabular-nums">
@@ -303,7 +316,8 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 								>
 									<LuPlay />
 								</Button>
-							) : transfer.state === "transferring" || transfer.state === "recovering" ? (
+							) : transfer.state === "transferring" ||
+							  transfer.state === "recovering" ? (
 								<Button
 									size="icon"
 									variant="outline"
@@ -315,7 +329,9 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 									<LuPause />
 								</Button>
 							) : null}
-							{!isDone && transfer.state !== "cancelled" ? (
+							{!isDone &&
+							transfer.state !== "failed" &&
+							transfer.state !== "cancelled" ? (
 								<Button
 									size="icon"
 									variant="destructive"
@@ -350,7 +366,9 @@ function StateBadge({ state }: { state: TransferState }) {
 			<LuTriangleAlert />
 		) : state === "transferring" ? (
 			<LuLoader className="h-3 w-3 animate-spin" />
-		) : state === "recovering" || state === "connecting" || state === "handshaking" ? (
+		) : state === "recovering" ||
+		  state === "connecting" ||
+		  state === "handshaking" ? (
 			<LuLoader className="h-3 w-3 animate-spin" />
 		) : null;
 
@@ -404,7 +422,9 @@ function EncryptionBadge({ encrypted }: { encrypted: boolean }) {
 		<span
 			className={cn(
 				"inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium",
-				encrypted ? "text-muted-foreground" : "border-destructive/30 text-destructive",
+				encrypted
+					? "text-muted-foreground"
+					: "border-destructive/30 text-destructive",
 			)}
 		>
 			{encrypted ? (
@@ -464,7 +484,7 @@ function formatBytes(bytes: number) {
 }
 
 function formatEta(seconds: number) {
-	if (!Number.isFinite(seconds) || seconds < 0) return "â€”";
+	if (!Number.isFinite(seconds) || seconds < 0) return "-";
 
 	if (seconds < 60) return `${Math.ceil(seconds)}s`;
 
