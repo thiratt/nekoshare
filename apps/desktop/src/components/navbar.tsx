@@ -1,4 +1,10 @@
-import { LuMaximize, LuMinus, LuX } from "react-icons/lu";
+import {
+  LuMaximize,
+  LuMinus,
+  LuPanelLeftClose,
+  LuPanelLeftOpen,
+  LuX,
+} from "react-icons/lu";
 import { TiTabsOutline } from "react-icons/ti";
 
 import { Button } from "@workspace/ui/components/button";
@@ -16,17 +22,43 @@ interface DesktopTitlebarHelperActionsProps {
 
 interface DesktopTitlebarProps {
   helperActions?: DesktopTitlebarHelperActionsProps[];
+  sidebarToggle?: {
+    isOpen: boolean;
+    onToggle: () => void;
+    disabled?: boolean;
+  };
 }
 
-function DesktopTitlebar({ helperActions }: DesktopTitlebarProps) {
+function DesktopTitlebar({
+  helperActions,
+  sidebarToggle,
+}: DesktopTitlebarProps) {
   const { isMaximized, isSnapHover, minimize, close } = useNSDesktop();
 
   return (
     <div className="flex items-center w-full h-11 bg-primary dark:bg-background border-b-2">
-      <div data-tauri-drag-region className="flex-1 h-full flex items-center">
-        <h1 className="pointer-events-none select-none pl-3 font-semibold text-background dark:text-foreground text-sm lg:text-base">
-          Nekoshare Desktop
-        </h1>
+      <div className="flex-1 h-full flex items-center min-w-0">
+        {sidebarToggle ? (
+          <Button
+            className="ms-2 size-7 shrink-0 hover:bg-muted/20 hover:text-background dark:hover:bg-[#373737] dark:hover:text-foreground"
+            variant="ghost"
+            size="icon"
+            title={sidebarToggle.isOpen ? "Collapse sidebar" : "Expand sidebar"}
+            onClick={sidebarToggle.onToggle}
+            disabled={sidebarToggle.disabled}
+            tabIndex={-1}
+          >
+            {sidebarToggle.isOpen ? <LuPanelLeftClose /> : <LuPanelLeftOpen />}
+          </Button>
+        ) : null}
+        <div
+          data-tauri-drag-region
+          className="flex h-full min-w-0 flex-1 items-center"
+        >
+          <h1 className="pointer-events-none select-none pl-3 font-semibold text-background dark:text-foreground text-sm lg:text-base">
+            Nekoshare Desktop
+          </h1>
+        </div>
       </div>
       <div className="flex items-center h-full text-background dark:text-foreground">
         {helperActions && (

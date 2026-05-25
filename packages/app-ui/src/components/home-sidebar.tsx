@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { LuChevronLeft, LuHouse, LuMonitorSmartphone, LuUsers } from "react-icons/lu";
+import { LuHouse, LuMonitorSmartphone, LuUsers } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@workspace/ui/components/tooltip";
@@ -19,6 +19,7 @@ interface HomeSidebarProps extends IncludeLinkComponentProps {
 	onNotifications?: () => void;
 	onSignout?: () => Promise<void>;
 	collapseWhenNotificationOpen?: boolean;
+	isOpen?: boolean;
 }
 
 interface SidebarButtonProps {
@@ -54,10 +55,15 @@ const SidebarButton = ({ label, link, icon: Icon, isActive, isOpen, linkComponen
 	return <div key={link}>{content}</div>;
 };
 
-export function HomeSidebar({ linkComponent, pathname, collapseWhenNotificationOpen = false }: HomeSidebarProps) {
+export function HomeSidebar({
+	linkComponent,
+	pathname,
+	collapseWhenNotificationOpen = false,
+	isOpen: controlledIsOpen,
+}: HomeSidebarProps) {
 	const { t } = useAppI18n();
-	const { isOpen, toggleSidebar } = useSidebar();
-	const effectiveIsOpen = collapseWhenNotificationOpen ? false : isOpen;
+	const { isOpen: uncontrolledIsOpen } = useSidebar();
+	const effectiveIsOpen = collapseWhenNotificationOpen ? false : (controlledIsOpen ?? uncontrolledIsOpen);
 
 	const sidebarLink = useMemo(
 		() => [
@@ -95,20 +101,10 @@ export function HomeSidebar({ linkComponent, pathname, collapseWhenNotificationO
 		<TooltipProvider>
 			<aside
 				className={cn(
-					"relative flex flex-col py-4 border-r duration-300 px-4.5",
+					"relative flex flex-col gap-4 py-4 border-r duration-300 px-4.5",
 					effectiveIsOpen ? "w-52 xl:w-64" : "w-20",
 				)}
 			>
-				<div className={cn("absolute flex items-center transition-[margin] -right-4", !effectiveIsOpen && "")}>
-					<Button
-						className="h-8 w-8 rounded-full"
-						size="icon"
-						onClick={toggleSidebar}
-						disabled={collapseWhenNotificationOpen}
-					>
-						<LuChevronLeft className={effectiveIsOpen ? "rotate-180" : "rotate-0"} />
-					</Button>
-				</div>
 				<nav className="flex-1 flex flex-col">
 					<div className="space-y-1 flex flex-col">
 						{sidebarLink.map((item) => (
