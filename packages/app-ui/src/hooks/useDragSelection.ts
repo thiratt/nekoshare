@@ -374,8 +374,12 @@ export function useDragSelection({
 	const startDragging = React.useCallback(() => {
 		if (didDragRef.current) return;
 
+		const session = sessionRef.current;
+		if (!session) return;
+
 		didDragRef.current = true;
 		ignoreNextClickRef.current = true;
+		trySetPointerCapture(session.target, session.pointerId);
 		previousBodyUserSelectRef.current = document.body.style.userSelect;
 		document.body.style.userSelect = "none";
 		setIsDragging(true);
@@ -397,8 +401,6 @@ export function useDragSelection({
 				x: event.clientX,
 				y: event.clientY,
 			};
-
-			trySetPointerCapture(target, event.pointerId);
 
 			sessionRef.current = {
 				additive: event.ctrlKey || event.metaKey,
