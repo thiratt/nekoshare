@@ -21,7 +21,7 @@ import {
   listTransferHistory,
 } from "@/lib/transfer-history";
 
-export const Route = createFileRoute("/home/")({
+export const Route = createFileRoute("/(app)/home/")({
   component: RouteComponent,
 });
 
@@ -234,6 +234,7 @@ function RouteComponent() {
 
   return (
     <HomeUI
+      onNewShare={() => navigate({ to: "/share/new" })}
       onItemClick={(id) => {
         console.log("Open transfer detail for item id:", id);
         navigate({ to: "/home/transfer-detail" });

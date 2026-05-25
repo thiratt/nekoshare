@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { TransferDetailUI } from "@workspace/app-ui/components/ui/transfer-detail/index";
 
-export const Route = createFileRoute("/home/transfer-detail")({
+export const Route = createFileRoute("/(app)/home/transfer-detail")({
   component: RouteComponent,
 });
 

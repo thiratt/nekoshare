@@ -24,6 +24,7 @@ import {
   type GlobalOptions,
   transformDevices,
   transformFriends,
+  useDropOverlayActions,
 } from "@workspace/app-ui/components/ui/drop-overlay/index";
 import {
   useNekoShareDesktop,
@@ -31,11 +32,16 @@ import {
 } from "@workspace/app-ui/context/nekoshare";
 import { useDevices } from "@workspace/app-ui/hooks/use-devices";
 import { useFriends } from "@workspace/app-ui/hooks/use-friends";
+import { useSidebar } from "@workspace/app-ui/hooks/use-sidebar";
 import { useNekoSocket } from "@workspace/app-ui/hooks/useNekoSocket";
 import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
 import { useSocketInterval } from "@workspace/app-ui/hooks/useSocketInterval";
 import { PacketType } from "@workspace/app-ui/lib/nk-socket";
-import { useAccountThemeSync, useTheme } from "@workspace/app-ui/providers/theme-provider";
+import {
+  useAccountThemeSync,
+  useTheme,
+} from "@workspace/app-ui/providers/theme-provider";
+import type { Mode } from "@workspace/app-ui/types/context";
 
 import { DesktopTitlebar } from "@/components/navbar";
 import { SetupApplicationUI } from "@/components/setup";
@@ -49,7 +55,7 @@ import {
 import { parseDropZoneId } from "@/lib/transfer";
 import { useAccountLanguageSync } from "@workspace/i18n/react";
 
-export const Route = createFileRoute("/home")({
+export const Route = createFileRoute("/(app)")({
   async beforeLoad() {
     const result = await getCachedSession();
 
@@ -82,17 +88,35 @@ interface HomeContentProps {
     badge?: boolean;
     actived?: boolean;
   }[];
+  sidebarToggle: {
+    isOpen: boolean;
+    onToggle: () => void;
+    disabled?: boolean;
+  };
   location: { pathname: string };
+  mode: Mode;
   notificationStatus: "on" | "off";
 }
 
 function HomeContent({
   isReady,
   titlebarHelperActions,
+  sidebarToggle,
   location,
+  mode,
   notificationStatus,
 }: HomeContentProps) {
-  useTauriFileDrop({ enabled: isReady });
+  const isShareComposerRoute = location.pathname === "/share/new";
+  const disableGlobalDropOverlay = mode !== "home" || isShareComposerRoute;
+  const { close } = useDropOverlayActions();
+
+  useTauriFileDrop({ enabled: isReady && !disableGlobalDropOverlay });
+
+  useEffect(() => {
+    if (disableGlobalDropOverlay) {
+      close();
+    }
+  }, [close, disableGlobalDropOverlay]);
 
   const { devices: rawDevices } = useDevices();
   const { friends: rawFriends } = useFriends();
@@ -107,20 +131,26 @@ function HomeContent({
     <div className="h-full flex flex-col overflow-hidden">
       {isReady ? (
         <>
-          <DesktopTitlebar helperActions={titlebarHelperActions} />
+          <DesktopTitlebar
+            helperActions={titlebarHelperActions}
+            sidebarToggle={sidebarToggle}
+          />
           <div className="flex flex-1 divide-x overflow-hidden">
             <HomeSidebar
               linkComponent={Link}
               pathname={location.pathname}
               mode="desktop"
               collapseWhenNotificationOpen={notificationStatus === "on"}
+              isOpen={sidebarToggle.isOpen}
             />
             <div className="flex-1 bg-muted p-4 flex flex-col min-w-0 overflow-hidden">
               <Outlet />
             </div>
             <NotificationSidebar />
           </div>
-          <DropOverlayUI devices={devices} friends={friends} />
+          {!disableGlobalDropOverlay ? (
+            <DropOverlayUI devices={devices} friends={friends} />
+          ) : null}
         </>
       ) : (
         <>
@@ -144,6 +174,7 @@ function RouteComponent() {
     globalLoading,
     notificationStatus,
     toggleNotification,
+    mode,
     setMode,
   } = useNekoShareDesktop();
   const { user } = Route.useRouteContext();
@@ -154,6 +185,7 @@ function RouteComponent() {
   useAccountLanguageSync(sessionUser?.language ?? user?.language);
   useAccountThemeSync(sessionUser?.theme ?? user?.theme);
   const { theme, setTheme } = useTheme();
+  const { isOpen: isSidebarOpen, toggleSidebar } = useSidebar();
   const { send } = useNekoSocket();
   const { devices } = useDevices();
   const { toast } = useToast();
@@ -582,7 +614,13 @@ function RouteComponent() {
       <HomeContent
         isReady={isReady}
         titlebarHelperActions={titlebarHelperActions}
+        sidebarToggle={{
+          isOpen: isSidebarOpen,
+          onToggle: toggleSidebar,
+          disabled: notificationStatus === "on",
+        }}
         location={location}
+        mode={mode}
         notificationStatus={notificationStatus}
       />
     </DropOverlayProvider>
