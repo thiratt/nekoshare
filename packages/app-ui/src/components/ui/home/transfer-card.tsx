@@ -2,35 +2,20 @@ import { memo } from "react";
 
 import {
 	LuCheckCheck,
-	LuCirclePause,
-	LuCirclePlay,
-	LuCopy,
 	LuFileArchive,
-	LuFileText,
 	LuFolder,
-	LuFolderOpen,
 	LuGlobe,
-	LuInfo,
 	LuLoader,
 	LuPause,
 	LuPlay,
-	LuRotateCcw,
 	LuServer,
 	LuShieldCheck,
-	LuTrash2,
 	LuTriangleAlert,
 	LuWifi,
 	LuX,
 } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
-import {
-	ContextMenu,
-	ContextMenuContent,
-	ContextMenuItem,
-	ContextMenuSeparator,
-	ContextMenuTrigger,
-} from "@workspace/ui/components/context-menu";
 import { Progress } from "@workspace/ui/components/progress";
 import { cn } from "@workspace/ui/lib/utils";
 
@@ -76,12 +61,7 @@ type ActiveTransferCardProps = {
 	onPause?: (id: string) => void;
 	onResume?: (id: string) => void;
 	onCancel?: (id: string) => void;
-	onRetry?: (id: string) => void;
 	onShowDetails?: (id: string) => void;
-	onCopyInfo?: (id: string) => void;
-	onCopyTransferId?: (id: string) => void;
-	onRevealFile?: (id: string) => void;
-	onRemoveFromHistory?: (id: string) => void;
 	onSelected?: (event: React.MouseEvent<HTMLDivElement>) => void;
 	onContextSelected?: (event: React.MouseEvent<HTMLDivElement>) => void;
 };
@@ -195,12 +175,7 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 	onPause,
 	onResume,
 	onCancel,
-	onRetry,
 	onShowDetails,
-	onCopyInfo,
-	onCopyTransferId,
-	onRevealFile,
-	onRemoveFromHistory,
 	onSelected,
 	onContextSelected,
 }: ActiveTransferCardProps) {
@@ -222,216 +197,148 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 	const peerText = transfer.direction === "send" ? `To ${transfer.peerName}` : `From ${transfer.peerName}`;
 
 	return (
-		<ContextMenu>
-			<ContextMenuTrigger asChild>
-				<div
-					className={cn(
-						"group rounded-2xl border bg-card p-4 shadow-sm transition-colors",
-						isFailed && "border-destructive/40",
-						selected ? "bg-primary/10 border-primary/70" : "hover:bg-muted/50",
+		<div
+			className={cn(
+				"group rounded-2xl border bg-card p-4 shadow-sm transition-colors",
+				isFailed && "border-destructive/40",
+				selected ? "bg-primary/10 border-primary/70" : "hover:bg-muted/50",
+			)}
+			onClick={(event) => {
+				event.stopPropagation();
+				onSelected?.(event);
+			}}
+			onContextMenu={(event) => {
+				onContextSelected?.(event);
+			}}
+			onDoubleClick={() => {
+				if (!isBusy) {
+					onShowDetails?.(transfer.id);
+				}
+			}}
+		>
+			<div className="flex items-start gap-3">
+				<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-muted/50">
+					{transfer.isFolder ? (
+						<LuFolder className="h-5 w-5 text-muted-foreground" />
+					) : (
+						<LuFileArchive className="h-5 w-5 text-muted-foreground" />
 					)}
-					onClick={(event) => {
-						event.stopPropagation();
-						onSelected?.(event);
-					}}
-					onContextMenu={(event) => {
-						event.stopPropagation();
-						onContextSelected?.(event);
-					}}
-					onDoubleClick={() => {
-						if (!isBusy) {
-							onShowDetails?.(transfer.id);
-						}
-					}}
-				>
-					<div className="flex items-start gap-3">
-						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-muted/50">
-							{transfer.isFolder ? (
-								<LuFolder className="h-5 w-5 text-muted-foreground" />
-							) : (
-								<LuFileArchive className="h-5 w-5 text-muted-foreground" />
-							)}
+				</div>
+
+				<div className="min-w-0 flex-1">
+					<div className="flex min-w-0 items-start justify-between gap-3">
+						<div className="min-w-0">
+							<div className="w-fit truncate text-foreground underline underline-offset-8 transition-all hover:underline hover:underline-offset-2 hover:cursor-pointer">
+								{transfer.name}
+							</div>
+
+							<div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+								<span className="truncate">{peerText}</span>
+
+								{transfer.deviceName ? (
+									<>
+										<span>·</span>
+										<span className="truncate">{transfer.deviceName}</span>
+									</>
+								) : null}
+
+								{transfer.fileCount && transfer.fileCount > 1 ? (
+									<>
+										<span>·</span>
+										<span>{transfer.fileCount} files</span>
+									</>
+								) : null}
+							</div>
 						</div>
 
-						<div className="min-w-0 flex-1">
-							<div className="flex min-w-0 items-start justify-between gap-3">
-								<div className="min-w-0">
-									<div className="w-fit truncate text-foreground underline underline-offset-8 transition-all hover:underline hover:underline-offset-2 hover:cursor-pointer">
-										{transfer.name}
-									</div>
-
-									<div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-										<span className="truncate">{peerText}</span>
-
-										{transfer.deviceName ? (
-											<>
-												<span>·</span>
-												<span className="truncate">{transfer.deviceName}</span>
-											</>
-										) : null}
-
-										{transfer.fileCount && transfer.fileCount > 1 ? (
-											<>
-												<span>·</span>
-												<span>{transfer.fileCount} files</span>
-											</>
-										) : null}
-									</div>
-								</div>
-
-								<div className="shrink-0 text-right">
-									<div className="text-sm font-medium tabular-nums">{Math.round(progress)}%</div>
-									<div className="mt-0.5 text-xs text-muted-foreground">
-										{formatBytes(transfer.totalBytes)}
-									</div>
-								</div>
+						<div className="shrink-0 text-right">
+							<div className="text-sm font-medium tabular-nums">{Math.round(progress)}%</div>
+							<div className="mt-0.5 text-xs text-muted-foreground">
+								{formatBytes(transfer.totalBytes)}
 							</div>
+						</div>
+					</div>
 
-							<div className="mt-3 flex flex-wrap items-center gap-1">
-								<StateBadge state={transfer.state} />
-								<PathBadge path={transfer.path} />
-								<EncryptionBadge encrypted={transfer.encrypted} />
+					<div className="mt-3 flex flex-wrap items-center gap-1">
+						<StateBadge state={transfer.state} />
+						<PathBadge path={transfer.path} />
+						<EncryptionBadge encrypted={transfer.encrypted} />
+					</div>
+
+					<div className="mt-3 flex gap-3 items-center">
+						<div className="flex-1">
+							<Progress value={progress} className={cn(isFailed && "bg-destructive/30")} />
+
+							<div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+								<span className="truncate tabular-nums">
+									{formatBytes(transfer.transferredBytes)} / {formatBytes(transfer.totalBytes)}
+								</span>
+
+								<span className="shrink-0 tabular-nums">
+									{isBusy ? (
+										stateText(transfer.state)
+									) : transfer.speedBps && transfer.state === "transferring" ? (
+										<>
+											{formatBytes(transfer.speedBps)}/s
+											{typeof transfer.etaSeconds === "number"
+												? ` · ${formatEta(transfer.etaSeconds)} left`
+												: null}
+										</>
+									) : (
+										stateText(transfer.state)
+									)}
+								</span>
 							</div>
+						</div>
 
-							<div className="mt-3 flex gap-3 items-center">
-								<div className="flex-1">
-									<Progress value={progress} className={cn(isFailed && "bg-destructive/30")} />
-
-									<div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-										<span className="truncate tabular-nums">
-											{formatBytes(transfer.transferredBytes)} /{" "}
-											{formatBytes(transfer.totalBytes)}
-										</span>
-
-										<span className="shrink-0 tabular-nums">
-											{isBusy ? (
-												stateText(transfer.state)
-											) : transfer.speedBps && transfer.state === "transferring" ? (
-												<>
-													{formatBytes(transfer.speedBps)}/s
-													{typeof transfer.etaSeconds === "number"
-														? ` · ${formatEta(transfer.etaSeconds)} left`
-														: null}
-												</>
-											) : (
-												stateText(transfer.state)
-											)}
-										</span>
-									</div>
-								</div>
-
-								<div className="space-x-1">
-									{isPaused ? (
-										<Button
-											size="icon"
-											variant="outline"
-											onClick={(e) => {
-												e.stopPropagation();
-												onResume?.(transfer.id);
-											}}
-										>
-											<LuPlay />
-										</Button>
-									) : transfer.state === "transferring" || transfer.state === "recovering" ? (
-										<Button
-											size="icon"
-											variant="outline"
-											onClick={(e) => {
-												e.stopPropagation();
-												onPause?.(transfer.id);
-											}}
-										>
-											<LuPause />
-										</Button>
-									) : null}
-									{!isDone && transfer.state !== "cancelled" ? (
-										<Button
-											size="icon"
-											variant="destructive"
-											onClick={(e) => {
-												e.stopPropagation();
-												onCancel?.(transfer.id);
-											}}
-										>
-											<LuX />
-										</Button>
-									) : null}
-								</div>
-							</div>
-
-							{transfer.errorMessage ? (
-								<div className="mt-3 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-									<LuTriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-									<span>{transfer.errorMessage}</span>
-								</div>
+						<div className="space-x-1">
+							{isPaused ? (
+								<Button
+									size="icon"
+									variant="outline"
+									onClick={(e) => {
+										e.stopPropagation();
+										onResume?.(transfer.id);
+									}}
+								>
+									<LuPlay />
+								</Button>
+							) : transfer.state === "transferring" || transfer.state === "recovering" ? (
+								<Button
+									size="icon"
+									variant="outline"
+									onClick={(e) => {
+										e.stopPropagation();
+										onPause?.(transfer.id);
+									}}
+								>
+									<LuPause />
+								</Button>
+							) : null}
+							{!isDone && transfer.state !== "cancelled" ? (
+								<Button
+									size="icon"
+									variant="destructive"
+									onClick={(e) => {
+										e.stopPropagation();
+										onCancel?.(transfer.id);
+									}}
+								>
+									<LuX />
+								</Button>
 							) : null}
 						</div>
 					</div>
+
+					{transfer.errorMessage ? (
+						<div className="mt-3 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+							<LuTriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+							<span>{transfer.errorMessage}</span>
+						</div>
+					) : null}
 				</div>
-			</ContextMenuTrigger>
-			<ContextMenuContent className="w-56">
-				{transfer.state === "paused" ? (
-					<ContextMenuItem onClick={() => onResume?.(transfer.id)}>
-						<LuCirclePlay />
-						ดำเนินการต่อ
-					</ContextMenuItem>
-				) : transfer.state === "transferring" || transfer.state === "recovering" ? (
-					<ContextMenuItem onClick={() => onPause?.(transfer.id)}>
-						<LuCirclePause />
-						หยุดชั่วคราว
-					</ContextMenuItem>
-				) : null}
-
-				{transfer.state === "failed" ? (
-					<ContextMenuItem onClick={() => onRetry?.(transfer.id)}>
-						<LuRotateCcw />
-						ลองส่งใหม่
-					</ContextMenuItem>
-				) : null}
-
-				<ContextMenuItem onClick={() => onShowDetails?.(transfer.id)}>
-					<LuInfo />
-					ดูรายละเอียด
-				</ContextMenuItem>
-
-				<ContextMenuItem onClick={() => onCopyInfo?.(transfer.id)}>
-					<LuCopy />
-					คัดลอกข้อมูลการโอน
-				</ContextMenuItem>
-
-				<ContextMenuItem onClick={() => onCopyTransferId?.(transfer.id)}>
-					<LuFileText />
-					คัดลอก Transfer ID
-				</ContextMenuItem>
-
-				<ContextMenuSeparator />
-
-				<ContextMenuItem onClick={() => onRevealFile?.(transfer.id)}>
-					<LuFolderOpen />
-					{transfer.direction === "receive" ? "เปิดตำแหน่งไฟล์" : "เปิดไฟล์ต้นทาง"}
-				</ContextMenuItem>
-
-				<ContextMenuSeparator />
-
-				{!["completed", "failed", "cancelled"].includes(transfer.state) ? (
-					<ContextMenuItem
-						className="text-destructive focus:text-destructive"
-						onClick={() => onCancel?.(transfer.id)}
-					>
-						<LuX />
-						ยกเลิกการโอน
-					</ContextMenuItem>
-				) : (
-					<ContextMenuItem
-						className="text-destructive focus:text-destructive"
-						onClick={() => onRemoveFromHistory?.(transfer.id)}
-					>
-						<LuTrash2 />
-						ลบออกจากประวัติ
-					</ContextMenuItem>
-				)}
-			</ContextMenuContent>
-		</ContextMenu>
+			</div>
+		</div>
 	);
 });
 
@@ -557,7 +464,7 @@ function formatBytes(bytes: number) {
 }
 
 function formatEta(seconds: number) {
-	if (!Number.isFinite(seconds) || seconds < 0) return "—";
+	if (!Number.isFinite(seconds) || seconds < 0) return "â€”";
 
 	if (seconds < 60) return `${Math.ceil(seconds)}s`;
 
