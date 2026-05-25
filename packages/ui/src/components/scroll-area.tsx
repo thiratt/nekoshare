@@ -50,7 +50,7 @@ function ScrollBar({
 				orientation === "horizontal" &&
 					"data-[state=hidden]:animate-out data-[state=hidden]:slide-out-to-bottom-1 data-[state=hidden]:fade-out-0",
 				orientation === "horizontal" && "h-2.5 flex-col border-t border-t-transparent",
-				className
+				className,
 			)}
 			{...props}
 		>

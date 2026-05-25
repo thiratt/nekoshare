@@ -83,7 +83,7 @@ type ActiveTransferCardProps = {
 	onRevealFile?: (id: string) => void;
 	onRemoveFromHistory?: (id: string) => void;
 	onSelected?: (event: React.MouseEvent<HTMLDivElement>) => void;
-	onContextSelected?: () => void;
+	onContextSelected?: (event: React.MouseEvent<HTMLDivElement>) => void;
 };
 
 const GB = 1024 ** 3;
@@ -236,7 +236,7 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 					}}
 					onContextMenu={(event) => {
 						event.stopPropagation();
-						onContextSelected?.();
+						onContextSelected?.(event);
 					}}
 					onDoubleClick={() => {
 						if (!isBusy) {

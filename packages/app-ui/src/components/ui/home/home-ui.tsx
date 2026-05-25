@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { AnimatePresence, motion } from "motion/react";
 import { LuEllipsis, LuPause, LuPlay, LuRefreshCcw, LuTrash2 } from "react-icons/lu";
@@ -19,6 +19,7 @@ import { SearchInput } from "@workspace/ui/components/search-input";
 import { Separator } from "@workspace/ui/components/separator";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
+import { useDragSelection } from "@workspace/app-ui/hooks/useDragSelection";
 import { useExplorerSelection } from "@workspace/app-ui/hooks/useExplorerSelection";
 import type { HomeProps } from "@workspace/app-ui/types/home";
 
@@ -104,6 +105,7 @@ function copyTransferInfo(transfer: ActiveTransfer) {
 export function HomeUI(_props: HomeProps) {
 	const [query, setQuery] = useState("");
 	const [filter, setFilter] = useState<TransferFilter>("all");
+	const scrollAreaRootRef = useRef<HTMLDivElement | null>(null);
 
 	const visibleTransfers = useMemo(() => {
 		return mockActiveTransfers.filter((transfer) => {
@@ -119,11 +121,18 @@ export function HomeUI(_props: HomeProps) {
 		selectItem,
 		selectAll,
 		clearSelection,
+		replaceSelection,
 		ensureSelectedForContextMenu,
 		handleKeyDown,
 	} = useExplorerSelection({
 		items: visibleTransfers,
 		getId: (item) => item.id,
+	});
+
+	const dragSelection = useDragSelection({
+		scrollAreaRootRef,
+		selectedIds,
+		onSelectionChange: replaceSelection,
 	});
 
 	const refreshData = useCallback(() => {
@@ -262,84 +271,103 @@ export function HomeUI(_props: HomeProps) {
 				</CardHeader>
 
 				<CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden">
-					<ScrollArea className="min-h-0 flex-1">
-						<motion.div layout className="relative flex min-h-full flex-col gap-2 py-2 pr-2.5">
-							<AnimatePresence initial={false} mode="popLayout">
-								{visibleTransfers.length === 0 ? (
-									<motion.div
-										key="empty"
-										layout
-										initial={{ opacity: 0, scale: 0.96 }}
-										animate={{ opacity: 1, scale: 1 }}
-										exit={{ opacity: 0, scale: 0.96 }}
-										transition={{
-											duration: 0.18,
-											ease: [0.16, 1, 0.3, 1],
+					<div ref={scrollAreaRootRef} className="min-h-0 flex-1">
+						<ScrollArea className="h-full">
+							<motion.div
+								layout
+								className="relative flex min-h-full flex-col gap-2 py-2 pr-2.5"
+								{...dragSelection.containerProps}
+							>
+								{dragSelection.selectionBox ? (
+									<div
+										className="pointer-events-none absolute z-50 border border-primary/70 bg-primary/15"
+										style={{
+											left: dragSelection.selectionBox.left,
+											top: dragSelection.selectionBox.top,
+											width: dragSelection.selectionBox.width,
+											height: dragSelection.selectionBox.height,
 										}}
-										className="flex min-h-[calc(100vh-260px)] flex-1 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground"
-									>
-										ไม่พบรายการที่ตรงกับการค้นหา
-									</motion.div>
-								) : (
-									visibleTransfers.map((transfer) => (
+									/>
+								) : null}
+
+								<AnimatePresence initial={false} mode="popLayout">
+									{visibleTransfers.length === 0 ? (
 										<motion.div
-											key={transfer.id}
-											layout="position"
-											initial={{
-												opacity: 0,
-												scale: 0.985,
-												y: 10,
-											}}
-											animate={{
-												opacity: 1,
-												scale: 1,
-												y: 0,
-											}}
-											exit={{
-												opacity: 0,
-												scale: 0.985,
-												y: -8,
-												transition: {
-													duration: 0.16,
-													ease: [0.16, 1, 0.3, 1],
-												},
-											}}
+											key="empty"
+											layout
+											initial={{ opacity: 0, scale: 0.96 }}
+											animate={{ opacity: 1, scale: 1 }}
+											exit={{ opacity: 0, scale: 0.96 }}
 											transition={{
-												layout: TRANSFER_LIST_TRANSITION,
-												default: TRANSFER_ITEM_TRANSITION,
+												duration: 0.18,
+												ease: [0.16, 1, 0.3, 1],
 											}}
-											style={{
-												originY: 0.5,
-											}}
+											className="flex min-h-[calc(100vh-260px)] flex-1 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground"
 										>
-											<ActiveTransferCard
-												selected={isSelected(transfer.id)}
-												transfer={transfer}
-												onPause={(id) => console.log("pause", id)}
-												onResume={(id) => console.log("resume", id)}
-												onCancel={(id) => console.log("cancel", id)}
-												onRetry={(id) => console.log("retry", id)}
-												onShowDetails={(id) => console.log("show details", id)}
-												onCopyInfo={(id) => {
-													const item = mockActiveTransfers.find(
-														(transfer) => transfer.id === id,
-													);
-													if (item) copyTransferInfo(item);
-												}}
-												onCopyTransferId={(id) => {
-													void window.navigator.clipboard.writeText(id);
-												}}
-												onRevealFile={(id) => console.log("reveal file", id)}
-												onRemoveFromHistory={(id) => console.log("remove from history", id)}
-												onSelected={(event) => selectItem(transfer.id, event)}
-												onContextSelected={() => ensureSelectedForContextMenu(transfer.id)}
-											/>
+											ไม่พบรายการที่ตรงกับการค้นหา
 										</motion.div>
-									))
-								)}
-							</AnimatePresence>
-						</motion.div>
-					</ScrollArea>
+									) : (
+										visibleTransfers.map((transfer) => (
+											<motion.div
+												key={transfer.id}
+												layout="position"
+												data-selectable-id={transfer.id}
+												initial={{
+													opacity: 0,
+													scale: 0.985,
+													y: 10,
+												}}
+												animate={{
+													opacity: 1,
+													scale: 1,
+													y: 0,
+												}}
+												exit={{
+													opacity: 0,
+													scale: 0.985,
+													y: -8,
+													transition: {
+														duration: 0.16,
+														ease: [0.16, 1, 0.3, 1],
+													},
+												}}
+												transition={{
+													layout: TRANSFER_LIST_TRANSITION,
+													default: TRANSFER_ITEM_TRANSITION,
+												}}
+												style={{
+													originY: 0.5,
+												}}
+											>
+												<ActiveTransferCard
+													selected={isSelected(transfer.id)}
+													transfer={transfer}
+													onPause={(id) => console.log("pause", id)}
+													onResume={(id) => console.log("resume", id)}
+													onCancel={(id) => console.log("cancel", id)}
+													onRetry={(id) => console.log("retry", id)}
+													onShowDetails={(id) => console.log("show details", id)}
+													onCopyInfo={(id) => {
+														const item = mockActiveTransfers.find(
+															(transfer) => transfer.id === id,
+														);
+														if (item) copyTransferInfo(item);
+													}}
+													onCopyTransferId={(id) => {
+														void window.navigator.clipboard.writeText(id);
+													}}
+													onRevealFile={(id) => console.log("reveal file", id)}
+													onRemoveFromHistory={(id) => console.log("remove from history", id)}
+													onSelected={(event) => selectItem(transfer.id, event)}
+													onContextSelected={() => ensureSelectedForContextMenu(transfer.id)}
+												/>
+											</motion.div>
+										))
+									)}
+								</AnimatePresence>
+							</motion.div>
+						</ScrollArea>
+					</div>
 
 					<div className="flex shrink-0 gap-2 border-t pt-4 text-sm text-muted-foreground">
 						<p>{visibleTransfers.length} รายการ</p>

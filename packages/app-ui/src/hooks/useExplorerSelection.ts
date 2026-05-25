@@ -132,6 +132,18 @@ export function useExplorerSelection<T>({
 		});
 	}, []);
 
+	const replaceSelection = useCallback((ids: string[]) => {
+		setState((prev) => {
+			const next = new Set(ids);
+
+			return {
+				selectedSet: next,
+				anchorId: ids.at(-1) ?? prev.anchorId,
+				focusedId: ids.at(-1) ?? prev.focusedId,
+			};
+		});
+	}, []);
+
 	const selectRange = useCallback(
 		(id: string, options?: { additive?: boolean }) => {
 			setState((prev) => {
@@ -362,6 +374,7 @@ export function useExplorerSelection<T>({
 		selectAll,
 		clearSelection,
 		invertSelection,
+		replaceSelection,
 		ensureSelectedForContextMenu,
 
 		moveFocus,
