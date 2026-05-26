@@ -1,3 +1,5 @@
+import type { IncludeLinkComponentProps } from "./link";
+
 export type Status = "success" | "failed" | "processing";
 
 export interface TransferSnapshot {
@@ -47,13 +49,12 @@ export interface ShareItem {
 export type InvokeFunction = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
 export type DeleteScope = "history" | "both";
 
-export interface HomeProps {
+export interface HomeProps extends IncludeLinkComponentProps {
 	onItemClick: (id: number) => void;
 	onItemReveal: (id: number) => void;
 	onItemRemove: (id: number, scope?: DeleteScope) => Promise<void>;
 	onBulkDelete: (ids: number[]) => void;
 	onRefresh?: () => Promise<void> | void;
-	onNewShare?: () => void;
 	data: FileData[];
 	loading?: boolean;
 	invoke?: InvokeFunction;

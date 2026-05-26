@@ -49,6 +49,7 @@ import { SearchInput } from "@workspace/ui/components/search-input";
 import { Separator } from "@workspace/ui/components/separator";
 
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
+import { ExtendLink } from "@workspace/app-ui/components/ext/link";
 import { useDragSelection } from "@workspace/app-ui/hooks/useDragSelection";
 import { useExplorerSelection } from "@workspace/app-ui/hooks/useExplorerSelection";
 import type { HomeProps } from "@workspace/app-ui/types/home";
@@ -531,12 +532,13 @@ export function HomeUI(_props: HomeProps) {
 							<Button
 								variant="outline"
 								size="icon"
+								disabled={_props.loading}
 								onClick={(event) => {
 									event.stopPropagation();
 									refreshData();
 								}}
 							>
-								<LuRefreshCcw className="h-4 w-4" />
+								<LuRefreshCcw className={`h-4 w-4 ${_props.loading ? "animate-spin" : ""}`} />
 							</Button>
 
 							<SearchInput
@@ -622,7 +624,11 @@ export function HomeUI(_props: HomeProps) {
 						</div>
 
 						<div className="ms-auto flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
-							<Button onClick={_props.onNewShare}>แชร์ไฟล์</Button>
+							<Button asChild>
+								<ExtendLink href="/share/new" linkComponent={_props.linkComponent} asButton>
+									แชร์ไฟล์
+								</ExtendLink>
+							</Button>
 						</div>
 					</div>
 

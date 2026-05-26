@@ -1,6 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
@@ -77,8 +77,7 @@ function resolveGroupedName(
 
 function RouteComponent() {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(true);
-
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const transferRecords = useTransferRecords();
   const hydrateTransfers = useTransferStore((state) => state.hydrate);
   const removeTransferByFileId = useTransferStore(
@@ -89,14 +88,14 @@ function RouteComponent() {
   );
 
   const refresh = useCallback(async () => {
-    setIsLoading(true);
+    setIsRefreshing(true);
     try {
       const records = await listTransferHistory();
       hydrateTransfers(records);
     } catch (error) {
       console.error("Failed to load transfer history:", error);
     } finally {
-      setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [hydrateTransfers]);
 
@@ -234,7 +233,7 @@ function RouteComponent() {
 
   return (
     <HomeUI
-      onNewShare={() => navigate({ to: "/share/new" })}
+      linkComponent={Link}
       onItemClick={(id) => {
         console.log("Open transfer detail for item id:", id);
         navigate({ to: "/home/transfer-detail" });
@@ -304,7 +303,7 @@ function RouteComponent() {
       }}
       onRefresh={refresh}
       data={historyData}
-      loading={isLoading}
+      loading={isRefreshing}
       invoke={tauriInvoke}
     />
   );

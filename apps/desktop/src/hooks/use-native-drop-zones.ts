@@ -84,8 +84,27 @@ export function useNativeDropZones({
     let isCancelled = false;
     let unlistenFn: (() => void) | undefined;
 
-    const emit = async (payload: NativeDropZonePayload) => {
-      await onEventRef.current?.(payload);
+    const emit = (payload: NativeDropZonePayload) => {
+      try {
+        const result = onEventRef.current?.(payload);
+        if (result instanceof Promise) {
+          result.catch((error) => {
+            console.error("Native drop zone handler failed:", error);
+          });
+        }
+        return result;
+      } catch (error) {
+        console.error("Native drop zone handler failed:", error);
+        return undefined;
+      }
+    };
+
+    const emitAndWait = async (payload: NativeDropZonePayload) => {
+      try {
+        await onEventRef.current?.(payload);
+      } catch (error) {
+        console.error("Native drop zone handler failed:", error);
+      }
     };
 
     const setupListener = async () => {
@@ -101,7 +120,7 @@ export function useNativeDropZones({
           setIsDragging(false);
           setActiveDropId(null);
           setActiveDropType(null);
-          await emit({ type: "leave", paths: [], position: null, zone: null });
+          emit({ type: "leave", paths: [], position: null, zone: null });
           return;
         }
 
@@ -116,7 +135,7 @@ export function useNativeDropZones({
           setIsDragging(true);
           setActiveDropId(zone?.id ?? null);
           setActiveDropType(zone?.type ?? null);
-          await emit({
+          emit({
             type: payload.type,
             paths: draggedPathsRef.current,
             position,
@@ -130,7 +149,7 @@ export function useNativeDropZones({
           setIsDragging(false);
           setActiveDropId(null);
           setActiveDropType(null);
-          await emit({ type: "drop", paths: payload.paths, position, zone });
+          await emitAndWait({ type: "drop", paths: payload.paths, position, zone });
         }
       });
 
@@ -141,7 +160,9 @@ export function useNativeDropZones({
       }
     };
 
-    setupListener();
+    void setupListener().catch((error) => {
+      console.error("Failed to set up native drop zone listener:", error);
+    });
 
     return () => {
       isCancelled = true;

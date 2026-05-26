@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from "react";
 
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { stat } from "@tauri-apps/plugin-fs";
 
 import {
@@ -48,7 +48,6 @@ function friendToShareTarget(friend: Friend): ShareComposerTarget {
 }
 
 function RouteComponent() {
-  const navigate = useNavigate();
   const composerRef = useRef<ShareComposerHandle | null>(null);
   const { devices: rawDevices } = useDevices();
   const { friends: rawFriends } = useFriends();
@@ -112,7 +111,8 @@ function RouteComponent() {
       devices={devices}
       friends={friends}
       dropState={dropState}
-      onBack={() => navigate({ to: "/home" })}
+      linkComponent={Link}
+      backHref="/home"
     />
   );
 }

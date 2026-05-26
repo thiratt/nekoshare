@@ -171,7 +171,6 @@ function RouteComponent() {
   const location = useLocation();
   const {
     currentDevice,
-    globalLoading,
     notificationStatus,
     toggleNotification,
     mode,
@@ -601,7 +600,7 @@ function RouteComponent() {
     [devices, toast],
   );
 
-  if (!initComplete || globalLoading || status === "loading") {
+  if (!initComplete || status === "loading") {
     return null;
   }
 

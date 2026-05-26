@@ -25,6 +25,9 @@ import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { Switch } from "@workspace/ui/components/switch";
 import { cn } from "@workspace/ui/lib/utils";
 
+import { ExtendLink } from "@workspace/app-ui/components/ext/link";
+import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
+
 import { formatFileSize, getFileExtension, getFileIcon, getFileName } from "../drop-overlay";
 
 export type ShareComposerTarget = {
@@ -50,11 +53,11 @@ type SendOptions = {
 	password: string;
 };
 
-export type ShareComposerProps = {
+export type ShareComposerProps = IncludeLinkComponentProps & {
 	devices?: ShareComposerTarget[];
 	friends?: ShareComposerTarget[];
 	dropState?: ShareComposerDropState;
-	onBack?: () => void;
+	backHref: string;
 	onSend?: (payload: { files: DraftFile[]; targetIds: string[]; options: SendOptions }) => void;
 };
 
@@ -215,7 +218,7 @@ function TargetTile({
 }
 
 export const ShareComposer = forwardRef<ShareComposerHandle, ShareComposerProps>(function ShareComposer(
-	{ devices, friends, dropState, onBack, onSend },
+	{ devices, friends, dropState, linkComponent, backHref, onSend },
 	ref,
 ) {
 	const inputRef = useRef<HTMLInputElement | null>(null);
@@ -309,8 +312,10 @@ export const ShareComposer = forwardRef<ShareComposerHandle, ShareComposerProps>
 
 			<div className="flex items-center justify-between gap-3">
 				<div className="flex min-w-0 items-center gap-3">
-					<Button type="button" variant="outline" size="icon" onClick={onBack}>
-						<LuArrowLeft />
+					<Button type="button" variant="outline" size="icon" asChild>
+						<ExtendLink href={backHref} linkComponent={linkComponent} asButton>
+							<LuArrowLeft />
+						</ExtendLink>
 					</Button>
 					<div className="min-w-0">
 						<h1 className="truncate text-xl font-semibold">อัปโหลดไฟล์</h1>
