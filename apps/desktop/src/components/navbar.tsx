@@ -40,9 +40,9 @@ function DesktopTitlebar({
       <div className="flex-1 h-full flex items-center min-w-0">
         {sidebarToggle ? (
           <Button
-            className="ms-2 size-7 shrink-0 hover:bg-muted/20 hover:text-background dark:hover:bg-[#373737] dark:hover:text-foreground"
+            className="ms-2 size-6 hover:bg-muted/20 text-background hover:text-background dark:hover:bg-[#373737] dark:text-foreground"
             variant="ghost"
-            size="icon"
+            size="icon-sm"
             title={sidebarToggle.isOpen ? "Collapse sidebar" : "Expand sidebar"}
             onClick={sidebarToggle.onToggle}
             disabled={sidebarToggle.disabled}
