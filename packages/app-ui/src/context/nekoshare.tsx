@@ -3,6 +3,7 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useM
 import { AnimatePresence, motion, type Transition, type Variants } from "motion/react";
 
 import { Toaster } from "@workspace/ui/components/sonner";
+import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 
 import LoadingOverlay from "@workspace/app-ui/components/global-loading";
@@ -184,60 +185,62 @@ const NekoShareProvider = <TRouter extends Router>({
 
 	return (
 		<NekoShareContext.Provider value={contextValue}>
-			<div className={cn("relative", appMode === "desktop" && "h-screen overflow-hidden")}>
-				{appMode === "desktop" ? (
-					<motion.div
-						className="h-full will-change-transform"
-						initial={CONTENT_INITIAL_HIDDEN}
-						animate={mounted ? contentAnimationState : CONTENT_ANIMATION_HIDDEN}
-						transition={SPRING_TRANSITION}
-					>
-						{children}
-					</motion.div>
-				) : (
-					children
-				)}
-				{!isHomeMode && (
-					<div className="absolute inset-0 bg-background/80 backdrop-blur-xs animate-in fade-in delay-75" />
-				)}
-				<AnimatePresence mode="wait">
-					{!isHomeMode && (
+			<TooltipProvider>
+				<div className={cn("relative", appMode === "desktop" && "h-screen overflow-hidden")}>
+					{appMode === "desktop" ? (
 						<motion.div
-							key="settings-overlay"
-							className="absolute inset-0 z-10"
-							variants={BACKDROP_VARIANTS}
-							initial="hidden"
-							animate="visible"
-							exit="hidden"
-							transition={{ duration: 0.2 }}
+							className="h-full will-change-transform"
+							initial={CONTENT_INITIAL_HIDDEN}
+							animate={mounted ? contentAnimationState : CONTENT_ANIMATION_HIDDEN}
+							transition={SPRING_TRANSITION}
 						>
+							{children}
+						</motion.div>
+					) : (
+						children
+					)}
+					{!isHomeMode && (
+						<div className="absolute inset-0 bg-background/80 backdrop-blur-xs animate-in fade-in delay-75" />
+					)}
+					<AnimatePresence mode="wait">
+						{!isHomeMode && (
 							<motion.div
-								className="relative h-full"
-								variants={OVERLAY_VARIANTS}
+								key="settings-overlay"
+								className="absolute inset-0 z-10"
+								variants={BACKDROP_VARIANTS}
 								initial="hidden"
 								animate="visible"
-								exit="exit"
-								transition={SPRING_TRANSITION}
+								exit="hidden"
+								transition={{ duration: 0.2 }}
 							>
-								<SettingsUI />
+								<motion.div
+									className="relative h-full"
+									variants={OVERLAY_VARIANTS}
+									initial="hidden"
+									animate="visible"
+									exit="exit"
+									transition={SPRING_TRANSITION}
+								>
+									<SettingsUI />
+								</motion.div>
 							</motion.div>
-						</motion.div>
-					)}
-				</AnimatePresence>
-				<AnimatePresence>
-					{!mounted && (
-						// TODO: Replace with proper skeleton loader
-						<motion.div
-							key="initial-loader"
-							className="absolute inset-0 z-50 flex items-center justify-center bg-background"
-							initial={{ opacity: 1 }}
-							exit={{ opacity: 0 }}
-						>
-							<span>{t("common.loading.deviceData")}</span>
-						</motion.div>
-					)}
-				</AnimatePresence>
-			</div>
+						)}
+					</AnimatePresence>
+					<AnimatePresence>
+						{!mounted && (
+							// TODO: Replace with proper skeleton loader
+							<motion.div
+								key="initial-loader"
+								className="absolute inset-0 z-50 flex items-center justify-center bg-background"
+								initial={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+							>
+								<span>{t("common.loading.deviceData")}</span>
+							</motion.div>
+						)}
+					</AnimatePresence>
+				</div>
+			</TooltipProvider>
 			<GlobalLoadingOverlay />
 			<SessionTerminatedDialog
 				open={sessionTerminated.open}
