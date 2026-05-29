@@ -1,6 +1,6 @@
 import { BinaryReader } from "./binary-utils";
-import type { Result } from "./errors";
 import { safeJsonParse } from "./json";
+import type { Result } from "./errors";
 
 import type {
 	AckPayload,

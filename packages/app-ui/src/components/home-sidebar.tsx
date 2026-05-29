@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 
-import { LuHouse, LuMonitorSmartphone, LuUsers } from "react-icons/lu";
+import { LuFileText, LuHouse, LuList, LuMonitorSmartphone, LuUsers } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@workspace/ui/components/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 
 import { ExtendLink } from "@workspace/app-ui/components/ext/link";
@@ -73,6 +73,16 @@ export function HomeSidebar({
 				icon: LuHouse,
 			},
 			{
+				label: "ประวัติ",
+				link: "/home/history",
+				icon: LuList,
+			},
+			{
+				label: "ไฟล์",
+				link: "/home/files",
+				icon: LuFileText,
+			},
+			{
 				label: t("common.navigation.friends"),
 				link: "/home/friends",
 				icon: LuUsers,
@@ -98,29 +108,27 @@ export function HomeSidebar({
 	}, [pathname]);
 
 	return (
-		<TooltipProvider>
-			<aside
-				className={cn(
-					"relative flex flex-col gap-4 py-4 border-r duration-300 px-4.5",
-					effectiveIsOpen ? "w-52 xl:w-64" : "w-20",
-				)}
-			>
-				<nav className="flex-1 flex flex-col">
-					<div className="space-y-1 flex flex-col">
-						{sidebarLink.map((item) => (
-							<SidebarButton
-								key={item.link}
-								label={item.label}
-								link={item.link}
-								icon={item.icon}
-								isActive={normalizePath === item.link}
-								isOpen={effectiveIsOpen}
-								linkComponent={linkComponent}
-							/>
-						))}
-					</div>
-				</nav>
-			</aside>
-		</TooltipProvider>
+		<aside
+			className={cn(
+				"relative flex flex-col gap-4 py-4 border-r duration-300 px-4.5 shadow-sm",
+				effectiveIsOpen ? "w-52 xl:w-64" : "w-20",
+			)}
+		>
+			<nav className="flex-1 flex flex-col">
+				<div className="space-y-1 flex flex-col">
+					{sidebarLink.map((item) => (
+						<SidebarButton
+							key={item.link}
+							label={item.label}
+							link={item.link}
+							icon={item.icon}
+							isActive={normalizePath === item.link}
+							isOpen={effectiveIsOpen}
+							linkComponent={linkComponent}
+						/>
+					))}
+				</div>
+			</nav>
+		</aside>
 	);
 }

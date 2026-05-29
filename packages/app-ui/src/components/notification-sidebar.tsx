@@ -165,13 +165,13 @@ export function NotificationSidebar() {
 											}}
 											className={cn(
 												"flex gap-4 p-4 border-b hover:bg-muted/40 transition-colors relative group items-start cursor-pointer bg-background",
-												notification.read && "bg-muted/40"
+												notification.read && "bg-muted/40",
 											)}
 											onClick={() => markAsRead(notification.id)}
 										>
 											<div
 												className={cn(
-													"p-2 rounded-full bg-background border shadow-sm shrink-0"
+													"p-2 rounded-full bg-background border shadow-sm shrink-0",
 												)}
 											>
 												{getIcon(notification.type)}
@@ -182,7 +182,7 @@ export function NotificationSidebar() {
 													<p
 														className={cn(
 															"flex text-sm font-medium leading-none items-center gap-1.5",
-															!notification.read && "font-semibold"
+															!notification.read && "font-semibold",
 														)}
 													>
 														{notification.title}

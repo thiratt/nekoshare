@@ -72,7 +72,7 @@ export class NekoSocket {
 		if (this.ws?.readyState === WebSocket.OPEN || this.status === SocketStatus.CONNECTING) {
 			return;
 		}
-		
+
 		this.shouldReconnect = true;
 		this.updateStatus(SocketStatus.CONNECTING);
 

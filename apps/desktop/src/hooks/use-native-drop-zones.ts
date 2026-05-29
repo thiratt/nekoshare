@@ -10,7 +10,7 @@ export type NativeDropZone = {
   element: HTMLElement;
 };
 
-type NativeDropZonePayload =
+export type NativeDropZonePayload =
   | {
       type: "enter" | "over";
       paths: string[];

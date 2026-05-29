@@ -17,8 +17,11 @@ import { Route as authResetPwdRouteImport } from './routes/(auth)/reset-pwd'
 import { Route as authLoginRouteImport } from './routes/(auth)/login'
 import { Route as appHomeIndexRouteImport } from './routes/(app)/home/index'
 import { Route as appShareNewRouteImport } from './routes/(app)/share/new'
+import { Route as appShareIdRouteImport } from './routes/(app)/share/$id'
 import { Route as appHomeTransferDetailRouteImport } from './routes/(app)/home/transfer-detail'
+import { Route as appHomeHistoryRouteImport } from './routes/(app)/home/history'
 import { Route as appHomeFriendsRouteImport } from './routes/(app)/home/friends'
+import { Route as appHomeFilesRouteImport } from './routes/(app)/home/files'
 import { Route as appHomeDevicesRouteImport } from './routes/(app)/home/devices'
 
 const authRouteRoute = authRouteRouteImport.update({
@@ -59,14 +62,29 @@ const appShareNewRoute = appShareNewRouteImport.update({
   path: '/share/new',
   getParentRoute: () => appRouteRoute,
 } as any)
+const appShareIdRoute = appShareIdRouteImport.update({
+  id: '/share/$id',
+  path: '/share/$id',
+  getParentRoute: () => appRouteRoute,
+} as any)
 const appHomeTransferDetailRoute = appHomeTransferDetailRouteImport.update({
   id: '/home/transfer-detail',
   path: '/home/transfer-detail',
   getParentRoute: () => appRouteRoute,
 } as any)
+const appHomeHistoryRoute = appHomeHistoryRouteImport.update({
+  id: '/home/history',
+  path: '/home/history',
+  getParentRoute: () => appRouteRoute,
+} as any)
 const appHomeFriendsRoute = appHomeFriendsRouteImport.update({
   id: '/home/friends',
   path: '/home/friends',
+  getParentRoute: () => appRouteRoute,
+} as any)
+const appHomeFilesRoute = appHomeFilesRouteImport.update({
+  id: '/home/files',
+  path: '/home/files',
   getParentRoute: () => appRouteRoute,
 } as any)
 const appHomeDevicesRoute = appHomeDevicesRouteImport.update({
@@ -81,8 +99,11 @@ export interface FileRoutesByFullPath {
   '/reset-pwd': typeof authResetPwdRoute
   '/signup': typeof authSignupRoute
   '/home/devices': typeof appHomeDevicesRoute
+  '/home/files': typeof appHomeFilesRoute
   '/home/friends': typeof appHomeFriendsRoute
+  '/home/history': typeof appHomeHistoryRoute
   '/home/transfer-detail': typeof appHomeTransferDetailRoute
+  '/share/$id': typeof appShareIdRoute
   '/share/new': typeof appShareNewRoute
   '/home': typeof appHomeIndexRoute
 }
@@ -92,8 +113,11 @@ export interface FileRoutesByTo {
   '/reset-pwd': typeof authResetPwdRoute
   '/signup': typeof authSignupRoute
   '/home/devices': typeof appHomeDevicesRoute
+  '/home/files': typeof appHomeFilesRoute
   '/home/friends': typeof appHomeFriendsRoute
+  '/home/history': typeof appHomeHistoryRoute
   '/home/transfer-detail': typeof appHomeTransferDetailRoute
+  '/share/$id': typeof appShareIdRoute
   '/share/new': typeof appShareNewRoute
   '/home': typeof appHomeIndexRoute
 }
@@ -106,8 +130,11 @@ export interface FileRoutesById {
   '/(auth)/reset-pwd': typeof authResetPwdRoute
   '/(auth)/signup': typeof authSignupRoute
   '/(app)/home/devices': typeof appHomeDevicesRoute
+  '/(app)/home/files': typeof appHomeFilesRoute
   '/(app)/home/friends': typeof appHomeFriendsRoute
+  '/(app)/home/history': typeof appHomeHistoryRoute
   '/(app)/home/transfer-detail': typeof appHomeTransferDetailRoute
+  '/(app)/share/$id': typeof appShareIdRoute
   '/(app)/share/new': typeof appShareNewRoute
   '/(app)/home/': typeof appHomeIndexRoute
 }
@@ -119,8 +146,11 @@ export interface FileRouteTypes {
     | '/reset-pwd'
     | '/signup'
     | '/home/devices'
+    | '/home/files'
     | '/home/friends'
+    | '/home/history'
     | '/home/transfer-detail'
+    | '/share/$id'
     | '/share/new'
     | '/home'
   fileRoutesByTo: FileRoutesByTo
@@ -130,8 +160,11 @@ export interface FileRouteTypes {
     | '/reset-pwd'
     | '/signup'
     | '/home/devices'
+    | '/home/files'
     | '/home/friends'
+    | '/home/history'
     | '/home/transfer-detail'
+    | '/share/$id'
     | '/share/new'
     | '/home'
   id:
@@ -143,8 +176,11 @@ export interface FileRouteTypes {
     | '/(auth)/reset-pwd'
     | '/(auth)/signup'
     | '/(app)/home/devices'
+    | '/(app)/home/files'
     | '/(app)/home/friends'
+    | '/(app)/home/history'
     | '/(app)/home/transfer-detail'
+    | '/(app)/share/$id'
     | '/(app)/share/new'
     | '/(app)/home/'
   fileRoutesById: FileRoutesById
@@ -213,6 +249,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof appShareNewRouteImport
       parentRoute: typeof appRouteRoute
     }
+    '/(app)/share/$id': {
+      id: '/(app)/share/$id'
+      path: '/share/$id'
+      fullPath: '/share/$id'
+      preLoaderRoute: typeof appShareIdRouteImport
+      parentRoute: typeof appRouteRoute
+    }
     '/(app)/home/transfer-detail': {
       id: '/(app)/home/transfer-detail'
       path: '/home/transfer-detail'
@@ -220,11 +263,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof appHomeTransferDetailRouteImport
       parentRoute: typeof appRouteRoute
     }
+    '/(app)/home/history': {
+      id: '/(app)/home/history'
+      path: '/home/history'
+      fullPath: '/home/history'
+      preLoaderRoute: typeof appHomeHistoryRouteImport
+      parentRoute: typeof appRouteRoute
+    }
     '/(app)/home/friends': {
       id: '/(app)/home/friends'
       path: '/home/friends'
       fullPath: '/home/friends'
       preLoaderRoute: typeof appHomeFriendsRouteImport
+      parentRoute: typeof appRouteRoute
+    }
+    '/(app)/home/files': {
+      id: '/(app)/home/files'
+      path: '/home/files'
+      fullPath: '/home/files'
+      preLoaderRoute: typeof appHomeFilesRouteImport
       parentRoute: typeof appRouteRoute
     }
     '/(app)/home/devices': {
@@ -239,16 +296,22 @@ declare module '@tanstack/react-router' {
 
 interface appRouteRouteChildren {
   appHomeDevicesRoute: typeof appHomeDevicesRoute
+  appHomeFilesRoute: typeof appHomeFilesRoute
   appHomeFriendsRoute: typeof appHomeFriendsRoute
+  appHomeHistoryRoute: typeof appHomeHistoryRoute
   appHomeTransferDetailRoute: typeof appHomeTransferDetailRoute
+  appShareIdRoute: typeof appShareIdRoute
   appShareNewRoute: typeof appShareNewRoute
   appHomeIndexRoute: typeof appHomeIndexRoute
 }
 
 const appRouteRouteChildren: appRouteRouteChildren = {
   appHomeDevicesRoute: appHomeDevicesRoute,
+  appHomeFilesRoute: appHomeFilesRoute,
   appHomeFriendsRoute: appHomeFriendsRoute,
+  appHomeHistoryRoute: appHomeHistoryRoute,
   appHomeTransferDetailRoute: appHomeTransferDetailRoute,
+  appShareIdRoute: appShareIdRoute,
   appShareNewRoute: appShareNewRoute,
   appHomeIndexRoute: appHomeIndexRoute,
 }

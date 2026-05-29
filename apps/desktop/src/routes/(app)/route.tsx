@@ -106,8 +106,11 @@ function HomeContent({
   mode,
   notificationStatus,
 }: HomeContentProps) {
+  const isHomeRoute =
+    location.pathname === "/home" || location.pathname === "/home/";
   const isShareComposerRoute = location.pathname === "/share/new";
-  const disableGlobalDropOverlay = mode !== "home" || isShareComposerRoute;
+  const disableGlobalDropOverlay =
+    mode !== "home" || isHomeRoute || isShareComposerRoute;
   const { close } = useDropOverlayActions();
 
   useTauriFileDrop({ enabled: isReady && !disableGlobalDropOverlay });
@@ -143,9 +146,9 @@ function HomeContent({
               collapseWhenNotificationOpen={notificationStatus === "on"}
               isOpen={sidebarToggle.isOpen}
             />
-            <div className="flex-1 bg-muted p-4 flex flex-col min-w-0 overflow-hidden">
+            <main className="flex-1 p-4 flex flex-col min-w-0 overflow-hidden">
               <Outlet />
-            </div>
+            </main>
             <NotificationSidebar />
           </div>
           {!disableGlobalDropOverlay ? (
