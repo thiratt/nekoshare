@@ -2,7 +2,6 @@ export * from "./auth";
 export * from "./context";
 export * from "./device";
 export * from "./friends";
-export * from "./home";
 export * from "./hooks";
 export * from "./link";
 export * from "./schema";

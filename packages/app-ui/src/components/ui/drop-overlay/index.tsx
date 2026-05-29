@@ -8,7 +8,8 @@ export {
 	OptionsSelection,
 	SummaryPanel,
 	TargetSelection,
-} from "./components";
+} from "./components/DropOverlayParts";
+export { DropOverlayUI } from "./components/DropOverlayUI";
 export {
 	DEFAULT_GLOBAL_OPTIONS,
 	EXPIRATION_OPTIONS,
@@ -28,7 +29,6 @@ export {
 	useDropOverlayComputed,
 	useDropZonesRef,
 } from "./context";
-export { DropOverlayUI } from "./drop-overlay-ui";
 export type {
 	Device,
 	DropEventHandlers,

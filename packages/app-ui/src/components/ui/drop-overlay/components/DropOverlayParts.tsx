@@ -29,10 +29,10 @@ import { ScrollArea, ScrollBar } from "@workspace/ui/components/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
 import { cn, cva, type VariantProps } from "@workspace/ui/lib/utils";
 
-import { fadeSlideUpVariants } from "../../provide-animate";
-import { EXPIRATION_OPTIONS, TRANSITION_SMOOTH, TRANSITION_SPRING } from "./constants";
-import { formatFileSize, getFileIcon } from "./utils";
-import type { Device, FileEntry, Friend, GlobalOptions } from "./types";
+import { fadeSlideUpVariants } from "../../../provide-animate";
+import { EXPIRATION_OPTIONS, TRANSITION_SMOOTH, TRANSITION_SPRING } from "../constants";
+import { formatFileSize, getFileIcon } from "../utils";
+import type { Device, FileEntry, Friend, GlobalOptions } from "../types";
 
 const FILE_STATUS_STYLES = {
 	pending: "border-white/10 bg-white/5 hover:bg-white/8",

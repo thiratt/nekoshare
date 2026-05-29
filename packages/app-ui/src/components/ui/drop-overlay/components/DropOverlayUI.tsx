@@ -3,11 +3,11 @@ import { memo } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { LuUsers } from "react-icons/lu";
 
-import { fadeScaleVariants, fadeVariants } from "../../provide-animate";
-import { ConfigPanel, DropColumn, DropZone, FileList, Header } from "./components";
-import { TRANSITION_SPRING_SOFT } from "./constants";
-import { useDropOverlay } from "./context";
-import type { Device, Friend } from "./types";
+import { fadeScaleVariants, fadeVariants } from "../../../provide-animate";
+import { TRANSITION_SPRING_SOFT } from "../constants";
+import { useDropOverlay } from "../context";
+import { ConfigPanel, DropColumn, DropZone, FileList, Header } from "./DropOverlayParts";
+import type { Device, Friend } from "../types";
 
 interface ContentAreaProps {
 	isExpanded: boolean;

@@ -1,4 +1,3 @@
-export { DeviceCard, DeviceIcon, DeviceStatusBadge, EmptyState } from "./components";
-export { capitalize, PLATFORM_ICONS, STATUS_CONFIG } from "./constants";
-export { DevicesUI } from "./devices-ui";
-export { DeleteDeviceDialog, ManageDeviceDialog } from "./dialogs";
+export { DevicesUI } from "./components/DevicesUI";
+export type { DevicesController } from "./hooks/useDevicesController";
+export type { DeviceDialogState, DeviceGroups } from "./types";
