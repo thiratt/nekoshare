@@ -1,13 +1,17 @@
-export { StatusBadge, useColumns } from "./columns";
-export { formatDate, formatFileSize, getFileType, ITEMS_PER_PAGE, STATUS_CONFIG } from "./constants";
-export { DeleteBulkDialog, DeleteItemDialog } from "./dialogs";
-export { HomeUI } from "./home-ui";
-export { generateStableId, useShareData } from "./hooks";
+export { HomeUI } from "./components/HomeUI";
 export {
-	DEBOUNCE_DELAY,
-	FUZZY_THRESHOLD,
-	RUST_THRESHOLD,
-	useFileSearch as useOptimizedSearch,
-	useRustSearch,
-} from "./use-search";
-export { OVERSCAN_COUNT, ROW_HEIGHT, VirtualFileList, VirtualFileRow } from "./virtual-file-list";
+	type HomeRecentItem,
+	homeRecentItems,
+	type HomeTransfer,
+	homeTransfers,
+	type HomeTransferStatus,
+} from "./constants";
+export type {
+	HomeDraftFile,
+	HomeDropHandle,
+	HomeDroppedPath,
+	HomeDropState,
+	HomeTarget,
+	HomeUIProps,
+	PreviewKind,
+} from "./types";
