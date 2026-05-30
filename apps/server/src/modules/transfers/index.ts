@@ -1,5 +1,7 @@
 export type { TransferRuntimeRedisClient } from "./redis-transfer-runtime-store";
 export { RedisTransferRuntimeStore } from "./redis-transfer-runtime-store";
+export type { TransferDeviceLookup, TransferLifecycle, TransferServiceDependencies } from "./transfer.service";
+export { createTransferService } from "./transfer.service";
 export type {
 	TransferErrorCode,
 	TransferFileMetadata,
