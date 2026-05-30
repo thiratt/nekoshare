@@ -7,7 +7,7 @@ const authMiddleWare = createMiddleware<{ Variables: AuthenticatedType }>(async 
 	const session = await auth.api.getSession({ headers: c.req.raw.headers });
 	c.header("Server", "NekoShare");
 
-	if (c.req.path.includes("/auth/")) {
+	if (c.req.path.includes("/auth/") || c.req.path === "/ws/relay") {
 		return next();
 	}
 

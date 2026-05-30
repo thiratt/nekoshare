@@ -416,6 +416,14 @@ export function createTransferService(deps: TransferServiceDependencies) {
 			return { ticket: toPublicRelayTicket(ticket) };
 		},
 
+		async markRelayPeersConnected(transferId: string): Promise<void> {
+			await updateRuntimeStatus(transferId, "transferring", "relay", "connected", "Relay peers connected");
+		},
+
+		async markRelayPeerDisconnected(transferId: string): Promise<void> {
+			await updateRuntimeStatus(transferId, "paused", "relay", "waiting-peer", "Relay peer disconnected");
+		},
+
 		async prepareFileOffer(
 			payload: FileOfferInput,
 			senderDeviceId: string | undefined,

@@ -7,6 +7,7 @@ import { WSConnection, wsSessionManager } from "./connection";
 import { db } from "@/infrastructure/db";
 import { device } from "@/infrastructure/db/schemas";
 import { Logger } from "@/infrastructure/logger";
+import { registerRelayWebSocketRoute } from "@/infrastructure/relay";
 import { initializeWsPubSub } from "@/infrastructure/socket/events/ws-pubsub";
 import {
 	broadcastDeviceOffline,
@@ -36,6 +37,7 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 	await initializeWsPubSub();
 
 	const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
+	registerRelayWebSocketRoute(app, upgradeWebSocket);
 
 	app.get(
 		path,
