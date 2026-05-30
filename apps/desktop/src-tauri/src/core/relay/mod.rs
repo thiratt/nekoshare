@@ -114,6 +114,13 @@ fn with_token_query(relay_url: &str, token: &str) -> Result<String, RelayTransfe
     Ok(format!("{relay_url}{separator}token={token}"))
 }
 
+fn redact_relay_url(relay_url: &str) -> String {
+    match relay_url.split_once("token=") {
+        Some((prefix, _)) => format!("{prefix}token=<redacted>"),
+        None => relay_url.to_string(),
+    }
+}
+
 fn file_name_from_path(path: &Path) -> String {
     path.file_name()
         .unwrap_or_default()
@@ -323,6 +330,56 @@ fn emit_receive_progress(
     );
 }
 
+fn emit_send_failure(app: &AppHandle, input: &RelaySendInput, error: &RelayTransferError) {
+    emit_event(
+        app,
+        TransferProgressEventPayload {
+            transfer_id: input.transfer_id.clone(),
+            file_id: String::new(),
+            file_path: String::new(),
+            file_name: String::new(),
+            direction: "send".to_string(),
+            source_user_id: input.source_user_id.clone(),
+            source_user_name: input.source_user_name.clone(),
+            source_device_id: Some(input.source_device_id.clone()),
+            source_device_name: input.source_device_name.clone(),
+            same_account: Some(true),
+            target_device_id: input.target_device_id.clone(),
+            total_bytes: 0,
+            sent_bytes: 0,
+            progress_percent: 0.0,
+            status: "failed".to_string(),
+            error: Some(error.to_string()),
+            timestamp_ms: now_timestamp_ms(),
+        },
+    );
+}
+
+fn emit_receive_failure(app: &AppHandle, input: &RelayReceiveInput, error: &RelayTransferError) {
+    emit_event(
+        app,
+        TransferProgressEventPayload {
+            transfer_id: input.transfer_id.clone(),
+            file_id: String::new(),
+            file_path: String::new(),
+            file_name: String::new(),
+            direction: "receive".to_string(),
+            source_user_id: None,
+            source_user_name: None,
+            source_device_id: None,
+            source_device_name: None,
+            same_account: None,
+            target_device_id: String::new(),
+            total_bytes: 0,
+            sent_bytes: 0,
+            progress_percent: 0.0,
+            status: "failed".to_string(),
+            error: Some(error.to_string()),
+            timestamp_ms: now_timestamp_ms(),
+        },
+    );
+}
+
 async fn load_receive_dir_from_store(app: &AppHandle) -> Option<PathBuf> {
     let store = match app.store(STORE_FILE_NAME) {
         Ok(store) => store,
@@ -387,15 +444,63 @@ fn safe_file_name(name: &str) -> String {
     }
 }
 
+fn duplicate_file_name(file_name: &str, index: usize) -> String {
+    let path = Path::new(file_name);
+    let stem = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .unwrap_or(file_name);
+    let extension = path.extension().and_then(|value| value.to_str());
+
+    match extension {
+        Some(extension) if !extension.is_empty() => format!("{stem} ({index}).{extension}"),
+        _ => format!("{stem} ({index})"),
+    }
+}
+
+async fn resolve_available_receive_paths(
+    base_dir: &Path,
+    file_name: &str,
+) -> Result<(String, PathBuf, PathBuf), RelayTransferError> {
+    for index in 0..1000usize {
+        let candidate_name = if index == 0 {
+            file_name.to_string()
+        } else {
+            duplicate_file_name(file_name, index)
+        };
+        let final_path = base_dir.join(&candidate_name);
+        let partial_path = PathBuf::from(format!("{}.neko-partial", final_path.to_string_lossy()));
+
+        let final_exists = tokio::fs::try_exists(&final_path).await?;
+        let partial_exists = tokio::fs::try_exists(&partial_path).await?;
+        if !final_exists && !partial_exists {
+            return Ok((candidate_name, final_path, partial_path));
+        }
+    }
+
+    Err(RelayTransferError::File(
+        "Could not allocate a unique receive filename".to_string(),
+    ))
+}
+
 async fn start_receive_file(
     app: &AppHandle,
     transfer_id: &str,
     base_dir: &Path,
     metadata: RelayFileMetadata,
 ) -> Result<ReceiveState, RelayTransferError> {
-    let file_name = safe_file_name(&metadata.name);
-    let final_path = base_dir.join(&file_name);
-    let partial_path = base_dir.join(format!("{file_name}.neko-partial"));
+    let requested_name = safe_file_name(&metadata.name);
+    let (file_name, final_path, partial_path) =
+        resolve_available_receive_paths(base_dir, &requested_name).await?;
+    log::info!(
+        "Relay file-start transfer={} file_id={} name={} size={} target={:?}",
+        transfer_id,
+        metadata.file_id,
+        file_name,
+        metadata.size,
+        final_path
+    );
     let file = File::create(&partial_path).await?;
     let writer = BufWriter::with_capacity(TransferConfig::global().write_buffer_size, file);
 
@@ -436,9 +541,17 @@ async fn finish_receive_file(
     let partial_path = state.partial_path.clone();
     let expected_size = state.expected_size;
     let received_size = state.expected_size.max(state.received_size);
-
+    
     drop(state.writer);
 
+    log::info!(
+        "Relay file-end transfer={} file_id={} received={} expected={} final={:?}",
+        transfer_id,
+        file_id,
+        received_size,
+        expected_size,
+        final_path
+    );
     tokio::fs::rename(&partial_path, &final_path).await?;
     emit_event(
         app,
@@ -470,8 +583,24 @@ pub async fn send_relay_files(
     app: AppHandle,
     input: RelaySendInput,
 ) -> Result<(), RelayTransferError> {
+    let result = send_relay_files_inner(&app, &input).await;
+    if let Err(error) = &result {
+        emit_send_failure(&app, &input, error);
+    }
+    result
+}
+
+async fn send_relay_files_inner(
+    app: &AppHandle,
+    input: &RelaySendInput,
+) -> Result<(), RelayTransferError> {
     let relay_url = with_token_query(&input.relay_url, &input.token)?;
     let (ws_stream, _) = connect_async(&relay_url).await?;
+    log::info!(
+        "Relay sender connected transfer={} url={}",
+        input.transfer_id,
+        redact_relay_url(&input.relay_url)
+    );
     let (mut sink, _stream) = ws_stream.split();
     let chunk_size = TransferConfig::global().chunk_size;
     let mut buffer = vec![0u8; chunk_size];
@@ -490,9 +619,16 @@ pub async fn send_relay_files(
             size: file_input.size,
         };
 
+        log::info!(
+            "Relay sender file-start transfer={} file_id={} name={} size={}",
+            input.transfer_id,
+            file_id,
+            file_name,
+            file_input.size
+        );
         emit_send_progress(
-            &app,
-            &input,
+            app,
+            input,
             &file_id,
             &file_input.path,
             &file_name,
@@ -523,8 +659,8 @@ pub async fn send_relay_files(
             if should_emit {
                 last_emitted_size = sent_bytes;
                 emit_send_progress(
-                    &app,
-                    &input,
+                    app,
+                    input,
                     &file_id,
                     &file_input.path,
                     &file_name,
@@ -538,9 +674,15 @@ pub async fn send_relay_files(
 
         sink.send(Message::Binary(encode_file_end(&file_id)?))
             .await?;
+        log::info!(
+            "Relay sender file-end transfer={} file_id={} sent={}",
+            input.transfer_id,
+            file_id,
+            sent_bytes
+        );
         emit_send_progress(
-            &app,
-            &input,
+            app,
+            input,
             &file_id,
             &file_input.path,
             &file_name,
@@ -551,6 +693,7 @@ pub async fn send_relay_files(
         );
     }
 
+    log::info!("Relay sender transfer-end transfer={}", input.transfer_id);
     sink.send(Message::Binary(encode_transfer_end())).await?;
     let _ = sink.close().await;
     Ok(())
@@ -560,9 +703,25 @@ pub async fn receive_relay_transfer(
     app: AppHandle,
     input: RelayReceiveInput,
 ) -> Result<(), RelayTransferError> {
+    let result = receive_relay_transfer_inner(&app, &input).await;
+    if let Err(error) = &result {
+        emit_receive_failure(&app, &input, error);
+    }
+    result
+}
+
+async fn receive_relay_transfer_inner(
+    app: &AppHandle,
+    input: &RelayReceiveInput,
+) -> Result<(), RelayTransferError> {
     let relay_url = with_token_query(&input.relay_url, &input.token)?;
-    let base_dir = resolve_receive_base_dir(&app).await?;
+    let base_dir = resolve_receive_base_dir(app).await?;
     let (ws_stream, _) = connect_async(&relay_url).await?;
+    log::info!(
+        "Relay receiver connected transfer={} url={}",
+        input.transfer_id,
+        redact_relay_url(&input.relay_url)
+    );
     let (_sink, mut stream) = ws_stream.split();
     let mut active_file: Option<ReceiveState> = None;
 
@@ -580,7 +739,7 @@ pub async fn receive_relay_transfer(
                     ));
                 }
                 active_file =
-                    Some(start_receive_file(&app, &input.transfer_id, &base_dir, metadata).await?);
+                    Some(start_receive_file(app, &input.transfer_id, &base_dir, metadata).await?);
             }
             RelayFrame::Chunk { file_id, bytes } => {
                 let state = active_file.as_mut().ok_or_else(|| {
@@ -594,15 +753,30 @@ pub async fn receive_relay_transfer(
                     ));
                 }
 
+                let next_size = state
+                    .received_size
+                    .checked_add(bytes.len() as u64)
+                    .ok_or_else(|| {
+                        RelayTransferError::Protocol(
+                            "Relay file size overflowed local counter".to_string(),
+                        )
+                    })?;
+                if next_size > state.expected_size {
+                    return Err(RelayTransferError::Protocol(format!(
+                        "Relay file exceeded expected size: {} of {} bytes",
+                        next_size, state.expected_size
+                    )));
+                }
+
                 state.writer.write_all(&bytes).await?;
-                state.received_size += bytes.len() as u64;
+                state.received_size = next_size;
 
                 let should_emit = state.received_size == state.expected_size
                     || state.received_size.saturating_sub(state.last_emitted_size)
                         >= RECEIVE_PROGRESS_EMIT_STEP;
                 if should_emit {
                     state.last_emitted_size = state.received_size;
-                    emit_receive_progress(&app, &input.transfer_id, state, "processing", None);
+                    emit_receive_progress(app, &input.transfer_id, state, "processing", None);
                 }
             }
             RelayFrame::FileEnd { file_id } => {
@@ -614,7 +788,7 @@ pub async fn receive_relay_transfer(
                         "Relay file-end id does not match active file".to_string(),
                     ));
                 }
-                finish_receive_file(&app, &input.transfer_id, state).await?;
+                finish_receive_file(app, &input.transfer_id, state).await?;
             }
             RelayFrame::TransferEnd => {
                 if active_file.is_some() {
@@ -622,6 +796,7 @@ pub async fn receive_relay_transfer(
                         "Received transfer-end while a file is still active".to_string(),
                     ));
                 }
+                log::info!("Relay receiver transfer-end transfer={}", input.transfer_id);
                 break;
             }
         }
