@@ -10,10 +10,15 @@ export interface RelayPeerIdentity {
 export interface RelayPeer extends RelayPeerIdentity {
 	connectionId: string;
 	connectedAt: string;
+	close(reason: string): void;
+	sendBinary(data: ArrayBuffer | Buffer): void;
 }
 
 export interface RelayTransferSession {
 	transferId: string;
 	sender?: RelayPeer;
 	receiver?: RelayPeer;
+	bytesRelayed: number;
+	lastProgressAt: number;
+	lastProgressBytes: number;
 }

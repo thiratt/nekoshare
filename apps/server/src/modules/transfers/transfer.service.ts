@@ -424,6 +424,35 @@ export function createTransferService(deps: TransferServiceDependencies) {
 			await updateRuntimeStatus(transferId, "paused", "relay", "waiting-peer", "Relay peer disconnected");
 		},
 
+		async recordRelayProgress(transferId: string, bytesRelayed: number): Promise<void> {
+			await safeRuntimeWrite("record relay progress", async () => {
+				const runtime = await deps.runtimeStore!.getRuntime(transferId);
+				if (!runtime) {
+					return;
+				}
+
+				const updatedProgress: TransferProgress = {
+					...runtime.progress,
+					bytesSent: bytesRelayed,
+					bytesReceived: bytesRelayed,
+					updatedAt: nowIso(),
+				};
+
+				await deps.runtimeStore!.saveProgress(transferId, updatedProgress);
+				await deps.runtimeStore!.saveRuntime({
+					...runtime,
+					progress: updatedProgress,
+					updatedAt: updatedProgress.updatedAt,
+				});
+				await deps.runtimeStore!.addEvent(
+					createRuntimeEvent(transferId, "progress-updated", {
+						progress: updatedProgress,
+						message: "Relay bytes forwarded",
+					}),
+				);
+			});
+		},
+
 		async prepareFileOffer(
 			payload: FileOfferInput,
 			senderDeviceId: string | undefined,

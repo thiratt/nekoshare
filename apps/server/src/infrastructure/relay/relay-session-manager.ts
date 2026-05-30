@@ -1,18 +1,28 @@
 import type { RelayPeer, RelayPeerIdentity, RelayTransferSession } from "./relay.types";
 
+interface RelayPeerBinding extends RelayPeerIdentity {
+	close(reason: string): void;
+	sendBinary(data: ArrayBuffer | Buffer): void;
+}
+
 export class RelaySessionManager {
 	private readonly sessions = new Map<string, RelayTransferSession>();
 	private readonly connectionIndex = new Map<string, RelayPeer>();
 
-	bindPeer(connectionId: string, identity: RelayPeerIdentity): RelayTransferSession {
+	bindPeer(connectionId: string, binding: RelayPeerBinding): RelayTransferSession {
 		const peer: RelayPeer = {
-			...identity,
+			...binding,
 			connectionId,
 			connectedAt: new Date().toISOString(),
 		};
-		const session = this.sessions.get(identity.transferId) ?? { transferId: identity.transferId };
-		session[identity.role] = peer;
-		this.sessions.set(identity.transferId, session);
+		const session = this.sessions.get(binding.transferId) ?? {
+			transferId: binding.transferId,
+			bytesRelayed: 0,
+			lastProgressAt: 0,
+			lastProgressBytes: 0,
+		};
+		session[binding.role] = peer;
+		this.sessions.set(binding.transferId, session);
 		this.connectionIndex.set(connectionId, peer);
 		return session;
 	}
@@ -42,6 +52,36 @@ export class RelaySessionManager {
 
 	getSession(transferId: string): RelayTransferSession | undefined {
 		return this.sessions.get(transferId);
+	}
+
+	getPeer(connectionId: string): RelayPeer | undefined {
+		return this.connectionIndex.get(connectionId);
+	}
+
+	getCounterpart(peer: RelayPeer): RelayPeer | undefined {
+		const session = this.sessions.get(peer.transferId);
+		return peer.role === "sender" ? session?.receiver : session?.sender;
+	}
+
+	addRelayedBytes(transferId: string, byteLength: number): RelayTransferSession | undefined {
+		const session = this.sessions.get(transferId);
+		if (!session) {
+			return undefined;
+		}
+
+		session.bytesRelayed += byteLength;
+		return session;
+	}
+
+	markProgressFlushed(transferId: string, now: number): RelayTransferSession | undefined {
+		const session = this.sessions.get(transferId);
+		if (!session) {
+			return undefined;
+		}
+
+		session.lastProgressAt = now;
+		session.lastProgressBytes = session.bytesRelayed;
+		return session;
 	}
 
 	hasBothPeers(transferId: string): boolean {
