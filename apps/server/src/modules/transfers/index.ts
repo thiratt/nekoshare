@@ -1,11 +1,22 @@
 export type { TransferRuntimeRedisClient } from "./redis-transfer-runtime-store";
 export { RedisTransferRuntimeStore } from "./redis-transfer-runtime-store";
-export type { TransferDeviceLookup, TransferLifecycle, TransferServiceDependencies } from "./transfer.service";
+export type {
+	IssuedTransferRelayTickets,
+	IssueRelayTicketsInput,
+	PreparedFileAccept,
+	PreparedFileOffer,
+	TransferDeviceLookup,
+	TransferLifecycle,
+	TransferServiceDependencies,
+} from "./transfer.service";
 export { createTransferService } from "./transfer.service";
 export type {
+	IssuedTransferRelayTicket,
+	StoredTransferRelayTicket,
 	TransferErrorCode,
 	TransferFileMetadata,
 	TransferParticipant,
+	TransferParticipantRole,
 	TransferProgress,
 	TransferRelayTicket,
 	TransferRequestedTransport,
@@ -17,6 +28,7 @@ export type {
 	TransferStatus,
 	TransferTransportMode,
 	TransferTransportState,
+	VerifiedTransferRelayTicket,
 } from "./transfer.types";
 export {
 	getTransferAcceptedPairKey,

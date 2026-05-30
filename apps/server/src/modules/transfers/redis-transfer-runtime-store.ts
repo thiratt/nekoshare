@@ -8,8 +8,8 @@ import {
 	getTransferSessionKey,
 } from "./transfer-redis-keys";
 import type {
+	StoredTransferRelayTicket,
 	TransferProgress,
-	TransferRelayTicket,
 	TransferRuntime,
 	TransferRuntimeEvent,
 	TransferRuntimeStoreOptions,
@@ -43,6 +43,7 @@ export interface TransferRuntimeRedisClient {
 const DEFAULT_OPTIONS: TransferRuntimeStoreOptions = {
 	sessionTtlSeconds: 30 * 60,
 	eventTtlSeconds: 30 * 60,
+	relayTicketTtlSeconds: 10 * 60,
 };
 
 function isTransferSessionState(value: unknown): value is TransferSessionState {
@@ -181,17 +182,19 @@ export class RedisTransferRuntimeStore implements TransferRuntimeStore {
 		});
 	}
 
-	async getRelayTicket(ticketId: string): Promise<TransferRelayTicket | undefined> {
+	async getRelayTicket(ticketId: string): Promise<StoredTransferRelayTicket | undefined> {
 		const raw = await this.redis.get(getTransferRelayTicketKey(ticketId));
-		return parseJson<TransferRelayTicket>(raw);
+		return parseJson<StoredTransferRelayTicket>(raw);
 	}
 
-	async addRelayTicket(ticket: TransferRelayTicket): Promise<void> {
+	async addRelayTicket(ticket: StoredTransferRelayTicket): Promise<void> {
 		await this.redis
 			.multi()
-			.set(getTransferRelayTicketKey(ticket.id), JSON.stringify(ticket), { EX: this.options.sessionTtlSeconds })
+			.set(getTransferRelayTicketKey(ticket.id), JSON.stringify(ticket), {
+				EX: ticket.ttlSeconds,
+			})
 			.sAdd(getTransferRelayTicketsByTransferKey(ticket.transferId), ticket.id)
-			.expire(getTransferRelayTicketsByTransferKey(ticket.transferId), this.options.sessionTtlSeconds)
+			.expire(getTransferRelayTicketsByTransferKey(ticket.transferId), ticket.ttlSeconds)
 			.exec();
 	}
 

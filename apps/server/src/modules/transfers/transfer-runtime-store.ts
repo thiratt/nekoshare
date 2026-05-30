@@ -1,6 +1,6 @@
 import type {
+	StoredTransferRelayTicket,
 	TransferProgress,
-	TransferRelayTicket,
 	TransferRuntime,
 	TransferRuntimeEvent,
 	TransferSessionRecord,
@@ -17,8 +17,8 @@ export interface TransferRuntimeStore {
 	removeRuntime(transferId: string): Promise<void>;
 	getProgress(transferId: string): Promise<TransferProgress | undefined>;
 	saveProgress(transferId: string, progress: TransferProgress): Promise<void>;
-	getRelayTicket(ticketId: string): Promise<TransferRelayTicket | undefined>;
-	addRelayTicket(ticket: TransferRelayTicket): Promise<void>;
+	getRelayTicket(ticketId: string): Promise<StoredTransferRelayTicket | undefined>;
+	addRelayTicket(ticket: StoredTransferRelayTicket): Promise<void>;
 	addEvent(event: TransferRuntimeEvent): Promise<void>;
 	listRecentEvents(transferId: string, limit?: number): Promise<TransferRuntimeEvent[]>;
 }
