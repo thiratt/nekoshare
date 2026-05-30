@@ -3,9 +3,9 @@ import { wsRouter } from "./connection";
 import { registerDeviceHandlers } from "@/infrastructure/socket/modules/device";
 import { registerPeerHandlers } from "@/infrastructure/socket/modules/peer";
 import { registerSystemHandlers } from "@/infrastructure/socket/modules/system";
-import { registerTransferHandlers } from "@/infrastructure/socket/modules/transfer";
 import { registerUserHandlers } from "@/infrastructure/socket/modules/user";
 import type { TransportType } from "@/infrastructure/socket/runtime/types";
+import { registerTransferHandlers } from "@/modules/transfers/adapters/control-ws";
 
 let initialized = false;
 

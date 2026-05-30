@@ -13,7 +13,7 @@ import {
 	registerTransferOffer,
 	removeTransferSession,
 	resolveTransferForAck,
-} from "@/infrastructure/socket/modules/transfer/transfer.state";
+} from "@/modules/transfers/adapters/control-ws/transfer.state";
 
 const lifecycle: TransferLifecycle = {
 	registerTransferOffer,
