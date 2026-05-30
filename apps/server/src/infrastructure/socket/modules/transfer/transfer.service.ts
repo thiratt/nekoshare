@@ -14,22 +14,35 @@ import {
 import type { FileAcceptPacketInput, FileOfferPacketInput, FileRejectPacketInput } from "./transfer.types";
 
 import { Logger } from "@/infrastructure/logger";
+import { getRedisClient } from "@/infrastructure/redis";
 import { type ConnectionTarget, sendJsonPacketToConnectionTarget } from "@/infrastructure/socket/routing";
 import type { IConnection } from "@/infrastructure/socket/runtime/types";
-import { createTransferService } from "@/modules/transfers";
+import { createTransferService, RedisTransferRuntimeStore, type TransferRuntimeRedisClient } from "@/modules/transfers";
 import { PacketType } from "@workspace/contracts/ws";
 
-const transferService = createTransferService({
-	devices: transferRepository,
-	lifecycle: {
-		registerTransferOffer,
-		ensureTransferParticipants,
-		markTransferAccepted,
-		removeTransferSession,
-		resolveTransferForAck,
-		getTransferSessionForFallback,
-	},
-});
+let transferService: ReturnType<typeof createTransferService> | null = null;
+
+function getTransferService() {
+	if (!transferService) {
+		transferService = createTransferService({
+			devices: transferRepository,
+			lifecycle: {
+				registerTransferOffer,
+				ensureTransferParticipants,
+				markTransferAccepted,
+				removeTransferSession,
+				resolveTransferForAck,
+				getTransferSessionForFallback,
+			},
+			runtimeStore: new RedisTransferRuntimeStore(getRedisClient() as unknown as TransferRuntimeRedisClient),
+			onRuntimeError(operation, error) {
+				Logger.warn("FileTransfer", `Failed to ${operation}`, error);
+			},
+		});
+	}
+
+	return transferService;
+}
 
 function sendJsonPacket(client: IConnection, packetType: PacketType, payload: object, requestId?: number): void {
 	client.sendPacket(
@@ -83,7 +96,7 @@ export async function processFileOffer(
 	payload: FileOfferPacketInput,
 ): Promise<void> {
 	const senderDeviceId = await getDeviceIdForConnection(client);
-	const offer = await transferService.prepareFileOffer(payload, senderDeviceId);
+	const offer = await getTransferService().prepareFileOffer(payload, senderDeviceId);
 
 	if (offer.spoofedFromDeviceId) {
 		Logger.warn(
@@ -98,13 +111,13 @@ export async function processFileOffer(
 		sendJsonPacket(
 			client,
 			PacketType.FILE_REJECT,
-			transferService.getFileOfferTargetUnavailablePayload(offer),
+			getTransferService().getFileOfferTargetUnavailablePayload(offer),
 			requestId,
 		);
 		return;
 	}
 
-	const forwardPayload = await transferService.createFileOfferForwardPayload(offer);
+	const forwardPayload = await getTransferService().createFileOfferForwardPayload(offer);
 	Logger.info("FileTransfer", `FILE_OFFER from ${offer.senderDeviceId} to ${offer.targetDeviceId}`);
 	const delivered = await sendJsonPacketToConnectionTarget(
 		targetConnectionTarget,
@@ -117,7 +130,7 @@ export async function processFileOffer(
 		sendJsonPacket(
 			client,
 			PacketType.FILE_REJECT,
-			transferService.getFileOfferUnreachablePayload(offer),
+			getTransferService().getFileOfferUnreachablePayload(offer),
 			requestId,
 		);
 		return;
@@ -128,7 +141,7 @@ export async function processFileOffer(
 
 export async function processFileAccept(client: IConnection, payload: FileAcceptPacketInput): Promise<void> {
 	const receiverDeviceId = await getDeviceIdForConnection(client);
-	const accept = await transferService.prepareFileAccept(payload, receiverDeviceId);
+	const accept = await getTransferService().prepareFileAccept(payload, receiverDeviceId);
 
 	const senderConnectionTarget = await findConnectionByDeviceId(accept.senderDeviceId);
 	if (!senderConnectionTarget) {
@@ -136,7 +149,7 @@ export async function processFileAccept(client: IConnection, payload: FileAccept
 		return;
 	}
 
-	const forwardPayload = await transferService.createFileAcceptForwardPayload(accept);
+	const forwardPayload = await getTransferService().createFileAcceptForwardPayload(accept);
 	Logger.info("FileTransfer", `FILE_ACCEPT from ${accept.receiverDeviceId} to ${accept.senderDeviceId}`);
 	const delivered = await sendJsonPacketToConnectionTarget(
 		senderConnectionTarget,
@@ -153,7 +166,7 @@ export async function processFileAccept(client: IConnection, payload: FileAccept
 
 export async function processFileReject(client: IConnection, payload: FileRejectPacketInput): Promise<void> {
 	const rejectorDeviceId = await getDeviceIdForConnection(client);
-	const reject = await transferService.createFileRejectForwardPayload(payload, rejectorDeviceId);
+	const reject = await getTransferService().createFileRejectForwardPayload(payload, rejectorDeviceId);
 
 	Logger.info("FileTransfer", `FILE_REJECT from ${rejectorDeviceId} to ${reject.targetDeviceId}`);
 
@@ -177,7 +190,7 @@ export async function processFileReject(client: IConnection, payload: FileReject
 
 export async function processFileAck(client: IConnection, targetDeviceId: string, ackJson: string): Promise<void> {
 	const senderDeviceId = await getDeviceIdForConnection(client);
-	const ack = await transferService.resolveFileAck(senderDeviceId, targetDeviceId, ackJson);
+	const ack = await getTransferService().resolveFileAck(senderDeviceId, targetDeviceId, ackJson);
 
 	Logger.info(
 		"FileTransfer",
