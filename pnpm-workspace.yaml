@@ -4,6 +4,7 @@ packages:
 
 onlyBuiltDependencies:
   - argon2
+  - core-js
   - core-js-pure
   - esbuild
   - msw
