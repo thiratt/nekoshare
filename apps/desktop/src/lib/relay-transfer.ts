@@ -39,8 +39,12 @@ async function readRelayTicketError(response: Response): Promise<string> {
 
 export async function requestRelayTicket(
   transferId: string,
+  deviceId: string,
 ): Promise<RelayTicketResponse> {
   const response = await xfetch(`transfers/${transferId}/relay-ticket`, {
+    headers: {
+      "x-neko-device-id": deviceId,
+    },
     method: "POST",
     operation: "Relay ticket request",
   });

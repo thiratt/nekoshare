@@ -60,7 +60,10 @@ const RELAY_DEBUG_TRANSFER_MODE =
   import.meta.env.VITE_TRANSFER_MODE === "relay";
 const RELAY_TICKET_RETRY_DELAYS_MS = [150, 350, 700];
 
-async function requestRelayTicketWithRetry(transferId: string) {
+async function requestRelayTicketWithRetry(
+  transferId: string,
+  deviceId: string,
+) {
   let lastError: unknown;
 
   for (
@@ -69,7 +72,7 @@ async function requestRelayTicketWithRetry(transferId: string) {
     attempt++
   ) {
     try {
-      return await requestRelayTicket(transferId);
+      return await requestRelayTicket(transferId, deviceId);
     } catch (error) {
       lastError = error;
       const delay = RELAY_TICKET_RETRY_DELAYS_MS[attempt];
@@ -330,7 +333,10 @@ function RouteComponent() {
 
       if (RELAY_DEBUG_TRANSFER_MODE) {
         try {
-          const relayTicket = await requestRelayTicketWithRetry(transferId);
+          const relayTicket = await requestRelayTicketWithRetry(
+            transferId,
+            userDeviceId,
+          );
           await invoke("relay_receive_transfer", {
             input: {
               transferId,
@@ -387,7 +393,10 @@ function RouteComponent() {
 
       if (RELAY_DEBUG_TRANSFER_MODE) {
         try {
-          const relayTicket = await requestRelayTicketWithRetry(transferId);
+          const relayTicket = await requestRelayTicketWithRetry(
+            transferId,
+            userDeviceId,
+          );
           const relayFiles = await Promise.all(
             filesToSend.map(async (filePath) => {
               const fileStat = await stat(filePath);

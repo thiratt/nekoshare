@@ -1,4 +1,4 @@
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{SinkExt, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter};
@@ -6,6 +6,7 @@ use tauri_plugin_store::StoreExt;
 use thiserror::Error;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
+use tokio::time::{timeout, Duration};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
@@ -22,6 +23,7 @@ const FRAME_FILE_START: u8 = 0x01;
 const FRAME_CHUNK: u8 = 0x02;
 const FRAME_FILE_END: u8 = 0x03;
 const FRAME_TRANSFER_END: u8 = 0x04;
+const RELAY_READY_TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug, Error, Serialize)]
 #[serde(tag = "type", content = "message")]
@@ -80,6 +82,13 @@ struct RelayFileMetadata {
     file_id: String,
     name: String,
     size: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RelayReadyMessage {
+    r#type: String,
+    transfer_id: String,
 }
 
 struct ReceiveState {
@@ -243,6 +252,44 @@ fn decode_frame(data: &[u8]) -> Result<RelayFrame, RelayTransferError> {
         FRAME_TRANSFER_END => Ok(RelayFrame::TransferEnd),
         _ => Err(RelayTransferError::Protocol(format!(
             "Unknown relay frame type {frame_type}"
+        ))),
+    }
+}
+
+async fn wait_for_relay_ready<S>(
+    stream: &mut S,
+    transfer_id: &str,
+) -> Result<(), RelayTransferError>
+where
+    S: Stream<Item = Result<Message, tokio_tungstenite::tungstenite::Error>> + Unpin,
+{
+    log::info!("Relay sender waiting for relay-ready transfer={transfer_id}");
+
+    let wait_result = timeout(Duration::from_secs(RELAY_READY_TIMEOUT_SECS), async {
+        while let Some(message) = stream.next().await {
+            let message = message?;
+            let Message::Text(text) = message else {
+                continue;
+            };
+
+            let parsed = serde_json::from_str::<RelayReadyMessage>(&text)
+                .map_err(|error| RelayTransferError::Protocol(error.to_string()))?;
+            if parsed.r#type == "relay-ready" && parsed.transfer_id == transfer_id {
+                log::info!("Relay sender received relay-ready transfer={transfer_id}");
+                return Ok(());
+            }
+        }
+
+        Err(RelayTransferError::Connection(
+            "Relay connection closed before relay-ready".to_string(),
+        ))
+    })
+    .await;
+
+    match wait_result {
+        Ok(result) => result,
+        Err(_) => Err(RelayTransferError::Connection(format!(
+            "Timed out waiting for relay-ready after {RELAY_READY_TIMEOUT_SECS}s"
         ))),
     }
 }
@@ -541,7 +588,7 @@ async fn finish_receive_file(
     let partial_path = state.partial_path.clone();
     let expected_size = state.expected_size;
     let received_size = state.expected_size.max(state.received_size);
-    
+
     drop(state.writer);
 
     log::info!(
@@ -584,9 +631,11 @@ pub async fn send_relay_files(
     input: RelaySendInput,
 ) -> Result<(), RelayTransferError> {
     let result = send_relay_files_inner(&app, &input).await;
+
     if let Err(error) = &result {
         emit_send_failure(&app, &input, error);
     }
+
     result
 }
 
@@ -595,12 +644,16 @@ async fn send_relay_files_inner(
     input: &RelaySendInput,
 ) -> Result<(), RelayTransferError> {
     let relay_url = with_token_query(&input.relay_url, &input.token)?;
-    let (ws_stream, _) = connect_async(&relay_url).await?;
+    let (mut ws_stream, _) = connect_async(&relay_url).await?;
+
     log::info!(
         "Relay sender connected transfer={} url={}",
         input.transfer_id,
         redact_relay_url(&input.relay_url)
     );
+
+    wait_for_relay_ready(&mut ws_stream, &input.transfer_id).await?;
+
     let (mut sink, _stream) = ws_stream.split();
     let chunk_size = TransferConfig::global().chunk_size;
     let mut buffer = vec![0u8; chunk_size];
@@ -637,6 +690,7 @@ async fn send_relay_files_inner(
             "processing",
             None,
         );
+
         sink.send(Message::Binary(encode_file_start(&metadata)?))
             .await?;
 
@@ -704,9 +758,11 @@ pub async fn receive_relay_transfer(
     input: RelayReceiveInput,
 ) -> Result<(), RelayTransferError> {
     let result = receive_relay_transfer_inner(&app, &input).await;
+
     if let Err(error) = &result {
         emit_receive_failure(&app, &input, error);
     }
+
     result
 }
 
@@ -716,7 +772,9 @@ async fn receive_relay_transfer_inner(
 ) -> Result<(), RelayTransferError> {
     let relay_url = with_token_query(&input.relay_url, &input.token)?;
     let base_dir = resolve_receive_base_dir(app).await?;
+
     let (ws_stream, _) = connect_async(&relay_url).await?;
+
     log::info!(
         "Relay receiver connected transfer={} url={}",
         input.transfer_id,
@@ -797,6 +855,7 @@ async fn receive_relay_transfer_inner(
                     ));
                 }
                 log::info!("Relay receiver transfer-end transfer={}", input.transfer_id);
+
                 break;
             }
         }
