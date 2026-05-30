@@ -31,6 +31,7 @@ function getTransferService() {
 		service = createTransferService({
 			devices: {
 				findSenderDevice: async () => undefined,
+				findTargetDevice: async () => undefined,
 				findUserSummary: async () => undefined,
 				findDeviceFingerprint: async () => undefined,
 			},

@@ -25,6 +25,13 @@ export const transferRepository = {
 		});
 	},
 
+	findTargetDevice(deviceId: string) {
+		return db.query.device.findFirst({
+			where: eq(device.id, deviceId),
+			columns: { id: true, fingerprint: true, deviceName: true, userId: true },
+		});
+	},
+
 	findUserSummary(userId: string) {
 		return db.query.users.findFirst({
 			where: eq(users.id, userId),

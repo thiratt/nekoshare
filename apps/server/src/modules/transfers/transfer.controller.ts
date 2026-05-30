@@ -14,9 +14,9 @@ type TransferControllerService = {
 	}): Promise<unknown>;
 };
 
-function getRelayUrl(c: AppContext): string {
-	const origin = c.req.header("origin") ?? env.APP_PUBLIC_URL;
-	const url = new URL("/ws/relay", origin);
+function getRelayUrl(): string {
+	const publicBaseUrl = env.APP_PUBLIC_URL ?? env.BETTER_AUTH_URL;
+	const url = new URL("/ws/relay", publicBaseUrl);
 
 	if (url.protocol === "http:") url.protocol = "ws:";
 	if (url.protocol === "https:") url.protocol = "wss:";
@@ -24,13 +24,28 @@ function getRelayUrl(c: AppContext): string {
 	return url.toString();
 }
 
-async function getCallerDeviceId(sessionId: string, repository: TransferHttpRepository): Promise<string | undefined> {
-	const cachedDeviceId = await readCachedDeviceIdBySessionId(sessionId);
+async function getCallerDeviceId(input: {
+	explicitDeviceId?: string;
+	repository: TransferHttpRepository;
+	sessionId: string;
+	userId: string;
+}): Promise<string | undefined> {
+	const explicitDeviceId = input.explicitDeviceId?.trim();
+	if (explicitDeviceId) {
+		const ownedDeviceId = await input.repository.findOwnedDeviceId(explicitDeviceId, input.userId);
+		if (!ownedDeviceId) {
+			throw new HttpServiceError("DEVICE_FORBIDDEN", 403, "Requested device is not available for this user");
+		}
+
+		return ownedDeviceId;
+	}
+
+	const cachedDeviceId = await readCachedDeviceIdBySessionId(input.sessionId);
 	if (cachedDeviceId !== undefined) {
 		return cachedDeviceId ?? undefined;
 	}
 
-	return repository.findDeviceIdBySessionId(sessionId);
+	return input.repository.findDeviceIdBySessionId(input.sessionId);
 }
 
 export function createTransferController(service: TransferControllerService, repository: TransferHttpRepository) {
@@ -44,7 +59,12 @@ export function createTransferController(service: TransferControllerService, rep
 
 				const session = c.get("session");
 				const user = c.get("user");
-				const deviceId = await getCallerDeviceId(session.id, repository);
+				const deviceId = await getCallerDeviceId({
+					explicitDeviceId: c.req.header("x-neko-device-id"),
+					repository,
+					sessionId: session.id,
+					userId: user.id,
+				});
 				if (!deviceId) {
 					throw new HttpServiceError("DEVICE_NOT_FOUND", 404, "Current session is not bound to a device");
 				}
@@ -53,7 +73,7 @@ export function createTransferController(service: TransferControllerService, rep
 					transferId,
 					userId: user.id,
 					deviceId,
-					relayUrl: getRelayUrl(c),
+					relayUrl: getRelayUrl(),
 				});
 
 				return jsonSuccess(c, data);

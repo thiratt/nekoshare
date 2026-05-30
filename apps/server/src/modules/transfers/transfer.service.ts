@@ -52,6 +52,13 @@ interface SenderDevice {
 	userId: string;
 }
 
+interface TargetDevice {
+	id: string;
+	fingerprint: string | null;
+	deviceName: string;
+	userId: string;
+}
+
 interface UserSummary {
 	id: string;
 	name: string;
@@ -63,6 +70,7 @@ interface DeviceFingerprint {
 
 export interface TransferDeviceLookup {
 	findSenderDevice(deviceId: string): Promise<SenderDevice | null | undefined>;
+	findTargetDevice(deviceId: string): Promise<TargetDevice | null | undefined>;
 	findUserSummary(userId: string): Promise<UserSummary | null | undefined>;
 	findDeviceFingerprint(deviceId: string): Promise<DeviceFingerprint | null | undefined>;
 }
@@ -97,6 +105,7 @@ export interface TransferServiceDependencies {
 
 export interface TransferHttpRepository {
 	findDeviceIdBySessionId(sessionId: string): Promise<string | undefined>;
+	findOwnedDeviceId(deviceId: string, userId: string): Promise<string | undefined>;
 }
 
 export interface PreparedFileOffer {
@@ -105,6 +114,7 @@ export interface PreparedFileOffer {
 	senderDeviceId: string;
 	senderDevice: SenderDevice;
 	senderUser: UserSummary | null | undefined;
+	targetDevice: TargetDevice;
 	files: NonNullable<FileOfferInput["files"]>;
 	spoofedFromDeviceId?: string;
 }
@@ -197,10 +207,10 @@ export function createRuntimeFromOffer(offer: PreparedFileOffer): TransferRuntim
 		},
 		receiver: {
 			role: "receiver",
-			userId: "",
-			deviceId: offer.targetDeviceId,
-			deviceName: null,
-			deviceFingerprint: null,
+			userId: offer.targetDevice.userId,
+			deviceId: offer.targetDevice.id,
+			deviceName: offer.targetDevice.deviceName,
+			deviceFingerprint: offer.targetDevice.fingerprint,
 		},
 		files,
 		progress: createInitialProgress(files),
@@ -435,7 +445,11 @@ export function createTransferService(deps: TransferServiceDependencies) {
 			userId: string;
 		}): Promise<RelayTicketResponse> {
 			if (!deps.runtimeStore) {
-				throw new HttpServiceError("TRANSFER_RUNTIME_UNAVAILABLE", 500, "Transfer runtime store is unavailable");
+				throw new HttpServiceError(
+					"TRANSFER_RUNTIME_UNAVAILABLE",
+					500,
+					"Transfer runtime store is unavailable",
+				);
 			}
 
 			const runtime = await deps.runtimeStore.getRuntime(input.transferId);
@@ -532,6 +546,11 @@ export function createTransferService(deps: TransferServiceDependencies) {
 				throw new Error(`Sender device ${senderDeviceId} not found in database`);
 			}
 
+			const targetDevice = await deps.devices.findTargetDevice(targetDeviceId);
+			if (!targetDevice) {
+				throw new Error(`Target device ${targetDeviceId} not found in database`);
+			}
+
 			const senderUser = await deps.devices.findUserSummary(senderDevice.userId);
 			const spoofedFromDeviceId =
 				payload.fromDeviceId && payload.fromDeviceId !== senderDeviceId ? payload.fromDeviceId : undefined;
@@ -542,6 +561,7 @@ export function createTransferService(deps: TransferServiceDependencies) {
 				senderDeviceId,
 				senderDevice,
 				senderUser,
+				targetDevice,
 				files: payload.files,
 				spoofedFromDeviceId,
 			};

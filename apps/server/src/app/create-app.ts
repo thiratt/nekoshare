@@ -23,7 +23,7 @@ const CORS_CONFIG = {
 
 		return null;
 	},
-	allowHeaders: ["Content-Type", "Authorization"],
+	allowHeaders: ["Content-Type", "Authorization", "x-neko-device-id"],
 	allowMethods: ["GET", "HEAD", "PUT", "POST", "PATCH", "DELETE", "OPTIONS"],
 	exposeHeaders: ["Content-Length"],
 	maxAge: 600,

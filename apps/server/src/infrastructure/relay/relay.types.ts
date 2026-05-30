@@ -12,6 +12,7 @@ export interface RelayPeer extends RelayPeerIdentity {
 	connectedAt: string;
 	close(reason: string): void;
 	sendBinary(data: ArrayBuffer | Buffer): void;
+	sendText(message: string): void;
 }
 
 export interface RelayTransferSession {

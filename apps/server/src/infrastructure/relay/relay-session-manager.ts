@@ -3,6 +3,7 @@ import type { RelayPeer, RelayPeerIdentity, RelayTransferSession } from "./relay
 interface RelayPeerBinding extends RelayPeerIdentity {
 	close(reason: string): void;
 	sendBinary(data: ArrayBuffer | Buffer): void;
+	sendText(message: string): void;
 }
 
 export class RelaySessionManager {

@@ -23,6 +23,7 @@ function getRelayTransferService() {
 		relayTransferService = createTransferService({
 			devices: {
 				findSenderDevice: async () => undefined,
+				findTargetDevice: async () => undefined,
 				findUserSummary: async () => undefined,
 				findDeviceFingerprint: async () => undefined,
 			},
@@ -103,6 +104,18 @@ function flushProgressIfNeeded(transferId: string): void {
 	void getRelayTransferService().recordRelayProgress(transferId, session.bytesRelayed);
 }
 
+function sendRelayReady(transferId: string): void {
+	const session = relaySessionManager.getSession(transferId);
+	if (!session?.sender || !session.receiver) {
+		return;
+	}
+
+	const message = JSON.stringify({ type: "relay-ready", transferId });
+	session.sender.sendText(message);
+	session.receiver.sendText(message);
+	Logger.info("Relay", `Sent relay-ready for transfer ${transferId}`);
+}
+
 export function registerRelayWebSocketRoute(
 	app: ReturnType<typeof createRouter>,
 	upgradeWebSocket: RelayUpgradeWebSocket,
@@ -140,6 +153,9 @@ export function registerRelayWebSocketRoute(
 						sendBinary(data) {
 							ws.send(data instanceof ArrayBuffer ? data : Uint8Array.from(data));
 						},
+						sendText(message) {
+							ws.send(message);
+						},
 					});
 
 					Logger.info(
@@ -149,6 +165,7 @@ export function registerRelayWebSocketRoute(
 
 					if (relaySessionManager.hasBothPeers(ticket.transferId)) {
 						await getRelayTransferService().markRelayPeersConnected(ticket.transferId);
+						sendRelayReady(ticket.transferId);
 					}
 				},
 
@@ -173,6 +190,15 @@ export function registerRelayWebSocketRoute(
 
 						if (peer.role !== "sender") {
 							ws.close(1008, "Receiver cannot send relay payload bytes");
+							return;
+						}
+
+						if (!relaySessionManager.hasBothPeers(peer.transferId)) {
+							Logger.warn(
+								"Relay",
+								`Sender attempted binary before relay-ready for transfer ${peer.transferId}`,
+							);
+							ws.close(1011, "Relay receiver is not connected");
 							return;
 						}
 
