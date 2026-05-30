@@ -32,6 +32,7 @@ fn now_timestamp_ms() -> i64 {
 }
 
 const SEND_PROGRESS_EMIT_STEP: u64 = 1024 * 1024;
+const MAX_RELAY_FRAME_PAYLOAD_BYTES: usize = 8 * 1024 * 1024;
 
 #[derive(serde::Serialize)]
 struct FileMetadata {
@@ -486,7 +487,7 @@ pub async fn socket_client_send_files(
     source_user_name: Option<String>,
     source_device_name: Option<String>,
 ) -> Result<ClientConnectionResponse, SocketCommandError> {
-    let chunk_size = TransferConfig::global().chunk_size;
+    let chunk_size = TransferConfig::global().chunk_size.min(MAX_RELAY_FRAME_PAYLOAD_BYTES);
 
     let manager = state.inner().clone();
 

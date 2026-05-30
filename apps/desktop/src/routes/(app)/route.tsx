@@ -48,12 +48,43 @@ import { SetupApplicationUI } from "@/components/setup";
 import { useNSDesktop } from "@/context/NSDesktopContext";
 import { useTauriFileDrop } from "@/hooks/use-tauri-file-drop";
 import { authClient, getCachedSession, type SessionUser } from "@/lib/auth";
+import { requestRelayTicket } from "@/lib/relay-transfer";
 import {
   type TransferProgressEvent,
   useTransferStore,
 } from "@/lib/store/transfers";
 import { parseDropZoneId } from "@/lib/transfer";
 import { useAccountLanguageSync } from "@workspace/i18n/react";
+
+const RELAY_DEBUG_TRANSFER_MODE =
+  import.meta.env.VITE_TRANSFER_MODE === "relay";
+const RELAY_TICKET_RETRY_DELAYS_MS = [150, 350, 700];
+
+async function requestRelayTicketWithRetry(transferId: string) {
+  let lastError: unknown;
+
+  for (
+    let attempt = 0;
+    attempt <= RELAY_TICKET_RETRY_DELAYS_MS.length;
+    attempt++
+  ) {
+    try {
+      return await requestRelayTicket(transferId);
+    } catch (error) {
+      lastError = error;
+      const delay = RELAY_TICKET_RETRY_DELAYS_MS[attempt];
+      if (delay === undefined) {
+        break;
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Relay ticket request failed");
+}
 
 export const Route = createFileRoute("/(app)")({
   async beforeLoad() {
@@ -297,6 +328,23 @@ function RouteComponent() {
         w.writeString(JSON.stringify(acceptPayload));
       });
 
+      if (RELAY_DEBUG_TRANSFER_MODE) {
+        try {
+          const relayTicket = await requestRelayTicketWithRetry(transferId);
+          await invoke("relay_receive_transfer", {
+            input: {
+              transferId,
+              relayUrl: relayTicket.relayUrl,
+              token: relayTicket.token,
+            },
+          });
+          console.log("[FILE_OFFER] Relay receiver connected for:", transferId);
+        } catch (error) {
+          console.error("[FILE_OFFER] Failed to start relay receiver:", error);
+          toast.error("Relay receive setup failed");
+        }
+      }
+
       if (!reuse) {
         console.log("[FILE_OFFER] Listening for incoming connection on:", {
           address,
@@ -327,6 +375,54 @@ function RouteComponent() {
         );
         return;
       }
+
+      const filesToSend = pendingTransfers.current.get(transferId);
+      if (!filesToSend) {
+        console.error(
+          `[FILE_ACCEPT] No pending files found for transfer ${transferId}`,
+        );
+        toast.error("Transfer failed: Session expired or files lost");
+        return;
+      }
+
+      if (RELAY_DEBUG_TRANSFER_MODE) {
+        try {
+          const relayTicket = await requestRelayTicketWithRetry(transferId);
+          const relayFiles = await Promise.all(
+            filesToSend.map(async (filePath) => {
+              const fileStat = await stat(filePath);
+              const fileName = filePath.split(/[\\/]/).pop() || filePath;
+              return {
+                path: filePath,
+                fileName,
+                size: fileStat.size,
+              };
+            }),
+          );
+
+          await invoke("relay_send_files", {
+            input: {
+              transferId,
+              relayUrl: relayTicket.relayUrl,
+              token: relayTicket.token,
+              files: relayFiles,
+              targetDeviceId: receiverDeviceId,
+              sourceUserId: userId,
+              sourceUserName: user.name ?? null,
+              sourceDeviceId: userDeviceId,
+              sourceDeviceName: currentDevice.name,
+            },
+          });
+
+          pendingTransfers.current.delete(transferId);
+          toast.success("Relay transfer started!");
+        } catch (error) {
+          console.error("[FILE_ACCEPT] Failed to start relay sender:", error);
+          toast.error("Relay transfer failed to start");
+        }
+        return;
+      }
+
       await invoke("socket_client_connect_to", {
         deviceId: userDeviceId,
         receiverId: receiverDeviceId,
@@ -335,34 +431,24 @@ function RouteComponent() {
         receiverFingerprint,
         route: "direct",
       });
+      console.log(
+        `[FILE_ACCEPT] Starting transfer for ${transferId}`,
+        filesToSend,
+      );
 
-      const filesToSend = pendingTransfers.current.get(transferId);
+      await invoke("socket_client_send_files", {
+        deviceId: userDeviceId,
+        targetId: receiverDeviceId,
+        filePaths: filesToSend,
+        transferId,
+        sourceUserId: userId,
+        sourceUserName: user.name ?? null,
+        sourceDeviceName: currentDevice.name,
+        route: "direct",
+      });
 
-      if (filesToSend) {
-        console.log(
-          `[FILE_ACCEPT] Starting transfer for ${transferId}`,
-          filesToSend,
-        );
-
-        await invoke("socket_client_send_files", {
-          deviceId: userDeviceId,
-          targetId: receiverDeviceId,
-          filePaths: filesToSend,
-          transferId,
-          sourceUserId: userId,
-          sourceUserName: user.name ?? null,
-          sourceDeviceName: currentDevice.name,
-          route: "direct",
-        });
-
-        pendingTransfers.current.delete(transferId);
-        toast.success("Transfer started!");
-      } else {
-        console.error(
-          `[FILE_ACCEPT] No pending files found for transfer ${transferId}`,
-        );
-        toast.error("Transfer failed: Session expired or files lost");
-      }
+      pendingTransfers.current.delete(transferId);
+      toast.success("Transfer started!");
     },
     [PacketType.FILE_REJECT]: (message) => {
       if (message.status === "error") {

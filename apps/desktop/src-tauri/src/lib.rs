@@ -84,6 +84,9 @@ pub fn run() {
             commands::socket::socket_client_disconnect_from,
             commands::socket::socket_client_is_connected,
             commands::socket::socket_client_send_files,
+            // Relay transfer debug path
+            commands::relay::relay_send_files,
+            commands::relay::relay_receive_transfer,
             // Socket Server
             commands::socket::socket_server_start,
             commands::socket::socket_server_stop,
