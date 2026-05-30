@@ -8,7 +8,6 @@ export type {
 	PreparedFileOffer,
 	RelayTicketResponse,
 	TransferDeviceLookup,
-	TransferHttpRepository,
 	TransferLifecycle,
 	TransferServiceDependencies,
 } from "./transfer.service";

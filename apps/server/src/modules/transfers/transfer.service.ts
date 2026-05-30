@@ -71,11 +71,6 @@ export interface TransferServiceDependencies {
 	onRuntimeError?: (operation: string, error: unknown) => void;
 }
 
-export interface TransferHttpRepository {
-	findDeviceIdBySessionId(sessionId: string): Promise<string | undefined>;
-	findOwnedDeviceId(deviceId: string, userId: string): Promise<string | undefined>;
-}
-
 export interface PreparedFileOffer {
 	transferId: string;
 	targetDeviceId: string;

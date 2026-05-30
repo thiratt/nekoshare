@@ -1,11 +1,11 @@
 import { RedisTransferRuntimeStore, type TransferRuntimeRedisClient } from "./redis-transfer-runtime-store";
-import { transferHttpRepository } from "./transfer.repository";
 import { createTransferRouter } from "./transfer.route";
 import { createTransferService } from "./transfer.service";
 import type { TransferLifecycle } from "./transfer.service";
 
 import { Logger } from "@/infrastructure/logger";
 import { getRedisClient } from "@/infrastructure/redis";
+import { deviceIdentityRepository, DeviceIdentityService } from "@/modules/devices";
 import {
 	ensureTransferParticipants,
 	getTransferSessionForFallback,
@@ -25,6 +25,7 @@ const lifecycle: TransferLifecycle = {
 };
 
 let service: ReturnType<typeof createTransferService> | null = null;
+let deviceIdentityService: DeviceIdentityService | null = null;
 
 function getTransferService() {
 	if (!service) {
@@ -46,6 +47,14 @@ function getTransferService() {
 	return service;
 }
 
+function getDeviceIdentityService() {
+	if (!deviceIdentityService) {
+		deviceIdentityService = new DeviceIdentityService(deviceIdentityRepository);
+	}
+
+	return deviceIdentityService;
+}
+
 export function createTransferModule() {
 	return {
 		service: getTransferService(),
@@ -53,7 +62,7 @@ export function createTransferModule() {
 			{
 				issueCallerRelayTicket: (input) => getTransferService().issueCallerRelayTicket(input),
 			},
-			transferHttpRepository,
+			getDeviceIdentityService(),
 		),
 	};
 }

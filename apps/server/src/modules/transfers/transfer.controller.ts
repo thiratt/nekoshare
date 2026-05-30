@@ -1,7 +1,5 @@
-import type { TransferHttpRepository } from "./transfer.service";
-
 import { env } from "@/config/env";
-import { readCachedDeviceIdBySessionId } from "@/modules/auth/lib/utils";
+import type { DeviceIdentityService } from "@/modules/devices";
 import { handleControllerError, HttpServiceError, jsonSuccess } from "@/shared/http";
 import type { AppContext } from "@/shared/http/router";
 
@@ -24,31 +22,7 @@ function getRelayUrl(): string {
 	return url.toString();
 }
 
-async function getCallerDeviceId(input: {
-	explicitDeviceId?: string;
-	repository: TransferHttpRepository;
-	sessionId: string;
-	userId: string;
-}): Promise<string | undefined> {
-	const explicitDeviceId = input.explicitDeviceId?.trim();
-	if (explicitDeviceId) {
-		const ownedDeviceId = await input.repository.findOwnedDeviceId(explicitDeviceId, input.userId);
-		if (!ownedDeviceId) {
-			throw new HttpServiceError("DEVICE_FORBIDDEN", 403, "Requested device is not available for this user");
-		}
-
-		return ownedDeviceId;
-	}
-
-	const cachedDeviceId = await readCachedDeviceIdBySessionId(input.sessionId);
-	if (cachedDeviceId !== undefined) {
-		return cachedDeviceId ?? undefined;
-	}
-
-	return input.repository.findDeviceIdBySessionId(input.sessionId);
-}
-
-export function createTransferController(service: TransferControllerService, repository: TransferHttpRepository) {
+export function createTransferController(service: TransferControllerService, deviceIdentity: DeviceIdentityService) {
 	return {
 		relayTicket: async (c: AppContext) => {
 			try {
@@ -59,20 +33,28 @@ export function createTransferController(service: TransferControllerService, rep
 
 				const session = c.get("session");
 				const user = c.get("user");
-				const deviceId = await getCallerDeviceId({
-					explicitDeviceId: c.req.header("x-neko-device-id"),
-					repository,
+				const explicitDeviceId = c.req.header("x-neko-device-id");
+				const device = await deviceIdentity.resolveHttpDevice({
+					explicitDeviceId,
 					sessionId: session.id,
 					userId: user.id,
 				});
-				if (!deviceId) {
+				if (!device) {
+					if (explicitDeviceId?.trim()) {
+						throw new HttpServiceError(
+							"DEVICE_FORBIDDEN",
+							403,
+							"Requested device is not available for this user",
+						);
+					}
+
 					throw new HttpServiceError("DEVICE_NOT_FOUND", 404, "Current session is not bound to a device");
 				}
 
 				const data = await service.issueCallerRelayTicket({
 					transferId,
 					userId: user.id,
-					deviceId,
+					deviceId: device.deviceId,
 					relayUrl: getRelayUrl(),
 				});
 
