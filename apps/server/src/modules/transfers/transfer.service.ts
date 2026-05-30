@@ -18,6 +18,8 @@ import type {
 } from "./transfer.types";
 import type { TransferRuntimeStore } from "./transfer-runtime-store";
 
+import { HttpServiceError } from "@/shared/http";
+
 interface FileOfferInput {
 	transferId?: string;
 	fromDeviceId?: string;
@@ -93,6 +95,10 @@ export interface TransferServiceDependencies {
 	onRuntimeError?: (operation: string, error: unknown) => void;
 }
 
+export interface TransferHttpRepository {
+	findDeviceIdBySessionId(sessionId: string): Promise<string | undefined>;
+}
+
 export interface PreparedFileOffer {
 	transferId: string;
 	targetDeviceId: string;
@@ -123,6 +129,12 @@ export interface IssueRelayTicketsInput {
 export interface IssuedTransferRelayTickets {
 	sender: IssuedTransferRelayTicket;
 	receiver: IssuedTransferRelayTicket;
+}
+
+export interface RelayTicketResponse {
+	relayUrl: string;
+	token: string;
+	ticket: IssuedTransferRelayTicket["ticket"];
 }
 
 function nowIso(): string {
@@ -414,6 +426,50 @@ export function createTransferService(deps: TransferServiceDependencies) {
 			}
 
 			return { ticket: toPublicRelayTicket(ticket) };
+		},
+
+		async issueCallerRelayTicket(input: {
+			deviceId: string;
+			relayUrl: string;
+			transferId: string;
+			userId: string;
+		}): Promise<RelayTicketResponse> {
+			if (!deps.runtimeStore) {
+				throw new HttpServiceError("TRANSFER_RUNTIME_UNAVAILABLE", 500, "Transfer runtime store is unavailable");
+			}
+
+			const runtime = await deps.runtimeStore.getRuntime(input.transferId);
+			if (!runtime) {
+				throw new HttpServiceError("TRANSFER_NOT_FOUND", 404, "Transfer not found");
+			}
+
+			if (!["accepted", "connecting", "transferring", "paused"].includes(runtime.status)) {
+				throw new HttpServiceError("TRANSFER_INVALID_STATE", 409, "Transfer is not ready for relay");
+			}
+
+			const caller =
+				runtime.sender.deviceId === input.deviceId
+					? runtime.sender
+					: runtime.receiver.deviceId === input.deviceId
+						? runtime.receiver
+						: undefined;
+			if (!caller || caller.userId !== input.userId) {
+				throw new HttpServiceError("TRANSFER_FORBIDDEN", 403, "Current device is not part of this transfer");
+			}
+
+			const tickets = await this.issueRelayTickets({
+				transferId: input.transferId,
+				sender: runtime.sender,
+				receiver: runtime.receiver,
+				byteLimit: runtime.progress.totalBytes,
+			});
+			const issuedTicket = caller.role === "sender" ? tickets.sender : tickets.receiver;
+
+			return {
+				relayUrl: input.relayUrl,
+				token: issuedTicket.token,
+				ticket: issuedTicket.ticket,
+			};
 		},
 
 		async markRelayPeersConnected(transferId: string): Promise<void> {

@@ -8,4 +8,5 @@ export function registerRoutes(app: Hono, routers: AppModuleRouters) {
 	app.route("/account", routers.account);
 	app.route("/devices", routers.devices);
 	app.route("/friends", routers.friends);
+	app.route("/transfers", routers.transfers);
 }

@@ -5,6 +5,7 @@ import { createAuthModule } from "@/modules/auth";
 import { createDevicesModule } from "@/modules/devices";
 import { createFriendsModule } from "@/modules/friends";
 import { createRootModule } from "@/modules/root";
+import { createTransferModule } from "@/modules/transfers";
 
 export type AppModules = {
 	root: ReturnType<typeof createRootModule>;
@@ -12,6 +13,7 @@ export type AppModules = {
 	account: ReturnType<typeof createAccountModule>;
 	devices: ReturnType<typeof createDevicesModule>;
 	friends: ReturnType<typeof createFriendsModule>;
+	transfers: ReturnType<typeof createTransferModule>;
 };
 
 export function createModules(deps: AppModuleDependencies): AppModules {
@@ -21,5 +23,6 @@ export function createModules(deps: AppModuleDependencies): AppModules {
 		account: createAccountModule(),
 		devices: createDevicesModule({ events: deps.devicesEvents }),
 		friends: createFriendsModule({ events: deps.friendsEvents }),
+		transfers: createTransferModule(),
 	};
 }

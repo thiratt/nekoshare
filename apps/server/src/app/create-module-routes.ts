@@ -6,6 +6,7 @@ export type AppModuleRouters = {
 	account: AppModules["account"]["router"];
 	devices: AppModules["devices"]["router"];
 	friends: AppModules["friends"]["router"];
+	transfers: AppModules["transfers"]["router"];
 };
 
 export function createModuleRouters(modules: AppModules): AppModuleRouters {
@@ -15,5 +16,6 @@ export function createModuleRouters(modules: AppModules): AppModuleRouters {
 		account: modules.account.router,
 		devices: modules.devices.router,
 		friends: modules.friends.router,
+		transfers: modules.transfers.router,
 	};
 }

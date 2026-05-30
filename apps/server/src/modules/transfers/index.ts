@@ -1,11 +1,14 @@
 export type { TransferRuntimeRedisClient } from "./redis-transfer-runtime-store";
 export { RedisTransferRuntimeStore } from "./redis-transfer-runtime-store";
+export { createTransferModule } from "./transfer.module";
 export type {
 	IssuedTransferRelayTickets,
 	IssueRelayTicketsInput,
 	PreparedFileAccept,
 	PreparedFileOffer,
+	RelayTicketResponse,
 	TransferDeviceLookup,
+	TransferHttpRepository,
 	TransferLifecycle,
 	TransferServiceDependencies,
 } from "./transfer.service";
