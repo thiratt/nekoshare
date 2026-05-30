@@ -1,6 +1,17 @@
-import type { TransferProgress, TransferRelayTicket, TransferRuntime, TransferRuntimeEvent } from "./transfer.types";
+import type {
+	TransferProgress,
+	TransferRelayTicket,
+	TransferRuntime,
+	TransferRuntimeEvent,
+	TransferSessionRecord,
+} from "./transfer.types";
 
 export interface TransferRuntimeStore {
+	getTransferSession(transferId: string): Promise<TransferSessionRecord | undefined>;
+	saveTransferSession(session: TransferSessionRecord): Promise<void>;
+	removeTransferSession(session: TransferSessionRecord): Promise<void>;
+	removeTransferSessionById(transferId: string): Promise<void>;
+	findAcceptedTransferSessionsByPair(deviceA: string, deviceB: string): Promise<TransferSessionRecord[]>;
 	getRuntime(transferId: string): Promise<TransferRuntime | undefined>;
 	saveRuntime(runtime: TransferRuntime): Promise<void>;
 	removeRuntime(transferId: string): Promise<void>;

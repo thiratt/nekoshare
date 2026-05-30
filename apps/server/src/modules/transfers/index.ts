@@ -10,18 +10,23 @@ export type {
 	TransferRuntime,
 	TransferRuntimeEvent,
 	TransferRuntimeStoreOptions,
+	TransferSessionRecord,
+	TransferSessionState,
 	TransferStatus,
 	TransferTransportMode,
 	TransferTransportState,
 } from "./transfer.types";
 export {
+	getTransferAcceptedPairKey,
 	getTransferDeviceActiveKey,
 	getTransferEventsKey,
 	getTransferLockKey,
+	getTransferPairId,
 	getTransferProgressKey,
 	getTransferRelayTicketKey,
 	getTransferRelayTicketsByTransferKey,
 	getTransferRuntimeKey,
+	getTransferSessionKey,
 	getTransferUserRecentKey,
 } from "./transfer-redis-keys";
 export type { TransferRuntimeStore } from "./transfer-runtime-store";

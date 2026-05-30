@@ -1,11 +1,23 @@
 const TRANSFER_KEY_PREFIX = "transfer";
 
+export function getTransferSessionKey(transferId: string): string {
+	return `${TRANSFER_KEY_PREFIX}:session:${transferId}`;
+}
+
 export function getTransferRuntimeKey(transferId: string): string {
 	return `${TRANSFER_KEY_PREFIX}:runtime:${transferId}`;
 }
 
 export function getTransferLockKey(transferId: string): string {
 	return `${TRANSFER_KEY_PREFIX}:lock:${transferId}`;
+}
+
+export function getTransferPairId(deviceA: string, deviceB: string): string {
+	return deviceA < deviceB ? `${deviceA}:${deviceB}` : `${deviceB}:${deviceA}`;
+}
+
+export function getTransferAcceptedPairKey(deviceA: string, deviceB: string): string {
+	return `${TRANSFER_KEY_PREFIX}:pair:accepted:${getTransferPairId(deviceA, deviceB)}`;
 }
 
 export function getTransferDeviceActiveKey(deviceId: string): string {

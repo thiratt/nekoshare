@@ -1,91 +1,29 @@
 import { getRedisClient, withRedisLock } from "@/infrastructure/redis";
+import {
+	getTransferLockKey,
+	RedisTransferRuntimeStore,
+	type TransferRuntimeRedisClient,
+	type TransferRuntimeStore,
+	type TransferSessionRecord,
+} from "@/modules/transfers";
 import { safeJsonParse } from "@/shared/utils/json-helper";
 
-type TransferSessionState = "offered" | "accepted";
-
-export interface TransferSessionRecord {
-	transferId: string;
-	senderDeviceId: string;
-	receiverDeviceId: string;
-	state: TransferSessionState;
-	updatedAt: number;
-}
+export type { TransferSessionRecord } from "@/modules/transfers";
 
 const TRANSFER_SESSION_TTL_SECONDS = 30 * 60;
 const TRANSFER_LOCK_TTL_MS = 3000;
-const TRANSFER_SESSION_PREFIX = "transfer:session:";
-const TRANSFER_PAIR_ACCEPTED_PREFIX = "transfer:pair:accepted:";
-const TRANSFER_LOCK_PREFIX = "transfer:lock:";
 
-function getTransferSessionKey(transferId: string): string {
-	return `${TRANSFER_SESSION_PREFIX}${transferId}`;
-}
+let transferStore: TransferRuntimeStore | null = null;
 
-function getTransferLockKey(transferId: string): string {
-	return `${TRANSFER_LOCK_PREFIX}${transferId}`;
-}
-
-function getTransferPairId(deviceA: string, deviceB: string): string {
-	return deviceA < deviceB ? `${deviceA}:${deviceB}` : `${deviceB}:${deviceA}`;
-}
-
-function getTransferAcceptedPairKey(deviceA: string, deviceB: string): string {
-	return `${TRANSFER_PAIR_ACCEPTED_PREFIX}${getTransferPairId(deviceA, deviceB)}`;
-}
-
-function isTransferSessionState(value: unknown): value is TransferSessionState {
-	return value === "offered" || value === "accepted";
-}
-
-function parseTransferSession(raw: string | null): TransferSessionRecord | undefined {
-	if (!raw) {
-		return undefined;
+function getTransferStore(): TransferRuntimeStore {
+	if (!transferStore) {
+		transferStore = new RedisTransferRuntimeStore(getRedisClient() as unknown as TransferRuntimeRedisClient, {
+			sessionTtlSeconds: TRANSFER_SESSION_TTL_SECONDS,
+			eventTtlSeconds: TRANSFER_SESSION_TTL_SECONDS,
+		});
 	}
 
-	const { data: parsed } = safeJsonParse<TransferSessionRecord>(raw);
-	if (
-		!parsed?.transferId ||
-		!parsed.senderDeviceId ||
-		!parsed.receiverDeviceId ||
-		!isTransferSessionState(parsed.state)
-	) {
-		return undefined;
-	}
-
-	return parsed;
-}
-
-async function getTransferSession(transferId: string): Promise<TransferSessionRecord | undefined> {
-	const redis = getRedisClient();
-	const raw = await redis.get(getTransferSessionKey(transferId));
-	return parseTransferSession(raw);
-}
-
-async function saveTransferSession(session: TransferSessionRecord): Promise<void> {
-	const redis = getRedisClient();
-	const acceptedPairKey = getTransferAcceptedPairKey(session.senderDeviceId, session.receiverDeviceId);
-	const sessionKey = getTransferSessionKey(session.transferId);
-
-	const tx = redis.multi().set(sessionKey, JSON.stringify(session), {
-		EX: TRANSFER_SESSION_TTL_SECONDS,
-	});
-
-	if (session.state === "accepted") {
-		tx.sAdd(acceptedPairKey, session.transferId).expire(acceptedPairKey, TRANSFER_SESSION_TTL_SECONDS);
-	} else {
-		tx.sRem(acceptedPairKey, session.transferId);
-	}
-
-	await tx.exec();
-}
-
-async function removeTransferSessionInternal(session: TransferSessionRecord): Promise<void> {
-	const redis = getRedisClient();
-	await redis
-		.multi()
-		.del(getTransferSessionKey(session.transferId))
-		.sRem(getTransferAcceptedPairKey(session.senderDeviceId, session.receiverDeviceId), session.transferId)
-		.exec();
+	return transferStore;
 }
 
 function isTransferPair(session: TransferSessionRecord, deviceA: string, deviceB: string): boolean {
@@ -104,7 +42,7 @@ export async function registerTransferOffer(
 		getTransferLockKey(transferId),
 		TRANSFER_LOCK_TTL_MS,
 		async () => {
-			const existing = await getTransferSession(transferId);
+			const existing = await getTransferStore().getTransferSession(transferId);
 			if (existing) {
 				if (existing.senderDeviceId === senderDeviceId && existing.receiverDeviceId === receiverDeviceId) {
 					const updated: TransferSessionRecord = {
@@ -112,7 +50,7 @@ export async function registerTransferOffer(
 						state: "offered",
 						updatedAt: Date.now(),
 					};
-					await saveTransferSession(updated);
+					await getTransferStore().saveTransferSession(updated);
 					return { ok: true };
 				}
 
@@ -122,7 +60,7 @@ export async function registerTransferOffer(
 				};
 			}
 
-			await saveTransferSession({
+			await getTransferStore().saveTransferSession({
 				transferId,
 				senderDeviceId,
 				receiverDeviceId,
@@ -145,7 +83,7 @@ export async function ensureTransferParticipants(
 		getTransferLockKey(transferId),
 		TRANSFER_LOCK_TTL_MS,
 		async () => {
-			const session = await getTransferSession(transferId);
+			const session = await getTransferStore().getTransferSession(transferId);
 			if (!session) {
 				return undefined;
 			}
@@ -158,7 +96,7 @@ export async function ensureTransferParticipants(
 				...session,
 				updatedAt: Date.now(),
 			};
-			await saveTransferSession(updated);
+			await getTransferStore().saveTransferSession(updated);
 			return updated;
 		},
 		() => undefined,
@@ -170,7 +108,7 @@ export async function markTransferAccepted(transferId: string): Promise<void> {
 		getTransferLockKey(transferId),
 		TRANSFER_LOCK_TTL_MS,
 		async () => {
-			const session = await getTransferSession(transferId);
+			const session = await getTransferStore().getTransferSession(transferId);
 			if (!session) {
 				return;
 			}
@@ -180,7 +118,7 @@ export async function markTransferAccepted(transferId: string): Promise<void> {
 				state: "accepted",
 				updatedAt: Date.now(),
 			};
-			await saveTransferSession(updated);
+			await getTransferStore().saveTransferSession(updated);
 		},
 		() => undefined,
 	);
@@ -191,44 +129,16 @@ export async function removeTransferSession(transferId: string): Promise<void> {
 		getTransferLockKey(transferId),
 		TRANSFER_LOCK_TTL_MS,
 		async () => {
-			const session = await getTransferSession(transferId);
+			const session = await getTransferStore().getTransferSession(transferId);
 			if (!session) {
-				await getRedisClient().del(getTransferSessionKey(transferId));
+				await getTransferStore().removeTransferSessionById(transferId);
 				return;
 			}
 
-			await removeTransferSessionInternal(session);
+			await getTransferStore().removeTransferSession(session);
 		},
 		() => undefined,
 	);
-}
-
-async function findAcceptedSessionsByPair(deviceA: string, deviceB: string): Promise<TransferSessionRecord[]> {
-	const redis = getRedisClient();
-	const acceptedPairKey = getTransferAcceptedPairKey(deviceA, deviceB);
-	const transferIds = await redis.sMembers(acceptedPairKey);
-	if (transferIds.length === 0) {
-		return [];
-	}
-
-	const sessions: TransferSessionRecord[] = [];
-	const staleTransferIds: string[] = [];
-
-	for (const transferId of transferIds) {
-		const session = await getTransferSession(transferId);
-		if (!session || session.state !== "accepted" || !isTransferPair(session, deviceA, deviceB)) {
-			staleTransferIds.push(transferId);
-			continue;
-		}
-
-		sessions.push(session);
-	}
-
-	if (staleTransferIds.length > 0) {
-		await redis.sRem(acceptedPairKey, staleTransferIds);
-	}
-
-	return sessions;
 }
 
 export async function resolveTransferForAck(
@@ -244,7 +154,7 @@ export async function resolveTransferForAck(
 			getTransferLockKey(transferId),
 			TRANSFER_LOCK_TTL_MS,
 			async () => {
-				const session = await getTransferSession(transferId);
+				const session = await getTransferStore().getTransferSession(transferId);
 				if (!session || session.state !== "accepted") {
 					return undefined;
 				}
@@ -257,14 +167,14 @@ export async function resolveTransferForAck(
 					...session,
 					updatedAt: Date.now(),
 				};
-				await saveTransferSession(updated);
+				await getTransferStore().saveTransferSession(updated);
 				return updated;
 			},
 			() => undefined,
 		);
 	}
 
-	const pairSessions = await findAcceptedSessionsByPair(senderDeviceId, targetDeviceId);
+	const pairSessions = await getTransferStore().findAcceptedTransferSessionsByPair(senderDeviceId, targetDeviceId);
 	if (pairSessions.length !== 1) {
 		return undefined;
 	}
@@ -274,7 +184,7 @@ export async function resolveTransferForAck(
 		getTransferLockKey(targetSession.transferId),
 		TRANSFER_LOCK_TTL_MS,
 		async () => {
-			const current = await getTransferSession(targetSession.transferId);
+			const current = await getTransferStore().getTransferSession(targetSession.transferId);
 			if (!current || current.state !== "accepted") {
 				return undefined;
 			}
@@ -287,7 +197,7 @@ export async function resolveTransferForAck(
 				...current,
 				updatedAt: Date.now(),
 			};
-			await saveTransferSession(updated);
+			await getTransferStore().saveTransferSession(updated);
 			return updated;
 		},
 		() => undefined,
@@ -295,5 +205,5 @@ export async function resolveTransferForAck(
 }
 
 export async function getTransferSessionForFallback(transferId: string): Promise<TransferSessionRecord | undefined> {
-	return getTransferSession(transferId);
+	return getTransferStore().getTransferSession(transferId);
 }

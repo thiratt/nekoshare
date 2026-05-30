@@ -16,3 +16,13 @@ export interface TransferRuntimeStoreOptions {
 	sessionTtlSeconds: number;
 	eventTtlSeconds: number;
 }
+
+export type TransferSessionState = "offered" | "accepted";
+
+export interface TransferSessionRecord {
+	transferId: string;
+	senderDeviceId: string;
+	receiverDeviceId: string;
+	state: TransferSessionState;
+	updatedAt: number;
+}
