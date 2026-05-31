@@ -10,6 +10,8 @@ import type {
 	TransferTransportState,
 } from "../transfer.types";
 import type { TransferRuntimeStore } from "../transfer-runtime-store";
+import type { TransferFailure } from "../domain";
+import { createTransferFailure, RuntimeTransferEventType, TransferErrorCode } from "../domain";
 
 export interface TransferRuntimeServiceDependencies {
 	runtimeStore?: TransferRuntimeStore;
@@ -93,6 +95,7 @@ export function createTransferRuntimeService(deps: TransferRuntimeServiceDepende
 		transport?: TransferTransportMode,
 		transportState?: TransferTransportState,
 		message?: string,
+		failure?: TransferFailure,
 	): Promise<void> {
 		await safeRuntimeWrite("update runtime status", async () => {
 			const runtime = await deps.runtimeStore!.getRuntime(transferId);
@@ -109,7 +112,13 @@ export function createTransferRuntimeService(deps: TransferRuntimeServiceDepende
 			}
 
 			await deps.runtimeStore!.addEvent(
-				createRuntimeEvent(transferId, "status-changed", { status, transport, transportState, message }),
+				createRuntimeEvent(transferId, RuntimeTransferEventType.TRANSFER_STATUS_CHANGED, {
+					status,
+					transport,
+					transportState,
+					message,
+					...(failure ? { failure } : {}),
+				}),
 			);
 		});
 	}
@@ -123,7 +132,7 @@ export function createTransferRuntimeService(deps: TransferRuntimeServiceDepende
 				await deps.runtimeStore!.saveRuntime(runtime);
 				await deps.runtimeStore!.saveProgress(transferId, runtime.progress);
 				await deps.runtimeStore!.addEvent(
-					createRuntimeEvent(transferId, "status-changed", {
+					createRuntimeEvent(transferId, RuntimeTransferEventType.TRANSFER_STATUS_CHANGED, {
 						status: "offered",
 						transport: "unknown",
 						transportState: "none",
@@ -137,7 +146,14 @@ export function createTransferRuntimeService(deps: TransferRuntimeServiceDepende
 		},
 
 		async markRelayPeerDisconnected(transferId: string): Promise<void> {
-			await updateRuntimeStatus(transferId, "paused", "relay", "waiting-peer", "Relay peer disconnected");
+			await updateRuntimeStatus(
+				transferId,
+				"paused",
+				"relay",
+				"waiting-peer",
+				"Relay peer disconnected",
+				createTransferFailure(TransferErrorCode.RELAY_PEER_DISCONNECTED, "Relay peer disconnected"),
+			);
 		},
 
 		async recordRelayProgress(transferId: string, bytesRelayed: number): Promise<void> {
@@ -161,7 +177,7 @@ export function createTransferRuntimeService(deps: TransferRuntimeServiceDepende
 					updatedAt: updatedProgress.updatedAt,
 				});
 				await deps.runtimeStore!.addEvent(
-					createRuntimeEvent(transferId, "progress-updated", {
+					createRuntimeEvent(transferId, RuntimeTransferEventType.TRANSFER_PROGRESS_UPDATED, {
 						progress: updatedProgress,
 						message: "Relay bytes forwarded",
 					}),
@@ -195,7 +211,7 @@ export function createTransferRuntimeService(deps: TransferRuntimeServiceDepende
 				}
 
 				await deps.runtimeStore!.addEvent(
-					createRuntimeEvent(transferId, "progress-updated", {
+					createRuntimeEvent(transferId, RuntimeTransferEventType.TRANSFER_PROGRESS_UPDATED, {
 						progress: updatedProgress,
 						message: "FILE_ACK received",
 					}),

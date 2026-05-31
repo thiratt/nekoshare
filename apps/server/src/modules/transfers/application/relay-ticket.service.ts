@@ -10,6 +10,11 @@ import type {
 	VerifiedTransferRelayTicket,
 } from "../transfer.types";
 import type { TransferRuntimeStore } from "../transfer-runtime-store";
+import {
+	createTransferFailure,
+	mapTransferFailureToHttpError,
+	TransferErrorCode,
+} from "../domain";
 
 import { HttpServiceError } from "@/shared/http";
 
@@ -210,11 +215,21 @@ export function createRelayTicketService(deps: RelayTicketServiceDependencies) {
 
 			const runtime = await deps.runtimeStore.getRuntime(input.transferId);
 			if (!runtime) {
-				throw new HttpServiceError("TRANSFER_NOT_FOUND", 404, "Transfer not found");
+				throw mapTransferFailureToHttpError(
+					createTransferFailure(TransferErrorCode.TRANSFER_NOT_FOUND, "Transfer not found"),
+					404,
+				);
 			}
 
 			if (!["accepted", "connecting", "transferring", "paused"].includes(runtime.status)) {
-				throw new HttpServiceError("TRANSFER_INVALID_STATE", 409, "Transfer is not ready for relay");
+				throw mapTransferFailureToHttpError(
+					createTransferFailure(
+						TransferErrorCode.TRANSFER_INVALID_STATE,
+						"Transfer is not ready for relay",
+						{ retryable: false },
+					),
+					409,
+				);
 			}
 
 			const caller =
@@ -222,9 +237,16 @@ export function createRelayTicketService(deps: RelayTicketServiceDependencies) {
 					? runtime.sender
 					: runtime.receiver.deviceId === input.deviceId
 						? runtime.receiver
-						: undefined;
+				: undefined;
 			if (!caller || caller.userId !== input.userId) {
-				throw new HttpServiceError("TRANSFER_FORBIDDEN", 403, "Current device is not part of this transfer");
+				throw mapTransferFailureToHttpError(
+					createTransferFailure(
+						TransferErrorCode.TRANSFER_FORBIDDEN,
+						"Current device is not part of this transfer",
+						{ retryable: false },
+					),
+					403,
+				);
 			}
 
 			const tickets = await issueRelayTickets({

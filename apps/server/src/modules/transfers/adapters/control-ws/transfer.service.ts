@@ -18,6 +18,7 @@ import { getRedisClient } from "@/infrastructure/redis";
 import { type ConnectionTarget, sendJsonPacketToConnectionTarget } from "@/infrastructure/socket/routing";
 import type { IConnection } from "@/infrastructure/socket/runtime/types";
 import { createTransferService, RedisTransferRuntimeStore, type TransferRuntimeRedisClient } from "@/modules/transfers";
+import { createTransferFailure, TransferErrorCode } from "@/modules/transfers/domain";
 import { PacketType } from "@workspace/contracts/ws";
 
 let transferService: ReturnType<typeof createTransferService> | null = null;
@@ -107,7 +108,8 @@ export async function processFileOffer(
 
 	const targetConnectionTarget = await findConnectionByDeviceId(offer.targetDeviceId);
 	if (!targetConnectionTarget) {
-		Logger.warn("FileTransfer", `Target device ${offer.targetDeviceId} not connected`);
+		const failure = createTransferFailure(TransferErrorCode.DEVICE_OFFLINE, "Target device is not connected");
+		Logger.warn("FileTransfer", `Target device ${offer.targetDeviceId} not connected (${failure.code})`);
 		sendJsonPacket(
 			client,
 			PacketType.FILE_REJECT,
@@ -126,7 +128,8 @@ export async function processFileOffer(
 	);
 	if (!delivered) {
 		await removeTransferSession(offer.transferId);
-		Logger.warn("FileTransfer", `Failed to relay FILE_OFFER to ${offer.targetDeviceId}`);
+		const failure = createTransferFailure(TransferErrorCode.DEVICE_OFFLINE, "Target device is unreachable");
+		Logger.warn("FileTransfer", `Failed to relay FILE_OFFER to ${offer.targetDeviceId} (${failure.code})`);
 		sendJsonPacket(
 			client,
 			PacketType.FILE_REJECT,

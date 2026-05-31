@@ -4,6 +4,7 @@ import type { FileAcceptPacketInput, FileOfferPacketInput, FileRejectPacketInput
 import { Logger } from "@/infrastructure/logger";
 import { PacketRouter } from "@/infrastructure/socket/runtime/packet-router";
 import type { CommandHandler, IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
+import { mapTransferFailureToLegacySocketError, mapUnknownErrorToTransferFailure, TransferErrorCode } from "@/modules/transfers/domain";
 import { safeJsonParse } from "@/shared/utils/json-helper";
 import { PacketType } from "@workspace/contracts/ws";
 
@@ -17,20 +18,32 @@ function sendError(client: IConnection, requestId: number, message: string): voi
 	);
 }
 
+function sendLegacyTransferError(client: IConnection, requestId: number, prefix: string, error: unknown): void {
+	const failure = mapUnknownErrorToTransferFailure(error);
+	const legacyError = mapTransferFailureToLegacySocketError(failure);
+	Logger.error("FileTransfer", `${prefix}: ${legacyError.message} (${legacyError.code})`);
+
+	// Legacy control-WS compatibility: clients still receive ERROR_GENERIC with
+	// the same message-only JSON shape. The normalized code remains internal for now.
+	sendError(client, requestId, `${prefix.replace("Failed to handle ", "")} rejected: ${legacyError.message}`);
+}
+
 export function registerTransferHandlers<T extends IConnection>(router: PacketRouter<T>, transportType: TransportType) {
 	const handleFileOffer: CommandHandler<T> = async (client, reader, requestId) => {
 		try {
 			const rawData = reader.readString();
 			const { data, error } = safeJsonParse<FileOfferPacketInput>(rawData);
 			if (error || !data) {
-				throw new Error("Invalid FILE_OFFER payload");
+				throw {
+					code: TransferErrorCode.PROTOCOL_VIOLATION,
+					message: "Invalid FILE_OFFER payload",
+					retryable: false,
+				};
 			}
 
 			await processFileOffer(client, requestId, data);
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Unknown error";
-			Logger.error("FileTransfer", `Failed to handle FILE_OFFER: ${message}`);
-			sendError(client, requestId, `FILE_OFFER rejected: ${message}`);
+			sendLegacyTransferError(client, requestId, "Failed to handle FILE_OFFER", error);
 		}
 	};
 
@@ -40,14 +53,16 @@ export function registerTransferHandlers<T extends IConnection>(router: PacketRo
 			const rawData = reader.readString();
 			const { data, error } = safeJsonParse<FileAcceptPacketInput>(rawData);
 			if (error || !data) {
-				throw new Error("Invalid FILE_ACCEPT payload");
+				throw {
+					code: TransferErrorCode.PROTOCOL_VIOLATION,
+					message: "Invalid FILE_ACCEPT payload",
+					retryable: false,
+				};
 			}
 
 			await processFileAccept(client, data);
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Unknown error";
-			Logger.error("FileTransfer", `Failed to handle FILE_ACCEPT: ${message}`);
-			sendError(client, requestId, `FILE_ACCEPT rejected: ${message}`);
+			sendLegacyTransferError(client, requestId, "Failed to handle FILE_ACCEPT", error);
 		}
 	};
 
@@ -56,14 +71,16 @@ export function registerTransferHandlers<T extends IConnection>(router: PacketRo
 			const rawData = reader.readString();
 			const { data, error } = safeJsonParse<FileRejectPacketInput>(rawData);
 			if (error || !data) {
-				throw new Error("Invalid FILE_REJECT payload");
+				throw {
+					code: TransferErrorCode.PROTOCOL_VIOLATION,
+					message: "Invalid FILE_REJECT payload",
+					retryable: false,
+				};
 			}
 
 			await processFileReject(client, data);
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Unknown error";
-			Logger.error("FileTransfer", `Failed to handle FILE_REJECT: ${message}`);
-			sendError(client, requestId, `FILE_REJECT rejected: ${message}`);
+			sendLegacyTransferError(client, requestId, "Failed to handle FILE_REJECT", error);
 		}
 	};
 
@@ -73,9 +90,7 @@ export function registerTransferHandlers<T extends IConnection>(router: PacketRo
 			const ackJson = reader.readString();
 			await processFileAck(client, targetDeviceId, ackJson);
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Unknown error";
-			Logger.error("FileTransfer", `Failed to handle FILE_ACK: ${message}`);
-			sendError(client, requestId, `FILE_ACK rejected: ${message}`);
+			sendLegacyTransferError(client, requestId, "Failed to handle FILE_ACK", error);
 		}
 	};
 
