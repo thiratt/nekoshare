@@ -6,17 +6,7 @@ import type {
 	TransferLifecycle,
 } from "../transfer.service";
 import type { TransferFileMetadata, TransferRuntime } from "../transfer.types";
-
-interface FileOfferInput {
-	transferId?: string;
-	fromDeviceId?: string;
-	toDeviceId?: string;
-	files?: {
-		name: string;
-		size: number;
-		extension: string;
-	}[];
-}
+import type { protocol } from "@workspace/contracts";
 
 interface FileAcceptInput {
 	transferId?: string;
@@ -32,18 +22,50 @@ interface FileRejectInput {
 	reason?: string;
 }
 
+interface TransferAcceptLegacyContext {
+	authenticatedReceiverDeviceId: string | undefined;
+	senderDeviceId?: string;
+	address?: string;
+	port?: number;
+}
+
+interface TransferRejectLegacyContext {
+	rejectorDeviceId: string | undefined;
+	senderDeviceId?: string;
+	receiverDeviceId?: string;
+}
+
+interface TransferOfferLegacyContext {
+	files?: PreparedFileOffer["files"];
+}
+
 export interface TransferLifecycleServiceDependencies {
 	devices: TransferDeviceLookup;
 	lifecycle: TransferLifecycle;
 	runtime: TransferRuntimeService;
 }
 
-function toRuntimeFiles(files: NonNullable<FileOfferInput["files"]>): TransferFileMetadata[] {
+function toRuntimeFiles(files: PreparedFileOffer["files"]): TransferFileMetadata[] {
 	return files.map((file) => ({
 		name: file.name,
 		size: file.size,
 		extension: file.extension,
 	}));
+}
+
+function getCommandFileExtension(item: protocol.TransferFileManifestItem): string {
+	const extension = item.name.includes(".") ? item.name.split(".").pop() : undefined;
+	return extension || "";
+}
+
+function toPreparedOfferFiles(manifest: protocol.TransferManifest): PreparedFileOffer["files"] {
+	return manifest.items
+		.filter((item): item is protocol.TransferFileManifestItem => item.kind === "file")
+		.map((item) => ({
+			name: item.name,
+			size: item.size,
+			extension: getCommandFileExtension(item),
+		}));
 }
 
 export function createRuntimeFromOffer(offer: PreparedFileOffer): TransferRuntime {
@@ -77,49 +99,201 @@ export function createRuntimeFromOffer(offer: PreparedFileOffer): TransferRuntim
 }
 
 export function createTransferLifecycleService(deps: TransferLifecycleServiceDependencies) {
+	async function prepareTransferOffer(
+		command: protocol.TransferOfferCommandPayload,
+		senderDeviceId: string | undefined,
+		context: TransferOfferLegacyContext = {},
+	): Promise<PreparedFileOffer> {
+		const transferId = command.transferId?.trim();
+		const targetDeviceId = command.receiverDeviceId?.trim();
+		const files = context.files ?? toPreparedOfferFiles(command.manifest);
+		if (!transferId || !targetDeviceId || files.length === 0) {
+			throw new Error("Invalid FILE_OFFER payload");
+		}
+
+		if (!senderDeviceId) {
+			throw new Error("Unauthorized sender device");
+		}
+
+		if (senderDeviceId === targetDeviceId) {
+			throw new Error("Cannot transfer files to the same device");
+		}
+
+		const senderDevice = await deps.devices.findSenderDevice(senderDeviceId);
+		if (!senderDevice) {
+			throw new Error(`Sender device ${senderDeviceId} not found in database`);
+		}
+
+		const targetDevice = await deps.devices.findTargetDevice(targetDeviceId);
+		if (!targetDevice) {
+			throw new Error(`Target device ${targetDeviceId} not found in database`);
+		}
+
+		const senderUser = await deps.devices.findUserSummary(senderDevice.userId);
+		const spoofedFromDeviceId =
+			command.senderDeviceId && command.senderDeviceId !== senderDeviceId ? command.senderDeviceId : undefined;
+
+		return {
+			transferId,
+			targetDeviceId,
+			senderDeviceId,
+			senderDevice,
+			senderUser,
+			targetDevice,
+			files,
+			spoofedFromDeviceId,
+		};
+	}
+
+	async function prepareTransferAccept(
+		command: protocol.TransferAcceptCommandPayload,
+		context: TransferAcceptLegacyContext,
+	): Promise<PreparedFileAccept> {
+		const transferId = command.transferId?.trim();
+		const senderDeviceId = context.senderDeviceId?.trim();
+		if (
+			!transferId ||
+			!senderDeviceId ||
+			typeof context.address !== "string" ||
+			typeof context.port !== "number"
+		) {
+			throw new Error("Invalid FILE_ACCEPT payload");
+		}
+
+		if (context.port < 1 || context.port > 65535) {
+			throw new Error("Invalid FILE_ACCEPT port");
+		}
+
+		if (!context.authenticatedReceiverDeviceId) {
+			throw new Error("Could not determine receiver device ID from connection");
+		}
+
+		const receiverDeviceId = context.authenticatedReceiverDeviceId;
+		const transferSession = await deps.lifecycle.ensureTransferParticipants(
+			transferId,
+			senderDeviceId,
+			receiverDeviceId,
+		);
+		if (!transferSession) {
+			throw new Error("FILE_ACCEPT does not match an active transfer session");
+		}
+
+		return {
+			transferId,
+			senderDeviceId,
+			receiverDeviceId,
+			address: context.address,
+			port: context.port,
+			transferSession,
+		};
+	}
+
+	async function createTransferRejectForwardPayload(
+		command: protocol.TransferRejectCommandPayload,
+		context: TransferRejectLegacyContext,
+	) {
+		const transferId = command.transferId?.trim();
+		if (!transferId) {
+			throw new Error("Invalid FILE_REJECT payload");
+		}
+
+		if (!context.rejectorDeviceId) {
+			throw new Error("Unauthorized rejector device");
+		}
+
+		const fallbackSession = await deps.lifecycle.getTransferSessionForFallback(transferId);
+		const senderDeviceId =
+			context.senderDeviceId?.trim() || context.receiverDeviceId?.trim() || fallbackSession?.senderDeviceId;
+
+		if (!senderDeviceId) {
+			throw new Error("Missing sender device for FILE_REJECT");
+		}
+
+		const transferSession = await deps.lifecycle.ensureTransferParticipants(
+			transferId,
+			senderDeviceId,
+			context.rejectorDeviceId,
+		);
+		if (!transferSession) {
+			throw new Error("FILE_REJECT does not match an active transfer session");
+		}
+
+		await deps.runtime.updateRuntimeStatus(
+			transferId,
+			"rejected",
+			undefined,
+			undefined,
+			command.reason ?? "Transfer rejected by receiver",
+		);
+		await deps.lifecycle.removeTransferSession(transferId);
+
+		return {
+			targetDeviceId: senderDeviceId,
+			payload: {
+				transferId,
+				senderDeviceId,
+				reason: command.reason ?? "Transfer rejected by receiver",
+			},
+		};
+	}
+
+	async function prepareTransferAck(senderDeviceId: string | undefined, targetDeviceId: string, ackJson: string) {
+		if (!targetDeviceId) {
+			throw new Error("Invalid FILE_ACK target device");
+		}
+
+		if (!senderDeviceId) {
+			throw new Error("Unauthorized ACK sender");
+		}
+
+		const transferSession = await deps.lifecycle.resolveTransferForAck(senderDeviceId, targetDeviceId, ackJson);
+		if (!transferSession) {
+			throw new Error("FILE_ACK does not match an accepted transfer session");
+		}
+
+		await deps.runtime.recordFileAckProgress(transferSession.transferId, ackJson);
+
+		return {
+			senderDeviceId,
+			targetDeviceId,
+			transferSession,
+		};
+	}
+
 	return {
+		prepareTransferOffer,
+		prepareTransferAccept,
+		createTransferRejectForwardPayload,
+		prepareTransferAck,
+
 		async prepareFileOffer(
-			payload: FileOfferInput,
+			payload: {
+				transferId?: string;
+				fromDeviceId?: string;
+				toDeviceId?: string;
+				files?: Array<{ name: string; size: number; extension: string }>;
+			},
 			senderDeviceId: string | undefined,
 		): Promise<PreparedFileOffer> {
-			const transferId = payload.transferId?.trim();
-			const targetDeviceId = payload.toDeviceId?.trim();
-			if (!transferId || !targetDeviceId || !Array.isArray(payload.files) || payload.files.length === 0) {
-				throw new Error("Invalid FILE_OFFER payload");
-			}
-
-			if (!senderDeviceId) {
-				throw new Error("Unauthorized sender device");
-			}
-
-			if (senderDeviceId === targetDeviceId) {
-				throw new Error("Cannot transfer files to the same device");
-			}
-
-			const senderDevice = await deps.devices.findSenderDevice(senderDeviceId);
-			if (!senderDevice) {
-				throw new Error(`Sender device ${senderDeviceId} not found in database`);
-			}
-
-			const targetDevice = await deps.devices.findTargetDevice(targetDeviceId);
-			if (!targetDevice) {
-				throw new Error(`Target device ${targetDeviceId} not found in database`);
-			}
-
-			const senderUser = await deps.devices.findUserSummary(senderDevice.userId);
-			const spoofedFromDeviceId =
-				payload.fromDeviceId && payload.fromDeviceId !== senderDeviceId ? payload.fromDeviceId : undefined;
-
-			return {
-				transferId,
-				targetDeviceId,
+			return prepareTransferOffer(
+				{
+					transferId: payload.transferId ?? "",
+					senderDeviceId: payload.fromDeviceId ?? "",
+					receiverDeviceId: payload.toDeviceId ?? "",
+					mode: "AUTO",
+					manifest: {
+						id: payload.transferId ?? "",
+						items: (payload.files ?? []).map((file, index) => ({
+							id: `${payload.transferId ?? "unknown"}:file:${index}`,
+							kind: "file",
+							name: file.name,
+							size: file.size,
+						})),
+						createdAt: new Date(0).toISOString(),
+					},
+				},
 				senderDeviceId,
-				senderDevice,
-				senderUser,
-				targetDevice,
-				files: payload.files,
-				spoofedFromDeviceId,
-			};
+			);
 		},
 
 		getFileOfferTargetUnavailablePayload(offer: PreparedFileOffer) {
@@ -166,42 +340,18 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 			payload: FileAcceptInput,
 			receiverDeviceId: string | undefined,
 		): Promise<PreparedFileAccept> {
-			const transferId = payload.transferId?.trim();
-			const senderDeviceId = payload.senderDeviceId?.trim();
-			if (
-				!transferId ||
-				!senderDeviceId ||
-				typeof payload.address !== "string" ||
-				typeof payload.port !== "number"
-			) {
-				throw new Error("Invalid FILE_ACCEPT payload");
-			}
-
-			if (payload.port < 1 || payload.port > 65535) {
-				throw new Error("Invalid FILE_ACCEPT port");
-			}
-
-			if (!receiverDeviceId) {
-				throw new Error("Could not determine receiver device ID from connection");
-			}
-
-			const transferSession = await deps.lifecycle.ensureTransferParticipants(
-				transferId,
-				senderDeviceId,
-				receiverDeviceId,
+			return prepareTransferAccept(
+				{
+					transferId: payload.transferId ?? "",
+					receiverDeviceId: receiverDeviceId ?? "",
+				},
+				{
+					authenticatedReceiverDeviceId: receiverDeviceId,
+					senderDeviceId: payload.senderDeviceId,
+					address: payload.address,
+					port: payload.port,
+				},
 			);
-			if (!transferSession) {
-				throw new Error("FILE_ACCEPT does not match an active transfer session");
-			}
-
-			return {
-				transferId,
-				senderDeviceId,
-				receiverDeviceId,
-				address: payload.address,
-				port: payload.port,
-				transferSession,
-			};
 		},
 
 		async createFileAcceptForwardPayload(accept: PreparedFileAccept) {
@@ -230,72 +380,21 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 		},
 
 		async createFileRejectForwardPayload(payload: FileRejectInput, rejectorDeviceId: string | undefined) {
-			const transferId = payload.transferId?.trim();
-			if (!transferId) {
-				throw new Error("Invalid FILE_REJECT payload");
-			}
-
-			if (!rejectorDeviceId) {
-				throw new Error("Unauthorized rejector device");
-			}
-
-			const fallbackSession = await deps.lifecycle.getTransferSessionForFallback(transferId);
-			const senderDeviceId =
-				payload.senderDeviceId?.trim() || payload.receiverDeviceId?.trim() || fallbackSession?.senderDeviceId;
-
-			if (!senderDeviceId) {
-				throw new Error("Missing sender device for FILE_REJECT");
-			}
-
-			const transferSession = await deps.lifecycle.ensureTransferParticipants(
-				transferId,
-				senderDeviceId,
-				rejectorDeviceId,
-			);
-			if (!transferSession) {
-				throw new Error("FILE_REJECT does not match an active transfer session");
-			}
-
-			await deps.runtime.updateRuntimeStatus(
-				transferId,
-				"rejected",
-				undefined,
-				undefined,
-				payload.reason ?? "Transfer rejected by receiver",
-			);
-			await deps.lifecycle.removeTransferSession(transferId);
-
-			return {
-				targetDeviceId: senderDeviceId,
-				payload: {
-					transferId,
-					senderDeviceId,
-					reason: payload.reason ?? "Transfer rejected by receiver",
+			return createTransferRejectForwardPayload(
+				{
+					transferId: payload.transferId ?? "",
+					reason: payload.reason,
 				},
-			};
+				{
+					rejectorDeviceId,
+					senderDeviceId: payload.senderDeviceId,
+					receiverDeviceId: payload.receiverDeviceId,
+				},
+			);
 		},
 
 		async resolveFileAck(senderDeviceId: string | undefined, targetDeviceId: string, ackJson: string) {
-			if (!targetDeviceId) {
-				throw new Error("Invalid FILE_ACK target device");
-			}
-
-			if (!senderDeviceId) {
-				throw new Error("Unauthorized ACK sender");
-			}
-
-			const transferSession = await deps.lifecycle.resolveTransferForAck(senderDeviceId, targetDeviceId, ackJson);
-			if (!transferSession) {
-				throw new Error("FILE_ACK does not match an accepted transfer session");
-			}
-
-			await deps.runtime.recordFileAckProgress(transferSession.transferId, ackJson);
-
-			return {
-				senderDeviceId,
-				targetDeviceId,
-				transferSession,
-			};
+			return prepareTransferAck(senderDeviceId, targetDeviceId, ackJson);
 		},
 	};
 }

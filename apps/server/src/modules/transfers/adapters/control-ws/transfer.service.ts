@@ -115,13 +115,15 @@ export async function processFileOffer(
 	payload: FileOfferPacketInput,
 ): Promise<void> {
 	const senderDeviceId = await getDeviceIdForConnection(client);
-	const offer = await getTransferService().prepareFileOffer(payload, senderDeviceId);
 	// Neko Protocol v1 internal command starts here. The wire packet remains FILE_OFFER.
 	const transferOfferCommand = mapLegacyFileOfferToTransferOfferCommand({
-		transferId: offer.transferId,
-		fromDeviceId: offer.senderDeviceId,
-		toDeviceId: offer.targetDeviceId,
-		files: offer.files,
+		transferId: payload.transferId ?? "",
+		fromDeviceId: payload.fromDeviceId,
+		toDeviceId: payload.toDeviceId ?? "",
+		files: payload.files ?? [],
+	});
+	const offer = await getTransferService().prepareTransferOffer(transferOfferCommand, senderDeviceId, {
+		files: payload.files,
 	});
 	const traceId = transferOfferCommand.transferId;
 	Logger.debug("FileTransfer", `Mapped FILE_OFFER request ${requestId} to TRANSFER_OFFER command trace=${traceId}`);
@@ -186,15 +188,20 @@ export async function processFileAccept(
 	requestId?: number,
 ): Promise<void> {
 	const receiverDeviceId = await getDeviceIdForConnection(client);
-	const accept = await getTransferService().prepareFileAccept(payload, receiverDeviceId);
 	// Neko Protocol v1 internal command starts here. The wire packet remains FILE_ACCEPT.
 	const transferAcceptCommand = mapLegacyFileAcceptToTransferAcceptCommand({
-		transferId: accept.transferId,
-		senderDeviceId: accept.senderDeviceId,
-		receiverDeviceId: accept.receiverDeviceId,
+		transferId: payload.transferId ?? "",
+		senderDeviceId: payload.senderDeviceId ?? "",
+		receiverDeviceId: receiverDeviceId ?? "",
 		receiverFingerprint: "",
-		address: accept.address,
-		port: accept.port,
+		address: payload.address ?? "",
+		port: payload.port ?? 0,
+	});
+	const accept = await getTransferService().prepareTransferAccept(transferAcceptCommand, {
+		authenticatedReceiverDeviceId: receiverDeviceId,
+		senderDeviceId: payload.senderDeviceId,
+		address: payload.address,
+		port: payload.port,
 	});
 	Logger.debug(
 		"FileTransfer",
@@ -237,12 +244,16 @@ export async function processFileReject(
 	requestId?: number,
 ): Promise<void> {
 	const rejectorDeviceId = await getDeviceIdForConnection(client);
-	const reject = await getTransferService().createFileRejectForwardPayload(payload, rejectorDeviceId);
 	// Neko Protocol v1 internal command starts here. The wire packet remains FILE_REJECT.
 	const transferRejectCommand = mapLegacyFileRejectToTransferRejectCommand({
-		transferId: reject.payload.transferId,
-		senderDeviceId: reject.payload.senderDeviceId,
-		reason: reject.payload.reason,
+		transferId: payload.transferId ?? "",
+		senderDeviceId: payload.senderDeviceId ?? "",
+		reason: payload.reason,
+	});
+	const reject = await getTransferService().createTransferRejectForwardPayload(transferRejectCommand, {
+		rejectorDeviceId,
+		senderDeviceId: payload.senderDeviceId,
+		receiverDeviceId: payload.receiverDeviceId,
 	});
 	Logger.debug(
 		"FileTransfer",
@@ -282,8 +293,8 @@ export async function processFileAck(
 	requestId?: number,
 ): Promise<void> {
 	const senderDeviceId = await getDeviceIdForConnection(client);
-	const ack = await getTransferService().resolveFileAck(senderDeviceId, targetDeviceId, ackJson);
 	// Neko Protocol v1 internal status/progress interpretation starts here.
+	const ack = await getTransferService().prepareTransferAck(senderDeviceId, targetDeviceId, ackJson);
 	const transferAckEvent = mapLegacyFileAckToTransferStatusOrProgress(parseLegacyAckPayload(ackJson), {
 		transferId: ack.transferSession.transferId,
 	});
