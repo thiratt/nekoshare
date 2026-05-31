@@ -24,6 +24,7 @@ import type { FileAcceptPacketInput, FileOfferPacketInput, FileRejectPacketInput
 
 import { Logger } from "@/infrastructure/logger";
 import { getRedisClient } from "@/infrastructure/redis";
+import { canEmitProtocolPackets, shouldEmitLegacyFilePackets } from "@/infrastructure/socket/protocol";
 import { type ConnectionTarget, sendJsonPacketToConnectionTarget } from "@/infrastructure/socket/routing";
 import type { IConnection } from "@/infrastructure/socket/runtime/types";
 import { createTransferService, RedisTransferRuntimeStore, type TransferRuntimeRedisClient } from "@/modules/transfers";
@@ -73,10 +74,23 @@ function sendJsonPacket(client: IConnection, packetType: PacketType, payload: ob
 	);
 }
 
-function mapOfferFailureToLegacyFileReject(
-	offer: { transferId: string; senderDeviceId: string },
-	reason: string,
-) {
+async function sendLegacyFilePacket(
+	targetConnection: ConnectionTarget,
+	packetType: PacketType,
+	payloadJson: string,
+): Promise<boolean> {
+	if (targetConnection.kind === "local" && canEmitProtocolPackets(targetConnection.connection)) {
+		// TODO: Step 14 will emit Protocol v1 control packets here when both peers support them.
+	}
+
+	if (targetConnection.kind === "local" && !shouldEmitLegacyFilePackets(targetConnection.connection)) {
+		return false;
+	}
+
+	return sendJsonPacketToConnectionTarget(targetConnection, packetType, payloadJson);
+}
+
+function mapOfferFailureToLegacyFileReject(offer: { transferId: string; senderDeviceId: string }, reason: string) {
 	return mapTransferRejectedEventToLegacyFileReject(
 		{
 			transferId: offer.transferId,
@@ -174,7 +188,7 @@ export async function processFileOffer(
 		files: forwardPayload.files,
 	});
 	Logger.info("FileTransfer", `FILE_OFFER from ${offer.senderDeviceId} to ${offer.targetDeviceId}`);
-	const delivered = await sendJsonPacketToConnectionTarget(
+	const delivered = await sendLegacyFilePacket(
 		targetConnectionTarget,
 		PacketType.FILE_OFFER,
 		// Legacy FILE_* payload is emitted here for client compatibility.
@@ -238,7 +252,7 @@ export async function processFileAccept(
 		port: forwardPayload.port,
 	});
 	Logger.info("FileTransfer", `FILE_ACCEPT from ${accept.receiverDeviceId} to ${accept.senderDeviceId}`);
-	const delivered = await sendJsonPacketToConnectionTarget(
+	const delivered = await sendLegacyFilePacket(
 		senderConnectionTarget,
 		PacketType.FILE_ACCEPT,
 		// Legacy FILE_* payload is emitted here for client compatibility.
@@ -285,7 +299,7 @@ export async function processFileReject(
 		Logger.warn("FileTransfer", `Sender device ${reject.targetDeviceId} not connected`);
 		return;
 	}
-	const delivered = await sendJsonPacketToConnectionTarget(
+	const delivered = await sendLegacyFilePacket(
 		senderConnectionTarget,
 		PacketType.FILE_REJECT,
 		// Legacy FILE_* payload is emitted here for client compatibility.
@@ -328,7 +342,7 @@ export async function processFileAck(
 		Logger.warn("FileTransfer", `Target device ${ack.targetDeviceId} not connected`);
 		return;
 	}
-	const delivered = await sendJsonPacketToConnectionTarget(targetConnectionTarget, PacketType.FILE_ACK, ackJson);
+	const delivered = await sendLegacyFilePacket(targetConnectionTarget, PacketType.FILE_ACK, ackJson);
 	if (!delivered) {
 		Logger.warn("FileTransfer", `Failed to relay FILE_ACK to ${ack.targetDeviceId}`);
 		return;

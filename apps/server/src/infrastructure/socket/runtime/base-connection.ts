@@ -3,6 +3,10 @@ import type { TransportType } from "./types";
 import { Logger } from "@/infrastructure/logger";
 import { BinaryReader } from "@/infrastructure/socket/protocol/binary-reader";
 import { BinaryWriter } from "@/infrastructure/socket/protocol/binary-writer";
+import {
+	DEFAULT_CONTROL_PROTOCOL_CAPABILITIES,
+	type ControlProtocolCapabilities,
+} from "@/infrastructure/socket/protocol/control-protocol-capabilities";
 import { HEADER_SIZE, MAX_FRAME_SIZE } from "@/infrastructure/socket/protocol/frame";
 import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 import { registerConnectionRoute, unregisterConnectionRoute } from "@/infrastructure/socket/routing/connection-routing";
@@ -27,6 +31,7 @@ export abstract class BaseConnection {
 	protected _user: User | null = null;
 	protected _session: Session | null = null;
 	protected _deviceIdentity: ResolvedDeviceIdentity | null = null;
+	protected _protocolCapabilities: ControlProtocolCapabilities = DEFAULT_CONTROL_PROTOCOL_CAPABILITIES;
 	protected abstract router: BaseRouter;
 
 	constructor(id: string, manager: BaseSessionManager) {
@@ -52,6 +57,14 @@ export abstract class BaseConnection {
 
 	public get deviceIdentity(): ResolvedDeviceIdentity | null {
 		return this._deviceIdentity;
+	}
+
+	public get protocolCapabilities(): ControlProtocolCapabilities {
+		return this._protocolCapabilities;
+	}
+
+	public setProtocolCapabilities(capabilities: ControlProtocolCapabilities): void {
+		this._protocolCapabilities = capabilities;
 	}
 
 	public setAuthenticated(data: { deviceIdentity?: ResolvedDeviceIdentity; session: Session; user: User }): void {

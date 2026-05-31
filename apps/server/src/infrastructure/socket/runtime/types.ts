@@ -1,5 +1,6 @@
 import type { BinaryReader } from "@/infrastructure/socket/protocol/binary-reader";
 import type { BinaryWriter } from "@/infrastructure/socket/protocol/binary-writer";
+import type { ControlProtocolCapabilities } from "@/infrastructure/socket/protocol/control-protocol-capabilities";
 import type { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 import type { Session, User } from "@/modules/auth/lib";
 import type { ResolvedDeviceIdentity } from "@/modules/devices";
@@ -23,6 +24,7 @@ export interface IConnection {
 	readonly userId: string | null;
 	readonly session: Session | null;
 	readonly deviceIdentity: ResolvedDeviceIdentity | null;
+	readonly protocolCapabilities: ControlProtocolCapabilities;
 	setAuthenticated(data: { deviceIdentity?: ResolvedDeviceIdentity; session: Session; user: User }): void;
 	sendPacket(type: PacketType, requestId: number): void;
 	sendPacket(type: PacketType, payloadWriter?: (w: BinaryWriter) => void, requestId?: number): void;

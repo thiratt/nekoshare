@@ -15,10 +15,11 @@ import {
 } from "@/infrastructure/socket/modules/friend";
 import { handleDeviceSocketDisconnect } from "@/infrastructure/socket/modules/peer";
 import { registerUserPresenceSession, unregisterUserPresenceSession } from "@/infrastructure/socket/presence";
+import { parseControlProtocolCapabilities } from "@/infrastructure/socket/protocol";
 import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 import { generateConnectionId } from "@/infrastructure/socket/runtime/connection-id";
 import type { User } from "@/modules/auth/lib";
-import { DeviceIdentityService, deviceIdentityRepository, type ResolvedDeviceIdentity } from "@/modules/devices";
+import { deviceIdentityRepository, DeviceIdentityService, type ResolvedDeviceIdentity } from "@/modules/devices";
 import type { createRouter } from "@/shared/http/router";
 
 const deviceIdentityService = new DeviceIdentityService(deviceIdentityRepository);
@@ -50,9 +51,7 @@ async function resolveControlWsDeviceIdentity(input: {
 	});
 }
 
-async function resolveDisconnectDeviceIdentity(
-	connection: WSConnection,
-): Promise<ResolvedDeviceIdentity | undefined> {
+async function resolveDisconnectDeviceIdentity(connection: WSConnection): Promise<ResolvedDeviceIdentity | undefined> {
 	const sessionId = connection.session?.id;
 	if (!sessionId) {
 		return undefined;
@@ -114,6 +113,16 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 						);
 						const connectionId = generateConnectionId("ws");
 						connection = new WSConnection(connectionId, ws, remoteIp);
+						const protocolCapabilities = parseControlProtocolCapabilities({
+							protocolVersion:
+								c.req.query("nekoProtocolVersion") ?? c.req.header("x-neko-protocol-version"),
+							features: c.req.query("nekoFeatures") ?? c.req.header("x-neko-features"),
+						});
+						connection.setProtocolCapabilities(protocolCapabilities);
+						Logger.debug(
+							"WebSocket",
+							`Control protocol capabilities for ${connectionId}: version=${protocolCapabilities.protocolVersion}, protocol=${protocolCapabilities.supportsProtocolPackets}, legacyFile=${protocolCapabilities.supportsLegacyFilePackets}`,
+						);
 						const session = c.get("session");
 						let deviceIdentity: ResolvedDeviceIdentity | undefined;
 						try {
@@ -190,27 +199,29 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 					if (connection) {
 						const userId = connection.user?.id;
 
-						resolveDisconnectDeviceIdentity(connection).then((deviceIdentity) => {
-							if (!deviceIdentity) {
-								return;
-							}
+						resolveDisconnectDeviceIdentity(connection)
+							.then((deviceIdentity) => {
+								if (!deviceIdentity) {
+									return;
+								}
 
-							void handleDeviceSocketDisconnect(deviceIdentity.deviceId).catch((err) => {
+								void handleDeviceSocketDisconnect(deviceIdentity.deviceId).catch((err) => {
+									Logger.warn(
+										"WebSocket",
+										`Failed to cleanup peer state for device ${deviceIdentity.deviceId}: ${err?.message || err}`,
+									);
+								});
+
+								if (userId) {
+									broadcastDeviceOffline(userId, deviceIdentity.deviceId);
+								}
+							})
+							.catch((err) => {
 								Logger.warn(
 									"WebSocket",
-									`Failed to cleanup peer state for device ${deviceIdentity.deviceId}: ${err?.message || err}`,
+									`Failed to resolve device identity during disconnect: ${err?.message || err}`,
 								);
 							});
-
-							if (userId) {
-								broadcastDeviceOffline(userId, deviceIdentity.deviceId);
-							}
-						}).catch((err) => {
-							Logger.warn(
-								"WebSocket",
-								`Failed to resolve device identity during disconnect: ${err?.message || err}`,
-							);
-						});
 
 						connection.close();
 
