@@ -7,22 +7,28 @@ import type {
 	FileRejectPayload,
 } from "@workspace/contracts/ws";
 
+export interface LegacyFileMetadata extends Omit<FileMetadata, "path"> {
+	path?: string;
+}
+
 // FILE_* is legacy prototype compatibility. These types document the current
 // control-WS packet shapes without changing the active socket handlers.
 export interface LegacyFileOfferPacketInput {
 	transferId: string;
 	fromDeviceId?: string;
 	toDeviceId: string;
-	files: FileMetadata[];
+	files: LegacyFileMetadata[];
 }
 
-export type LegacyFileOfferPacketPayload = FileOfferPayload;
+export interface LegacyFileOfferPacketPayload extends Omit<FileOfferPayload, "files"> {
+	files: LegacyFileMetadata[];
+}
 export type LegacyFileAcceptPacketPayload = FileAcceptPayload;
-export type LegacyFileRejectPacketPayload = FileRejectPayload;
-
-export interface LegacyFileRejectPacketInput extends FileRejectPayload {
+export interface LegacyFileRejectPacketPayload extends FileRejectPayload {
 	reason?: string;
 }
+
+export type LegacyFileRejectPacketInput = LegacyFileRejectPacketPayload;
 
 export interface LegacyFileProgressAckPayload {
 	transferId?: string;
@@ -44,7 +50,7 @@ export interface TransferOfferedEventLegacyCompat extends protocol.TransferOffer
 	senderDeviceName?: string | null;
 	senderUserId?: string | null;
 	senderUserName?: string | null;
-	files: FileMetadata[];
+	files: LegacyFileMetadata[];
 }
 
 export interface TransferAcceptedEventLegacyCompat extends protocol.TransferAcceptedEventPayload {

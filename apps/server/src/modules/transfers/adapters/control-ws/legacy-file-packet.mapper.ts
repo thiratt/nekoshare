@@ -14,8 +14,8 @@ import type {
 import type { protocol } from "@workspace/contracts";
 
 // FILE_* is legacy prototype compatibility. TRANSFER_* is Neko Protocol v1.
-// This pure mapper is the migration boundary and is intentionally not wired
-// into the current socket handlers yet.
+// This pure mapper is the migration boundary used by the control-WS adapter
+// while preserving legacy FILE_* wire compatibility.
 
 export function mapLegacyFileOfferToTransferOfferCommand(
 	payload: LegacyFileOfferPacketInput,
@@ -91,6 +91,7 @@ export function mapTransferRejectedEventToLegacyFileReject(
 	return {
 		transferId: event.transferId,
 		senderDeviceId: event.senderDeviceId,
+		reason: event.reason,
 	};
 }
 

@@ -4,7 +4,11 @@ import type { FileAcceptPacketInput, FileOfferPacketInput, FileRejectPacketInput
 import { Logger } from "@/infrastructure/logger";
 import { PacketRouter } from "@/infrastructure/socket/runtime/packet-router";
 import type { CommandHandler, IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
-import { mapTransferFailureToLegacySocketError, mapUnknownErrorToTransferFailure, TransferErrorCode } from "@/modules/transfers/domain";
+import {
+	mapTransferFailureToLegacySocketError,
+	mapUnknownErrorToTransferFailure,
+	TransferErrorCode,
+} from "@/modules/transfers/domain";
 import { safeJsonParse } from "@/shared/utils/json-helper";
 import { PacketType } from "@workspace/contracts/ws";
 
@@ -31,6 +35,8 @@ function sendLegacyTransferError(client: IConnection, requestId: number, prefix:
 export function registerTransferHandlers<T extends IConnection>(router: PacketRouter<T>, transportType: TransportType) {
 	const handleFileOffer: CommandHandler<T> = async (client, reader, requestId) => {
 		try {
+			// Legacy FILE_* wire packet enters here. It is translated inside the
+			// transfer control adapter before any future Protocol v1 routing.
 			const rawData = reader.readString();
 			const { data, error } = safeJsonParse<FileOfferPacketInput>(rawData);
 			if (error || !data) {
@@ -50,6 +56,7 @@ export function registerTransferHandlers<T extends IConnection>(router: PacketRo
 	const handleFileAccept: CommandHandler<T> = async (client, reader, requestId) => {
 		Logger.info("FileTransfer", `FILE_ACCEPT handler called, requestId: ${requestId}`);
 		try {
+			// Legacy FILE_* wire packet enters here. Outbound compatibility remains FILE_*.
 			const rawData = reader.readString();
 			const { data, error } = safeJsonParse<FileAcceptPacketInput>(rawData);
 			if (error || !data) {
@@ -60,7 +67,7 @@ export function registerTransferHandlers<T extends IConnection>(router: PacketRo
 				};
 			}
 
-			await processFileAccept(client, data);
+			await processFileAccept(client, data, requestId);
 		} catch (error) {
 			sendLegacyTransferError(client, requestId, "Failed to handle FILE_ACCEPT", error);
 		}
@@ -68,6 +75,7 @@ export function registerTransferHandlers<T extends IConnection>(router: PacketRo
 
 	const handleFileReject: CommandHandler<T> = async (client, reader, requestId) => {
 		try {
+			// Legacy FILE_* wire packet enters here. It is normalized internally only.
 			const rawData = reader.readString();
 			const { data, error } = safeJsonParse<FileRejectPacketInput>(rawData);
 			if (error || !data) {
@@ -78,7 +86,7 @@ export function registerTransferHandlers<T extends IConnection>(router: PacketRo
 				};
 			}
 
-			await processFileReject(client, data);
+			await processFileReject(client, data, requestId);
 		} catch (error) {
 			sendLegacyTransferError(client, requestId, "Failed to handle FILE_REJECT", error);
 		}
@@ -86,9 +94,10 @@ export function registerTransferHandlers<T extends IConnection>(router: PacketRo
 
 	const handleFileAck: CommandHandler<T> = async (client, reader, requestId) => {
 		try {
+			// Legacy FILE_ACK framing enters here; data-frame migration is not part of this step.
 			const targetDeviceId = reader.readString().trim();
 			const ackJson = reader.readString();
-			await processFileAck(client, targetDeviceId, ackJson);
+			await processFileAck(client, targetDeviceId, ackJson, requestId);
 		} catch (error) {
 			sendLegacyTransferError(client, requestId, "Failed to handle FILE_ACK", error);
 		}
