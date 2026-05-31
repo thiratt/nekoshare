@@ -6,9 +6,9 @@ import type {
 	LegacyFileOfferPacketPayload,
 	LegacyFileRejectPacketInput,
 	LegacyFileRejectPacketPayload,
-	TransferAcceptedEventLegacyCompat,
-	TransferOfferedEventLegacyCompat,
-	TransferRejectedEventLegacyCompat,
+	TransferAcceptedLegacyCompat,
+	TransferOfferedLegacyCompat,
+	TransferRejectedLegacyCompat,
 } from "./legacy-file-packet.types";
 
 import type { protocol } from "@workspace/contracts";
@@ -41,16 +41,19 @@ export function mapLegacyFileOfferToTransferOfferCommand(
 }
 
 export function mapTransferOfferedEventToLegacyFileOffer(
-	event: TransferOfferedEventLegacyCompat,
+	event: protocol.TransferOfferedEventPayload,
+	compat: TransferOfferedLegacyCompat,
 ): LegacyFileOfferPacketPayload {
+	// Compatibility-only FILE_OFFER fields live here until Protocol v1 socket
+	// emission replaces the legacy wire payload.
 	return {
 		transferId: event.transferId,
 		senderDeviceId: event.senderDeviceId,
-		senderDeviceFingerprint: event.senderDeviceFingerprint,
-		senderDeviceName: event.senderDeviceName,
-		senderUserId: event.senderUserId,
-		senderUserName: event.senderUserName,
-		files: event.files,
+		senderDeviceFingerprint: compat.senderDeviceFingerprint ?? "",
+		senderDeviceName: compat.senderDeviceName,
+		senderUserId: compat.senderUserId,
+		senderUserName: compat.senderUserName,
+		files: compat.files,
 	};
 }
 
@@ -64,15 +67,18 @@ export function mapLegacyFileAcceptToTransferAcceptCommand(
 }
 
 export function mapTransferAcceptedEventToLegacyFileAccept(
-	event: TransferAcceptedEventLegacyCompat,
+	event: protocol.TransferAcceptedEventPayload,
+	compat: TransferAcceptedLegacyCompat,
 ): LegacyFileAcceptPacketPayload {
+	// Compatibility-only FILE_ACCEPT listener fields live here until Protocol v1
+	// socket emission can carry transport readiness directly.
 	return {
 		transferId: event.transferId,
-		senderDeviceId: event.senderDeviceId,
+		senderDeviceId: compat.senderDeviceId,
 		receiverDeviceId: event.receiverDeviceId,
-		receiverFingerprint: event.receiverFingerprint,
-		address: event.address,
-		port: event.port,
+		receiverFingerprint: compat.receiverFingerprint ?? "",
+		address: compat.address,
+		port: compat.port,
 	};
 }
 
@@ -86,11 +92,14 @@ export function mapLegacyFileRejectToTransferRejectCommand(
 }
 
 export function mapTransferRejectedEventToLegacyFileReject(
-	event: TransferRejectedEventLegacyCompat,
+	event: protocol.TransferRejectedEventPayload,
+	compat: TransferRejectedLegacyCompat,
 ): LegacyFileRejectPacketPayload {
+	// Legacy FILE_REJECT identifies the sender device on the payload; Protocol v1
+	// keeps that as routing/context instead of event core data.
 	return {
 		transferId: event.transferId,
-		senderDeviceId: event.senderDeviceId,
+		senderDeviceId: compat.senderDeviceId,
 		reason: event.reason,
 	};
 }

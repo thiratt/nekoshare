@@ -73,6 +73,21 @@ function sendJsonPacket(client: IConnection, packetType: PacketType, payload: ob
 	);
 }
 
+function mapOfferFailureToLegacyFileReject(
+	offer: { transferId: string; senderDeviceId: string },
+	reason: string,
+) {
+	return mapTransferRejectedEventToLegacyFileReject(
+		{
+			transferId: offer.transferId,
+			reason,
+		},
+		{
+			senderDeviceId: offer.senderDeviceId,
+		},
+	);
+}
+
 async function findConnectionByDeviceId(targetDeviceId: string): Promise<ConnectionTarget | undefined> {
 	const routedConnection = await findConnectionByDeviceIdRoute(targetDeviceId);
 	if (routedConnection) {
@@ -143,7 +158,7 @@ export async function processFileOffer(
 		sendJsonPacket(
 			client,
 			PacketType.FILE_REJECT,
-			getTransferService().getFileOfferTargetUnavailablePayload(offer),
+			mapOfferFailureToLegacyFileReject(offer, "Target device is not connected"),
 			requestId,
 		);
 		return;
@@ -151,11 +166,8 @@ export async function processFileOffer(
 
 	const forwardPayload = await getTransferService().createFileOfferForwardPayload(offer);
 	// Lifecycle returns Protocol v1 internal event/result; control-WS emits legacy FILE_*.
-	const legacyForwardPayload = mapTransferOfferedEventToLegacyFileOffer({
-		transferId: transferOffer.event.transferId,
-		senderDeviceId: transferOffer.event.senderDeviceId,
-		receiverDeviceId: transferOffer.event.receiverDeviceId,
-		senderDeviceFingerprint: forwardPayload.senderDeviceFingerprint ?? "",
+	const legacyForwardPayload = mapTransferOfferedEventToLegacyFileOffer(transferOffer.event, {
+		senderDeviceFingerprint: forwardPayload.senderDeviceFingerprint,
 		senderDeviceName: forwardPayload.senderDeviceName,
 		senderUserId: forwardPayload.senderUserId,
 		senderUserName: forwardPayload.senderUserName,
@@ -175,7 +187,7 @@ export async function processFileOffer(
 		sendJsonPacket(
 			client,
 			PacketType.FILE_REJECT,
-			getTransferService().getFileOfferUnreachablePayload(offer),
+			mapOfferFailureToLegacyFileReject(offer, "Target device is unreachable"),
 			requestId,
 		);
 		return;
@@ -219,11 +231,9 @@ export async function processFileAccept(
 
 	const forwardPayload = await getTransferService().createFileAcceptForwardPayload(accept);
 	// Lifecycle returns Protocol v1 internal event/result; control-WS emits legacy FILE_*.
-	const legacyForwardPayload = mapTransferAcceptedEventToLegacyFileAccept({
-		transferId: transferAccept.event.transferId,
+	const legacyForwardPayload = mapTransferAcceptedEventToLegacyFileAccept(transferAccept.event, {
 		senderDeviceId: forwardPayload.senderDeviceId,
-		receiverDeviceId: transferAccept.event.receiverDeviceId,
-		receiverFingerprint: forwardPayload.receiverFingerprint ?? "",
+		receiverFingerprint: forwardPayload.receiverFingerprint,
 		address: forwardPayload.address,
 		port: forwardPayload.port,
 	});
@@ -264,10 +274,8 @@ export async function processFileReject(
 		`Mapped FILE_REJECT request ${requestId ?? "unknown"} to TRANSFER_REJECT command trace=${transferRejectCommand.transferId}`,
 	);
 	// Lifecycle returns Protocol v1 internal event/result; control-WS emits legacy FILE_*.
-	const legacyRejectPayload = mapTransferRejectedEventToLegacyFileReject({
-		transferId: reject.event.transferId,
+	const legacyRejectPayload = mapTransferRejectedEventToLegacyFileReject(reject.event, {
 		senderDeviceId: reject.payload.senderDeviceId,
-		reason: reject.event.reason,
 	});
 
 	Logger.info("FileTransfer", `FILE_REJECT from ${rejectorDeviceId} to ${reject.targetDeviceId}`);
