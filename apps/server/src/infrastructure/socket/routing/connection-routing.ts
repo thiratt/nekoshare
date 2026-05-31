@@ -88,6 +88,11 @@ function parseRouteToken(token: string | null): ParsedRouteToken | undefined {
 }
 
 function getConnectionDeviceId(connection: IConnection): string | undefined {
+	const resolvedDeviceId = connection.deviceIdentity?.deviceId.trim();
+	if (resolvedDeviceId) {
+		return resolvedDeviceId;
+	}
+
 	const user = connection.user as { deviceId?: string | null } | null;
 	const deviceId = user?.deviceId?.trim();
 	return deviceId ? deviceId : undefined;

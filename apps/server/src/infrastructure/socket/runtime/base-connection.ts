@@ -7,6 +7,7 @@ import { HEADER_SIZE, MAX_FRAME_SIZE } from "@/infrastructure/socket/protocol/fr
 import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 import { registerConnectionRoute, unregisterConnectionRoute } from "@/infrastructure/socket/routing/connection-routing";
 import type { Session, User } from "@/modules/auth/lib";
+import type { ResolvedDeviceIdentity } from "@/modules/devices";
 
 interface BaseSessionManager {
 	bindSessionToUser(connectionId: string, userId: string | null | undefined): void;
@@ -25,6 +26,7 @@ export abstract class BaseConnection {
 	protected _authenticated: boolean = false;
 	protected _user: User | null = null;
 	protected _session: Session | null = null;
+	protected _deviceIdentity: ResolvedDeviceIdentity | null = null;
 	protected abstract router: BaseRouter;
 
 	constructor(id: string, manager: BaseSessionManager) {
@@ -48,10 +50,15 @@ export abstract class BaseConnection {
 		return this._session;
 	}
 
-	public setAuthenticated(data: { session: Session; user: User }): void {
+	public get deviceIdentity(): ResolvedDeviceIdentity | null {
+		return this._deviceIdentity;
+	}
+
+	public setAuthenticated(data: { deviceIdentity?: ResolvedDeviceIdentity; session: Session; user: User }): void {
 		this._authenticated = true;
 		this._user = data.user;
 		this._session = data.session;
+		this._deviceIdentity = data.deviceIdentity ?? null;
 		this.sessionManager.bindSessionToUser(this.id, this._user.id);
 		Logger.debug(this.transportType, `Set authenticated for client ${this.id}, user ID: ${this._user.id}`);
 		void registerConnectionRoute(this).catch((error) => {

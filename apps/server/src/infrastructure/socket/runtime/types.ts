@@ -2,6 +2,7 @@ import type { BinaryReader } from "@/infrastructure/socket/protocol/binary-reade
 import type { BinaryWriter } from "@/infrastructure/socket/protocol/binary-writer";
 import type { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 import type { Session, User } from "@/modules/auth/lib";
+import type { ResolvedDeviceIdentity } from "@/modules/devices";
 import type { UserDeviceInfoPacket } from "@workspace/contracts/ws";
 
 export type TransportType = "TCP" | "WebSocket";
@@ -21,7 +22,8 @@ export interface IConnection {
 	readonly user: User | null;
 	readonly userId: string | null;
 	readonly session: Session | null;
-	setAuthenticated(data: { session: Session; user: User }): void;
+	readonly deviceIdentity: ResolvedDeviceIdentity | null;
+	setAuthenticated(data: { deviceIdentity?: ResolvedDeviceIdentity; session: Session; user: User }): void;
 	sendPacket(type: PacketType, requestId: number): void;
 	sendPacket(type: PacketType, payloadWriter?: (w: BinaryWriter) => void, requestId?: number): void;
 	handleMessage(data: Buffer | ArrayBuffer): void;

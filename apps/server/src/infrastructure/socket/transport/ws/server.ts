@@ -1,11 +1,8 @@
 import { createNodeWebSocket } from "@hono/node-ws";
-import { eq } from "drizzle-orm";
 
 import { bootstrapWsTransport } from "./bootstrap";
 import { WSConnection, wsSessionManager } from "./connection";
 
-import { db } from "@/infrastructure/db";
-import { device } from "@/infrastructure/db/schemas";
 import { Logger } from "@/infrastructure/logger";
 import { registerRelayWebSocketRoute } from "@/infrastructure/relay";
 import { initializeWsPubSub } from "@/infrastructure/socket/events/ws-pubsub";
@@ -21,7 +18,10 @@ import { registerUserPresenceSession, unregisterUserPresenceSession } from "@/in
 import { PacketType } from "@/infrastructure/socket/protocol/packet-type";
 import { generateConnectionId } from "@/infrastructure/socket/runtime/connection-id";
 import type { User } from "@/modules/auth/lib";
+import { DeviceIdentityService, deviceIdentityRepository, type ResolvedDeviceIdentity } from "@/modules/devices";
 import type { createRouter } from "@/shared/http/router";
+
+const deviceIdentityService = new DeviceIdentityService(deviceIdentityRepository);
 
 function getForwardedClientIp(forwardedHeader: string | undefined): string | undefined {
 	if (!forwardedHeader) {
@@ -30,6 +30,45 @@ function getForwardedClientIp(forwardedHeader: string | undefined): string | und
 
 	const first = forwardedHeader.split(",")[0]?.trim();
 	return first || undefined;
+}
+
+function getErrorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+async function resolveControlWsDeviceIdentity(input: {
+	sessionId: string | undefined;
+	userId: string;
+}): Promise<ResolvedDeviceIdentity | undefined> {
+	if (!input.sessionId) {
+		return undefined;
+	}
+
+	return deviceIdentityService.resolveHttpDevice({
+		sessionId: input.sessionId,
+		userId: input.userId,
+	});
+}
+
+async function resolveDisconnectDeviceIdentity(
+	connection: WSConnection,
+): Promise<ResolvedDeviceIdentity | undefined> {
+	const sessionId = connection.session?.id;
+	if (!sessionId) {
+		return undefined;
+	}
+
+	try {
+		const identity = await deviceIdentityService.findDeviceBySessionId(sessionId);
+		if (identity && connection.user?.id && identity.userId !== connection.user.id) {
+			return undefined;
+		}
+
+		return identity;
+	} catch (err) {
+		Logger.warn("WebSocket", `Failed to resolve device for session ${sessionId}: ${getErrorMessage(err)}`);
+		return undefined;
+	}
 }
 
 export async function createWebSocketInstance(app: ReturnType<typeof createRouter>, path: string = "/ws") {
@@ -75,10 +114,36 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 						);
 						const connectionId = generateConnectionId("ws");
 						connection = new WSConnection(connectionId, ws, remoteIp);
+						const session = c.get("session");
+						let deviceIdentity: ResolvedDeviceIdentity | undefined;
+						try {
+							deviceIdentity = await resolveControlWsDeviceIdentity({
+								sessionId: session?.id,
+								userId: currentUser.id,
+							});
+							if (deviceIdentity) {
+								Logger.debug(
+									"WebSocket",
+									`Resolved control WS device ${deviceIdentity.deviceId} for user ${deviceIdentity.userId}`,
+								);
+							} else {
+								Logger.debug("WebSocket", `No control WS device resolved for user ${currentUser.id}`);
+							}
+						} catch (err) {
+							Logger.warn(
+								"WebSocket",
+								`Device identity resolution failed for user ${currentUser.id}: ${getErrorMessage(err)}`,
+							);
+						}
+
+						const authenticatedUser = deviceIdentity
+							? ({ ...currentUser, deviceId: deviceIdentity.deviceId } as User)
+							: currentUser;
 
 						connection.setAuthenticated({
-							session: c.get("session"),
-							user: currentUser,
+							deviceIdentity,
+							session,
+							user: authenticatedUser,
 						});
 
 						wsSessionManager.addSession(connection);
@@ -101,24 +166,8 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 								});
 						}
 
-						const session = c.get("session");
-						if (session?.id) {
-							db.query.device
-								.findFirst({
-									where: eq(device.currentSessionId, session.id),
-									columns: { id: true },
-								})
-								.then((deviceInfo) => {
-									if (deviceInfo) {
-										broadcastDeviceOnline(currentUser.id, deviceInfo.id, connectionId);
-									}
-								})
-								.catch((err) => {
-									Logger.warn(
-										"WebSocket",
-										`Failed to get device info for online broadcast: ${err.message}`,
-									);
-								});
+						if (deviceIdentity) {
+							broadcastDeviceOnline(currentUser.id, deviceIdentity.deviceId, connectionId);
 						}
 					} catch (error) {
 						if (connection) {
@@ -140,41 +189,28 @@ export async function createWebSocketInstance(app: ReturnType<typeof createRoute
 				onClose(evt) {
 					if (connection) {
 						const userId = connection.user?.id;
-						const sessionId = connection.session?.id;
 
-						const deviceInfoPromise = sessionId
-							? db.query.device
-									.findFirst({
-										where: eq(device.currentSessionId, sessionId),
-										columns: { id: true },
-									})
-									.catch((err) => {
-										Logger.warn(
-											"WebSocket",
-											`Failed to resolve device for session ${sessionId}: ${err?.message || err}`,
-										);
-										return undefined;
-									})
-							: undefined;
+						resolveDisconnectDeviceIdentity(connection).then((deviceIdentity) => {
+							if (!deviceIdentity) {
+								return;
+							}
 
-						if (deviceInfoPromise) {
-							deviceInfoPromise.then((deviceInfo) => {
-								if (!deviceInfo) {
-									return;
-								}
-
-								void handleDeviceSocketDisconnect(deviceInfo.id).catch((err) => {
-									Logger.warn(
-										"WebSocket",
-										`Failed to cleanup peer state for device ${deviceInfo.id}: ${err?.message || err}`,
-									);
-								});
-
-								if (userId) {
-									broadcastDeviceOffline(userId, deviceInfo.id);
-								}
+							void handleDeviceSocketDisconnect(deviceIdentity.deviceId).catch((err) => {
+								Logger.warn(
+									"WebSocket",
+									`Failed to cleanup peer state for device ${deviceIdentity.deviceId}: ${err?.message || err}`,
+								);
 							});
-						}
+
+							if (userId) {
+								broadcastDeviceOffline(userId, deviceIdentity.deviceId);
+							}
+						}).catch((err) => {
+							Logger.warn(
+								"WebSocket",
+								`Failed to resolve device identity during disconnect: ${err?.message || err}`,
+							);
+						});
 
 						connection.close();
 
