@@ -117,6 +117,7 @@ export function createTransferService(deps: TransferServiceDependencies) {
 		recordRelayProgress: runtime.recordRelayProgress,
 		prepareTransferOffer: lifecycle.prepareTransferOffer,
 		prepareTransferAccept: lifecycle.prepareTransferAccept,
+		prepareTransferReject: lifecycle.prepareTransferReject,
 		createTransferRejectForwardPayload: lifecycle.createTransferRejectForwardPayload,
 		prepareTransferAck: lifecycle.prepareTransferAck,
 		prepareFileOffer: lifecycle.prepareFileOffer,

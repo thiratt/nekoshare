@@ -122,9 +122,10 @@ export async function processFileOffer(
 		toDeviceId: payload.toDeviceId ?? "",
 		files: payload.files ?? [],
 	});
-	const offer = await getTransferService().prepareTransferOffer(transferOfferCommand, senderDeviceId, {
+	const transferOffer = await getTransferService().prepareTransferOffer(transferOfferCommand, senderDeviceId, {
 		files: payload.files,
 	});
+	const offer = transferOffer.offer;
 	const traceId = transferOfferCommand.transferId;
 	Logger.debug("FileTransfer", `Mapped FILE_OFFER request ${requestId} to TRANSFER_OFFER command trace=${traceId}`);
 
@@ -149,10 +150,11 @@ export async function processFileOffer(
 	}
 
 	const forwardPayload = await getTransferService().createFileOfferForwardPayload(offer);
+	// Lifecycle returns Protocol v1 internal event/result; control-WS emits legacy FILE_*.
 	const legacyForwardPayload = mapTransferOfferedEventToLegacyFileOffer({
-		transferId: forwardPayload.transferId,
-		senderDeviceId: forwardPayload.senderDeviceId,
-		receiverDeviceId: offer.targetDeviceId,
+		transferId: transferOffer.event.transferId,
+		senderDeviceId: transferOffer.event.senderDeviceId,
+		receiverDeviceId: transferOffer.event.receiverDeviceId,
 		senderDeviceFingerprint: forwardPayload.senderDeviceFingerprint ?? "",
 		senderDeviceName: forwardPayload.senderDeviceName,
 		senderUserId: forwardPayload.senderUserId,
@@ -197,12 +199,13 @@ export async function processFileAccept(
 		address: payload.address ?? "",
 		port: payload.port ?? 0,
 	});
-	const accept = await getTransferService().prepareTransferAccept(transferAcceptCommand, {
+	const transferAccept = await getTransferService().prepareTransferAccept(transferAcceptCommand, {
 		authenticatedReceiverDeviceId: receiverDeviceId,
 		senderDeviceId: payload.senderDeviceId,
 		address: payload.address,
 		port: payload.port,
 	});
+	const accept = transferAccept.accept;
 	Logger.debug(
 		"FileTransfer",
 		`Mapped FILE_ACCEPT request ${requestId ?? "unknown"} to TRANSFER_ACCEPT command trace=${transferAcceptCommand.transferId}`,
@@ -215,10 +218,11 @@ export async function processFileAccept(
 	}
 
 	const forwardPayload = await getTransferService().createFileAcceptForwardPayload(accept);
+	// Lifecycle returns Protocol v1 internal event/result; control-WS emits legacy FILE_*.
 	const legacyForwardPayload = mapTransferAcceptedEventToLegacyFileAccept({
-		transferId: forwardPayload.transferId,
+		transferId: transferAccept.event.transferId,
 		senderDeviceId: forwardPayload.senderDeviceId,
-		receiverDeviceId: forwardPayload.receiverDeviceId,
+		receiverDeviceId: transferAccept.event.receiverDeviceId,
 		receiverFingerprint: forwardPayload.receiverFingerprint ?? "",
 		address: forwardPayload.address,
 		port: forwardPayload.port,
@@ -250,7 +254,7 @@ export async function processFileReject(
 		senderDeviceId: payload.senderDeviceId ?? "",
 		reason: payload.reason,
 	});
-	const reject = await getTransferService().createTransferRejectForwardPayload(transferRejectCommand, {
+	const reject = await getTransferService().prepareTransferReject(transferRejectCommand, {
 		rejectorDeviceId,
 		senderDeviceId: payload.senderDeviceId,
 		receiverDeviceId: payload.receiverDeviceId,
@@ -259,10 +263,11 @@ export async function processFileReject(
 		"FileTransfer",
 		`Mapped FILE_REJECT request ${requestId ?? "unknown"} to TRANSFER_REJECT command trace=${transferRejectCommand.transferId}`,
 	);
+	// Lifecycle returns Protocol v1 internal event/result; control-WS emits legacy FILE_*.
 	const legacyRejectPayload = mapTransferRejectedEventToLegacyFileReject({
-		transferId: reject.payload.transferId,
+		transferId: reject.event.transferId,
 		senderDeviceId: reject.payload.senderDeviceId,
-		reason: reject.payload.reason,
+		reason: reject.event.reason,
 	});
 
 	Logger.info("FileTransfer", `FILE_REJECT from ${rejectorDeviceId} to ${reject.targetDeviceId}`);
@@ -295,9 +300,11 @@ export async function processFileAck(
 	const senderDeviceId = await getDeviceIdForConnection(client);
 	// Neko Protocol v1 internal status/progress interpretation starts here.
 	const ack = await getTransferService().prepareTransferAck(senderDeviceId, targetDeviceId, ackJson);
-	const transferAckEvent = mapLegacyFileAckToTransferStatusOrProgress(parseLegacyAckPayload(ackJson), {
-		transferId: ack.transferSession.transferId,
-	});
+	const transferAckEvent =
+		ack.event ??
+		mapLegacyFileAckToTransferStatusOrProgress(parseLegacyAckPayload(ackJson), {
+			transferId: ack.transferSession.transferId,
+		});
 	Logger.debug(
 		"FileTransfer",
 		`Mapped FILE_ACK request ${requestId ?? "unknown"} to internal transfer event trace=${transferAckEvent.transferId}`,

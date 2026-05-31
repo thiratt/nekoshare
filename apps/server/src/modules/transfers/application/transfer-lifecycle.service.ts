@@ -39,6 +39,46 @@ interface TransferOfferLegacyContext {
 	files?: PreparedFileOffer["files"];
 }
 
+export interface TransferOfferLifecycleResult {
+	result: {
+		transferId: string;
+		senderDeviceId: string;
+		receiverDeviceId: string;
+	};
+	event: protocol.TransferOfferedEventPayload;
+	offer: PreparedFileOffer;
+}
+
+export interface TransferAcceptLifecycleResult {
+	result: {
+		transferId: string;
+		receiverDeviceId: string;
+	};
+	event: protocol.TransferAcceptedEventPayload;
+	accept: PreparedFileAccept;
+}
+
+export interface TransferRejectLifecycleResult {
+	result: {
+		transferId: string;
+		rejected: true;
+	};
+	event: protocol.TransferRejectedEventPayload;
+	targetDeviceId: string;
+	payload: {
+		transferId: string;
+		senderDeviceId: string;
+		reason: string;
+	};
+}
+
+export interface TransferAckLifecycleResult {
+	senderDeviceId: string;
+	targetDeviceId: string;
+	transferSession: PreparedFileAccept["transferSession"];
+	event?: protocol.TransferStatusEventPayload | protocol.TransferProgressEventPayload;
+}
+
 export interface TransferLifecycleServiceDependencies {
 	devices: TransferDeviceLookup;
 	lifecycle: TransferLifecycle;
@@ -103,7 +143,7 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 		command: protocol.TransferOfferCommandPayload,
 		senderDeviceId: string | undefined,
 		context: TransferOfferLegacyContext = {},
-	): Promise<PreparedFileOffer> {
+	): Promise<TransferOfferLifecycleResult> {
 		const transferId = command.transferId?.trim();
 		const targetDeviceId = command.receiverDeviceId?.trim();
 		const files = context.files ?? toPreparedOfferFiles(command.manifest);
@@ -133,7 +173,7 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 		const spoofedFromDeviceId =
 			command.senderDeviceId && command.senderDeviceId !== senderDeviceId ? command.senderDeviceId : undefined;
 
-		return {
+		const offer: PreparedFileOffer = {
 			transferId,
 			targetDeviceId,
 			senderDeviceId,
@@ -143,12 +183,26 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 			files,
 			spoofedFromDeviceId,
 		};
+
+		return {
+			result: {
+				transferId,
+				senderDeviceId,
+				receiverDeviceId: targetDeviceId,
+			},
+			event: {
+				transferId,
+				senderDeviceId,
+				receiverDeviceId: targetDeviceId,
+			},
+			offer,
+		};
 	}
 
 	async function prepareTransferAccept(
 		command: protocol.TransferAcceptCommandPayload,
 		context: TransferAcceptLegacyContext,
-	): Promise<PreparedFileAccept> {
+	): Promise<TransferAcceptLifecycleResult> {
 		const transferId = command.transferId?.trim();
 		const senderDeviceId = context.senderDeviceId?.trim();
 		if (
@@ -178,7 +232,7 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 			throw new Error("FILE_ACCEPT does not match an active transfer session");
 		}
 
-		return {
+		const accept: PreparedFileAccept = {
 			transferId,
 			senderDeviceId,
 			receiverDeviceId,
@@ -186,12 +240,24 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 			port: context.port,
 			transferSession,
 		};
+
+		return {
+			result: {
+				transferId,
+				receiverDeviceId,
+			},
+			event: {
+				transferId,
+				receiverDeviceId,
+			},
+			accept,
+		};
 	}
 
-	async function createTransferRejectForwardPayload(
+	async function prepareTransferReject(
 		command: protocol.TransferRejectCommandPayload,
 		context: TransferRejectLegacyContext,
-	) {
+	): Promise<TransferRejectLifecycleResult> {
 		const transferId = command.transferId?.trim();
 		if (!transferId) {
 			throw new Error("Invalid FILE_REJECT payload");
@@ -228,6 +294,14 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 		await deps.lifecycle.removeTransferSession(transferId);
 
 		return {
+			result: {
+				transferId,
+				rejected: true,
+			},
+			event: {
+				transferId,
+				reason: command.reason,
+			},
 			targetDeviceId: senderDeviceId,
 			payload: {
 				transferId,
@@ -237,7 +311,61 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 		};
 	}
 
-	async function prepareTransferAck(senderDeviceId: string | undefined, targetDeviceId: string, ackJson: string) {
+	function mapAckJsonToProtocolEvent(
+		transferId: string,
+		ackJson: string,
+	): protocol.TransferStatusEventPayload | protocol.TransferProgressEventPayload | undefined {
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(ackJson);
+		} catch {
+			return undefined;
+		}
+
+		if (!parsed || typeof parsed !== "object") {
+			return undefined;
+		}
+
+		const record = parsed as Record<string, unknown>;
+		const totalBytes = record.totalBytes;
+		if (typeof totalBytes === "number" && Number.isFinite(totalBytes)) {
+			const bytesTransferred =
+				typeof record.bytesAcknowledged === "number"
+					? record.bytesAcknowledged
+					: typeof record.bytesReceived === "number"
+						? record.bytesReceived
+						: typeof record.bytesSent === "number"
+							? record.bytesSent
+							: 0;
+			return {
+				transferId,
+				totalBytes,
+				bytesTransferred,
+				bytesAcknowledged:
+					typeof record.bytesAcknowledged === "number" ? record.bytesAcknowledged : undefined,
+				currentFileId: typeof record.currentFileId === "string" ? record.currentFileId : undefined,
+				filesCompleted: typeof record.filesCompleted === "number" ? record.filesCompleted : undefined,
+				updatedAt: nowIso(),
+			};
+		}
+
+		if (typeof record.success === "boolean") {
+			return {
+				transferId,
+				status: record.success ? "TRANSFERRING" : "FAILED",
+				message: typeof record.message === "string" ? record.message : undefined,
+				updatedAt: nowIso(),
+			};
+		}
+
+		return undefined;
+	}
+
+	async function prepareTransferAck(
+		senderDeviceId: string | undefined,
+		targetDeviceId: string,
+		ackJson: string,
+	): Promise<TransferAckLifecycleResult> {
 		if (!targetDeviceId) {
 			throw new Error("Invalid FILE_ACK target device");
 		}
@@ -257,13 +385,15 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 			senderDeviceId,
 			targetDeviceId,
 			transferSession,
+			event: mapAckJsonToProtocolEvent(transferSession.transferId, ackJson),
 		};
 	}
 
 	return {
 		prepareTransferOffer,
 		prepareTransferAccept,
-		createTransferRejectForwardPayload,
+		prepareTransferReject,
+		createTransferRejectForwardPayload: prepareTransferReject,
 		prepareTransferAck,
 
 		async prepareFileOffer(
@@ -275,7 +405,7 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 			},
 			senderDeviceId: string | undefined,
 		): Promise<PreparedFileOffer> {
-			return prepareTransferOffer(
+			const transferOffer = await prepareTransferOffer(
 				{
 					transferId: payload.transferId ?? "",
 					senderDeviceId: payload.fromDeviceId ?? "",
@@ -294,6 +424,7 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 				},
 				senderDeviceId,
 			);
+			return transferOffer.offer;
 		},
 
 		getFileOfferTargetUnavailablePayload(offer: PreparedFileOffer) {
@@ -340,7 +471,7 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 			payload: FileAcceptInput,
 			receiverDeviceId: string | undefined,
 		): Promise<PreparedFileAccept> {
-			return prepareTransferAccept(
+			const transferAccept = await prepareTransferAccept(
 				{
 					transferId: payload.transferId ?? "",
 					receiverDeviceId: receiverDeviceId ?? "",
@@ -352,6 +483,7 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 					port: payload.port,
 				},
 			);
+			return transferAccept.accept;
 		},
 
 		async createFileAcceptForwardPayload(accept: PreparedFileAccept) {
@@ -380,7 +512,7 @@ export function createTransferLifecycleService(deps: TransferLifecycleServiceDep
 		},
 
 		async createFileRejectForwardPayload(payload: FileRejectInput, rejectorDeviceId: string | undefined) {
-			return createTransferRejectForwardPayload(
+			return prepareTransferReject(
 				{
 					transferId: payload.transferId ?? "",
 					reason: payload.reason,
