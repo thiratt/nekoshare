@@ -211,7 +211,7 @@ assert(errorEnvelope.data.code === "PROTOCOL_VIOLATION", "expected Protocol v1 e
 const legacyHandlerConnection = createFakeConnection();
 const legacyHandlerResult = handleProtocolTransferCommandEnvelope(legacyHandlerConnection.connection, offerEnvelope);
 assert(!legacyHandlerResult.ok, "expected handler to reject non-opted-in connection");
-assert(legacyHandlerConnection.packets.length === 1, "expected non-opted-in rejection to emit one error envelope");
+assert(legacyHandlerConnection.packets.length === 0, "expected non-opted-in rejection not to emit Protocol v1 packets");
 
 console.log("Protocol v1 inbound command dev check passed.");
 console.log(

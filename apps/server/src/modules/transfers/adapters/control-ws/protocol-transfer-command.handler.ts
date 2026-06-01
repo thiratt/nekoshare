@@ -1,11 +1,17 @@
 import {
+	isControlPacketEnvelopeLike,
 	mapProtocolTransferCommandEnvelope,
 	parseProtocolTransferCommandEnvelope,
 	type ProtocolTransferCommandMapping,
 	type ProtocolTransferCommandRejection,
+	shouldRouteProtocolTransferCommandEnvelope,
 } from "./protocol-transfer-command.mapper";
 
-import { createErrorEnvelope, sendProtocolControlPacket } from "@/infrastructure/socket/protocol";
+import {
+	canEmitProtocolPackets,
+	createErrorEnvelope,
+	sendProtocolControlPacket,
+} from "@/infrastructure/socket/protocol";
 import type { IConnection } from "@/infrastructure/socket/runtime/types";
 import { protocol } from "@workspace/contracts";
 
@@ -58,6 +64,16 @@ export function handleProtocolTransferCommandEnvelope(
 	connection: IConnection,
 	envelope: protocol.ControlPacketEnvelope,
 ): ProtocolTransferCommandHandlerResult {
+	if (!canEmitProtocolPackets(connection)) {
+		return {
+			ok: false,
+			error: {
+				code: "PROTOCOL_VIOLATION",
+				message: "Connection has not opted into Protocol v1 control packets",
+			},
+		};
+	}
+
 	const mapped = mapProtocolTransferCommandEnvelope(connection, envelope);
 	if (!mapped.ok) {
 		emitProtocolCommandError(connection, envelope, mapped.error);
@@ -83,10 +99,30 @@ export function handleProtocolTransferCommandJson(
 			code: "PROTOCOL_VIOLATION",
 			message: "Invalid Protocol v1 transfer command envelope",
 		};
-		emitProtocolCommandError(connection, undefined, error);
+		if (canEmitProtocolPackets(connection)) {
+			emitProtocolCommandError(connection, undefined, error);
+		}
 		return {
 			ok: false,
 			error,
+		};
+	}
+
+	if (!shouldRouteProtocolTransferCommandEnvelope(connection, envelope)) {
+		if (canEmitProtocolPackets(connection) && isControlPacketEnvelopeLike(envelope)) {
+			const mapped = mapProtocolTransferCommandEnvelope(connection, envelope);
+			if (!mapped.ok) {
+				emitProtocolCommandError(connection, envelope, mapped.error);
+				return mapped;
+			}
+		}
+
+		return {
+			ok: false,
+			error: {
+				code: "PROTOCOL_VIOLATION",
+				message: "Protocol v1 transfer command envelope is not routable",
+			},
 		};
 	}
 

@@ -1,7 +1,9 @@
+import { handleProtocolTransferCommandJson } from "./protocol-transfer-command.handler";
 import { processFileAccept, processFileAck, processFileOffer, processFileReject } from "./transfer.service";
 import type { FileAcceptPacketInput, FileOfferPacketInput, FileRejectPacketInput } from "./transfer.types";
 
 import { Logger } from "@/infrastructure/logger";
+import { CONTROL_PROTOCOL_ENVELOPE_PACKET_TYPE } from "@/infrastructure/socket/protocol";
 import { PacketRouter } from "@/infrastructure/socket/runtime/packet-router";
 import type { CommandHandler, IConnection, TransportType } from "@/infrastructure/socket/runtime/types";
 import {
@@ -103,10 +105,31 @@ export function registerTransferHandlers<T extends IConnection>(router: PacketRo
 		}
 	};
 
+	const handleProtocolEnvelope: CommandHandler<T> = (client, reader) => {
+		try {
+			const rawData = reader.readString();
+			const result = handleProtocolTransferCommandJson(client, rawData);
+			if (result.ok) {
+				Logger.debug("FileTransfer", `Protocol v1 inbound command routed: ${result.command.type}`);
+			} else {
+				Logger.debug("FileTransfer", `Protocol v1 inbound command rejected: ${result.error.message}`);
+			}
+		} catch (error) {
+			Logger.warn(
+				"FileTransfer",
+				`Failed to handle Protocol v1 inbound envelope: ${error instanceof Error ? error.message : String(error)}`,
+			);
+			handleProtocolTransferCommandJson(client, "");
+		}
+	};
+
 	router.register(PacketType.FILE_OFFER, handleFileOffer);
 	router.register(PacketType.FILE_ACCEPT, handleFileAccept);
 	router.register(PacketType.FILE_REJECT, handleFileReject);
 	router.register(PacketType.FILE_ACK, handleFileAck);
+	if (transportType === "WebSocket") {
+		router.register(CONTROL_PROTOCOL_ENVELOPE_PACKET_TYPE, handleProtocolEnvelope);
+	}
 	Logger.info("FileTransfer", `File transfer handlers registered for ${transportType}`);
 }
 

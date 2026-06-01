@@ -71,6 +71,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value) && typeof value === "object";
 }
 
+export function isControlPacketEnvelopeLike(value: unknown): value is protocol.ControlPacketEnvelope {
+	return (
+		isRecord(value) &&
+		typeof value.protocolVersion === "number" &&
+		typeof value.id === "string" &&
+		typeof value.kind === "string" &&
+		typeof value.type === "string" &&
+		typeof value.sentAt === "string" &&
+		"data" in value
+	);
+}
+
 function hasString(value: Record<string, unknown>, key: string): boolean {
 	return typeof value[key] === "string" && value[key].trim().length > 0;
 }
@@ -112,10 +124,22 @@ function isTransferCancelCommandPayload(data: unknown): data is protocol.Transfe
 export function parseProtocolTransferCommandEnvelope(rawJson: string): ProtocolTransferCommandEnvelope | undefined {
 	try {
 		const parsed = JSON.parse(rawJson);
-		return isRecord(parsed) ? (parsed as unknown as ProtocolTransferCommandEnvelope) : undefined;
+		return isControlPacketEnvelopeLike(parsed) ? (parsed as unknown as ProtocolTransferCommandEnvelope) : undefined;
 	} catch {
 		return undefined;
 	}
+}
+
+export function shouldRouteProtocolTransferCommandEnvelope(
+	connection: IConnection,
+	envelope: protocol.ControlPacketEnvelope | undefined,
+): boolean {
+	return Boolean(
+		envelope &&
+			canEmitProtocolPackets(connection) &&
+			envelope.protocolVersion === protocol.NEKO_PROTOCOL_VERSION &&
+			envelope.kind === protocol.ControlPacketKind.COMMAND,
+	);
 }
 
 export function mapProtocolTransferCommandEnvelope(
