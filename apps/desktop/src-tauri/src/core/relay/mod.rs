@@ -8,6 +8,8 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::time::{timeout, Duration};
 use tokio_tungstenite::connect_async;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::http::header::AUTHORIZATION;
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
 
@@ -118,6 +120,9 @@ fn now_timestamp_ms() -> i64 {
     }
 }
 
+// Temporary compatibility helper for explicit fallback/testing only. Normal
+// relay connects use Authorization: Bearer <token> during the WS handshake.
+#[allow(dead_code)]
 fn with_token_query(relay_url: &str, token: &str) -> Result<String, RelayTransferError> {
     let separator = if relay_url.contains('?') { '&' } else { '?' };
     Ok(format!("{relay_url}{separator}token={token}"))
@@ -128,6 +133,18 @@ fn redact_relay_url(relay_url: &str) -> String {
         Some((prefix, _)) => format!("{prefix}token=<redacted>"),
         None => relay_url.to_string(),
     }
+}
+
+fn relay_authorized_request(
+    relay_url: &str,
+    token: &str,
+) -> Result<tokio_tungstenite::tungstenite::http::Request<()>, RelayTransferError> {
+    let mut request = relay_url.into_client_request()?;
+    let header_value = format!("Bearer {token}")
+        .parse()
+        .map_err(|e| RelayTransferError::Connection(format!("Invalid relay authorization header: {e}")))?;
+    request.headers_mut().insert(AUTHORIZATION, header_value);
+    Ok(request)
 }
 
 fn file_name_from_path(path: &Path) -> String {
@@ -643,8 +660,8 @@ async fn send_relay_files_inner(
     app: &AppHandle,
     input: &RelaySendInput,
 ) -> Result<(), RelayTransferError> {
-    let relay_url = with_token_query(&input.relay_url, &input.token)?;
-    let (mut ws_stream, _) = connect_async(&relay_url).await?;
+    let request = relay_authorized_request(&input.relay_url, &input.token)?;
+    let (mut ws_stream, _) = connect_async(request).await?;
 
     log::info!(
         "Relay sender connected transfer={} url={}",
@@ -770,10 +787,10 @@ async fn receive_relay_transfer_inner(
     app: &AppHandle,
     input: &RelayReceiveInput,
 ) -> Result<(), RelayTransferError> {
-    let relay_url = with_token_query(&input.relay_url, &input.token)?;
     let base_dir = resolve_receive_base_dir(app).await?;
+    let request = relay_authorized_request(&input.relay_url, &input.token)?;
 
-    let (ws_stream, _) = connect_async(&relay_url).await?;
+    let (ws_stream, _) = connect_async(request).await?;
 
     log::info!(
         "Relay receiver connected transfer={} url={}",
