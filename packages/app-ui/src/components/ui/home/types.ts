@@ -39,13 +39,50 @@ export type HomeDropHandle = {
 	addDroppedPaths: (entries: HomeDroppedPath[]) => void;
 };
 
+export type HomeActiveTransferItem = {
+	id: string;
+	transferId: string;
+	fileId?: string;
+	direction: "send" | "receive";
+	status: "connecting" | "transferring" | "completed" | "failed" | "cancelled";
+	peerName?: string;
+	fileName: string;
+	fileCount?: number;
+	totalBytes: number;
+	transferredBytes: number;
+	progress: number;
+	transport?: "LAN_DIRECT" | "RELAY_WS" | "UNKNOWN";
+	errorMessage?: string;
+	startedAt: number;
+	updatedAt: number;
+};
+
+export type HomeRecentTransferItem = {
+	id: string;
+	transferId: string;
+	fileId: string;
+	direction: "send" | "receive";
+	status: "completed" | "failed" | "cancelled";
+	peerName?: string;
+	fileName: string;
+	totalBytes: number;
+	transferredBytes: number;
+	progress: number;
+	errorMessage?: string;
+	updatedAt: number;
+};
+
 export type HomeUIProps = {
+	activeTransfers?: HomeActiveTransferItem[];
 	dropState?: HomeDropState;
 	devices?: Device[];
 	friends?: Friend[];
+	isLoadingRecentTransfers?: boolean;
 	onResolveAudioPreview?: (file: HomeDraftFile) => Promise<string | undefined>;
 	onResolveImagePreview?: (file: HomeDraftFile) => Promise<string | undefined>;
 	onResolvePdfPreview?: (file: HomeDraftFile) => Promise<string | undefined>;
 	onResolveTextPreview?: (file: HomeDraftFile) => Promise<string | undefined>;
 	onResolveVideoPreview?: (file: HomeDraftFile) => Promise<string | undefined>;
+	onViewAllRecentTransfers?: () => void;
+	recentTransfers?: HomeRecentTransferItem[];
 };

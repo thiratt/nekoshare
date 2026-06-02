@@ -14,14 +14,18 @@ import type { HomeDropHandle, HomeUIProps } from "../types";
 
 export const HomeUI = forwardRef<HomeDropHandle, HomeUIProps>(function HomeUI(
 	{
+		activeTransfers,
 		devices,
 		dropState,
 		friends,
+		isLoadingRecentTransfers,
 		onResolveAudioPreview,
 		onResolveImagePreview,
 		onResolvePdfPreview,
 		onResolveTextPreview,
 		onResolveVideoPreview,
+		onViewAllRecentTransfers,
+		recentTransfers,
 	},
 	ref,
 ) {
@@ -98,12 +102,16 @@ export const HomeUI = forwardRef<HomeDropHandle, HomeUIProps>(function HomeUI(
 					/>
 
 					<HomeActivityArea
+						activeTransfers={activeTransfers ?? []}
 						devices={devices ?? []}
 						friends={friends ?? []}
 						hasSelectedFiles={files.length > 0}
+						isLoadingRecentTransfers={isLoadingRecentTransfers ?? false}
 						publicShare={targets.publicShare}
+						recentTransfers={recentTransfers ?? []}
 						selectedTargetIds={targets.selectedTargetIds}
 						onToggleTarget={targets.toggleTarget}
+						onViewAllRecentTransfers={onViewAllRecentTransfers}
 					/>
 				</div>
 			</div>

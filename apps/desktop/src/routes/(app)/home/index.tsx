@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from "react";
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import {
   transformDevices,
@@ -17,6 +17,7 @@ import {
   type NativeDropZonePayload,
   useNativeDropZones,
 } from "@/hooks/use-native-drop-zones";
+import { useTransferActivity } from "@/hooks/use-transfer-activity";
 import {
   resolveAudioPreview,
   resolveDroppedPaths,
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/(app)/home/")({
 });
 
 function RouteComponent() {
+  const navigate = useNavigate();
   const homeRef = useRef<HomeDropHandle | null>(null);
   const { devices: rawDevices } = useDevices();
   const { friends: rawFriends } = useFriends();
@@ -40,6 +42,12 @@ function RouteComponent() {
     [rawDevices],
   );
   const friends = useMemo(() => transformFriends(rawFriends), [rawFriends]);
+  const deviceNamesById = useMemo(
+    () => new Map(rawDevices.map((device) => [device.id, device.name])),
+    [rawDevices],
+  );
+  const { activeTransfers, isLoadingRecent, recentTransfers } =
+    useTransferActivity(deviceNamesById);
 
   const handleNativeDropEvent = useCallback(
     async (event: NativeDropZonePayload) => {
@@ -59,9 +67,15 @@ function RouteComponent() {
   return (
     <HomeUI
       ref={homeRef}
+      activeTransfers={activeTransfers}
       devices={devices}
       friends={friends}
+      isLoadingRecentTransfers={isLoadingRecent}
+      recentTransfers={recentTransfers}
       dropState={dropState}
+      onViewAllRecentTransfers={() => {
+        navigate({ to: "/home/history", viewTransition: true });
+      }}
       onResolveAudioPreview={resolveAudioPreview}
       onResolveImagePreview={resolveImagePreview}
       onResolvePdfPreview={resolvePdfPreview}

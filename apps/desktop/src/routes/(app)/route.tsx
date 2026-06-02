@@ -677,10 +677,13 @@ function RouteComponent() {
           : error instanceof Error
             ? error.message
             : "direct setup failed";
-        console.warn("[TransferTransport] direct sender setup failed/timed out", {
-          transferId,
-          fallbackReason,
-        });
+        console.warn(
+          "[TransferTransport] direct sender setup failed/timed out",
+          {
+            transferId,
+            fallbackReason,
+          },
+        );
         requestReceiverRelayFallback(fallbackReason);
         await startRelaySender(fallbackReason);
       }
@@ -702,7 +705,9 @@ function RouteComponent() {
     return on(PacketType.FILE_ACK, (reader) => {
       try {
         const rawData = reader.readString();
-        const signal = JSON.parse(rawData) as Partial<RelayReceiverFallbackSignal>;
+        const signal = JSON.parse(
+          rawData,
+        ) as Partial<RelayReceiverFallbackSignal>;
 
         if (
           signal.action !== START_RELAY_RECEIVER_ACTION ||
@@ -762,6 +767,9 @@ function RouteComponent() {
     let active = true;
 
     const setup = async () => {
+      console.debug(
+        "[TransferActivity] subscribing to transfer-progress events",
+      );
       const unlisten = await listen<TransferProgressEvent>(
         "transfer-progress",
         (event) => {
@@ -786,6 +794,7 @@ function RouteComponent() {
       }
 
       unlistenFn = unlisten;
+      console.debug("[TransferActivity] transfer-progress subscription ready");
     };
 
     setup();
@@ -804,6 +813,9 @@ function RouteComponent() {
       window.clearInterval(cleanupInterval);
       if (unlistenFn) {
         unlistenFn();
+        console.debug(
+          "[TransferActivity] transfer-progress subscription closed",
+        );
       }
     };
   }, [flushTransferEvents, clearOldTransfers]);

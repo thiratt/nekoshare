@@ -1,25 +1,32 @@
 import { AnimatePresence, motion } from "motion/react";
 
-import { homeRecentItems, homeTransfers } from "../constants";
 import { HomeRecentItems, HomeTransfers } from "./HomeActivityList";
 import { HomeTargetTray } from "./HomeTargetTray";
-import type { HomeUIProps } from "../types";
+import type { HomeActiveTransferItem, HomeRecentTransferItem, HomeUIProps } from "../types";
 
 type HomeActivityAreaProps = {
+	activeTransfers: HomeActiveTransferItem[];
 	devices: NonNullable<HomeUIProps["devices"]>;
 	friends: NonNullable<HomeUIProps["friends"]>;
 	hasSelectedFiles: boolean;
+	isLoadingRecentTransfers: boolean;
 	publicShare: boolean;
+	recentTransfers: HomeRecentTransferItem[];
 	selectedTargetIds: string[];
 	onToggleTarget: (targetId: string) => void;
+	onViewAllRecentTransfers?: () => void;
 };
 
 export function HomeActivityArea({
+	activeTransfers,
 	devices,
 	friends,
 	hasSelectedFiles,
+	isLoadingRecentTransfers,
 	onToggleTarget,
+	onViewAllRecentTransfers,
 	publicShare,
+	recentTransfers,
 	selectedTargetIds,
 }: HomeActivityAreaProps) {
 	return (
@@ -51,8 +58,14 @@ export function HomeActivityArea({
 					className="w-full overflow-hidden"
 				>
 					<div className="space-y-2 pt-4">
-						<HomeTransfers transfers={homeTransfers} />
-						<HomeRecentItems items={homeRecentItems} />
+						{activeTransfers.length > 0 && <HomeTransfers transfers={activeTransfers} />}
+						{recentTransfers.length > 0 && (
+							<HomeRecentItems
+								items={recentTransfers}
+								isLoading={isLoadingRecentTransfers}
+								onViewAll={onViewAllRecentTransfers}
+							/>
+						)}
 					</div>
 				</motion.div>
 			)}
