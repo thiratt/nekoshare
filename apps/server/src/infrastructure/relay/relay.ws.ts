@@ -58,6 +58,20 @@ function getBearerToken(header: string | undefined): string | undefined {
 	return token?.trim() || undefined;
 }
 
+function getRelayTicketToken(input: {
+	authorizationHeader: string | undefined;
+	queryToken: string | undefined;
+}): string | undefined {
+	const bearerToken = getBearerToken(input.authorizationHeader);
+	if (bearerToken) {
+		return bearerToken;
+	}
+
+	// Temporary compatibility fallback for older desktop builds. New clients
+	// should send relay tickets as Authorization: Bearer <token>.
+	return input.queryToken?.trim() || undefined;
+}
+
 function getBinaryMessageData(data: unknown): ArrayBuffer | Buffer | undefined {
 	if (data instanceof ArrayBuffer) {
 		return data;
@@ -128,7 +142,10 @@ export function registerRelayWebSocketRoute(
 
 			return {
 				async onOpen(_evt, ws) {
-					const token = getBearerToken(c.req.header("authorization")) ?? c.req.query("token")?.trim();
+					const token = getRelayTicketToken({
+						authorizationHeader: c.req.header("authorization"),
+						queryToken: c.req.query("token"),
+					});
 					if (!token) {
 						ws.close(1008, "Relay token required");
 						return;

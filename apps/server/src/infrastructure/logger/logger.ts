@@ -78,8 +78,16 @@ class Logger {
 	}
 }
 
+function redactSensitiveUrlTokens(message: string): string {
+	return message.replace(/(\/ws\/relay\?[^ \t\r\n]*token=)[^& \t\r\n]+/gi, "$1<redacted>");
+}
+
 const nekoShareLogger = (message: string, ...rest: string[]) => {
-	Logger.info("App", message, rest.length > 0 ? rest : undefined);
+	Logger.info(
+		"App",
+		redactSensitiveUrlTokens(message),
+		rest.length > 0 ? rest.map(redactSensitiveUrlTokens) : undefined,
+	);
 };
 
 export { Logger, LogLevel, nekoShareLogger };
