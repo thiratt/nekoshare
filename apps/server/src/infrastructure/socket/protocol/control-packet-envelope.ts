@@ -87,7 +87,8 @@ export function createErrorEnvelope<TType extends protocol.ControlPacketType>(
 
 export function sendProtocolControlPacket(connection: IConnection, envelope: protocol.ControlPacketEnvelope): void {
 	connection.sendPacket(
-		// Server-side Protocol v1 envelope carrier. Step 15 keeps this out of shared legacy PacketType contracts.
+		// Server-side Protocol v1 envelope carrier. This remains outside shared
+		// legacy PacketType contracts until clients explicitly migrate.
 		CONTROL_PROTOCOL_ENVELOPE_PACKET_TYPE as PacketType,
 		(writer) => {
 			writer.writeString(JSON.stringify(envelope));

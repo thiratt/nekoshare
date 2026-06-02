@@ -80,9 +80,9 @@ export function handleProtocolTransferCommandEnvelope(
 		return mapped;
 	}
 
-	// TODO(Step 19+): wire this mapped Protocol v1 command into the transfer
-	// lifecycle/facade and emit resulting events through transfer-control-emitter.
-	// Legacy FILE_* inbound compatibility remains the active default path.
+	// Protocol v1 inbound boundary: routing and validation are live, while full
+	// transfer lifecycle execution is intentionally deferred. Legacy FILE_*
+	// inbound compatibility remains the active default client path.
 	return {
 		ok: true,
 		command: mapped.value,

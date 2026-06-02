@@ -38,7 +38,7 @@ export function registerTransferHandlers<T extends IConnection>(router: PacketRo
 	const handleFileOffer: CommandHandler<T> = async (client, reader, requestId) => {
 		try {
 			// Legacy FILE_* wire packet enters here. It is translated inside the
-			// transfer control adapter before any future Protocol v1 routing.
+			// transfer control adapter while preserving legacy wire compatibility.
 			const rawData = reader.readString();
 			const { data, error } = safeJsonParse<FileOfferPacketInput>(rawData);
 			if (error || !data) {
@@ -56,7 +56,6 @@ export function registerTransferHandlers<T extends IConnection>(router: PacketRo
 	};
 
 	const handleFileAccept: CommandHandler<T> = async (client, reader, requestId) => {
-		Logger.info("FileTransfer", `FILE_ACCEPT handler called, requestId: ${requestId}`);
 		try {
 			// Legacy FILE_* wire packet enters here. Outbound compatibility remains FILE_*.
 			const rawData = reader.readString();
