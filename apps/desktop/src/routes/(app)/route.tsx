@@ -56,9 +56,86 @@ import {
 import { parseDropZoneId } from "@/lib/transfer";
 import { useAccountLanguageSync } from "@workspace/i18n/react";
 
-const RELAY_DEBUG_TRANSFER_MODE =
-  import.meta.env.VITE_TRANSFER_MODE === "relay";
+type TransferMode = "AUTO" | "LAN_DIRECT" | "RELAY";
+type TransferTransportKind = "NATIVE_TCP" | "RELAY_WS" | "RELAY_NATIVE";
+type TransferDecision = {
+  mode: TransferMode;
+  attemptedTransport: TransferTransportKind;
+  fallbackReason?: string;
+};
+
+const TRANSFER_MODE_ENV = String(
+  import.meta.env.VITE_TRANSFER_MODE ?? "auto",
+).toLowerCase();
+const SELECTED_TRANSFER_MODE: TransferMode =
+  TRANSFER_MODE_ENV === "relay"
+    ? "RELAY"
+    : TRANSFER_MODE_ENV === "lan_direct" || TRANSFER_MODE_ENV === "direct"
+      ? "LAN_DIRECT"
+      : "AUTO";
+const DIRECT_FALLBACK_TIMEOUT_MS = Number.isFinite(
+  Number(import.meta.env.VITE_TRANSFER_DIRECT_TIMEOUT_MS),
+)
+  ? Math.max(500, Number(import.meta.env.VITE_TRANSFER_DIRECT_TIMEOUT_MS))
+  : 3000;
 const RELAY_TICKET_RETRY_DELAYS_MS = [150, 350, 700];
+const START_RELAY_RECEIVER_ACTION = "START_RELAY_RECEIVER";
+
+type RelayReceiverFallbackSignal = {
+  action: typeof START_RELAY_RECEIVER_ACTION;
+  transferId: string;
+  reason?: string;
+};
+
+function logTransferDecision(transferId: string, decision: TransferDecision) {
+  console.log("[TransferTransport] decision", {
+    transferId,
+    mode: decision.mode,
+    attemptedTransport: decision.attemptedTransport,
+    fallbackReason: decision.fallbackReason,
+  });
+}
+
+function createTimeoutError(message: string) {
+  return new Error(message);
+}
+
+async function withTimeout<T>(
+  task: Promise<T>,
+  timeoutMs: number,
+  message: string,
+  onTimeout?: () => void,
+): Promise<T> {
+  let timeoutId: number | undefined;
+  const timeoutTask = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      onTimeout?.();
+      reject(createTimeoutError(message));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([task, timeoutTask]);
+  } finally {
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId);
+    }
+  }
+}
+
+async function toRelayFiles(filePaths: string[]) {
+  return Promise.all(
+    filePaths.map(async (filePath) => {
+      const fileStat = await stat(filePath);
+      const fileName = filePath.split(/[\\/]/).pop() || filePath;
+      return {
+        path: filePath,
+        fileName,
+        size: fileStat.size,
+      };
+    }),
+  );
+}
 
 async function requestRelayTicketWithRetry(
   transferId: string,
@@ -222,7 +299,7 @@ function RouteComponent() {
   useAccountThemeSync(sessionUser?.theme ?? user?.theme);
   const { theme, setTheme } = useTheme();
   const { isOpen: isSidebarOpen, toggleSidebar } = useSidebar();
-  const { send } = useNekoSocket();
+  const { send, on } = useNekoSocket();
   const { devices } = useDevices();
   const { toast } = useToast();
   const upsertTransfer = useTransferStore((state) => state.upsertFromEvent);
@@ -234,6 +311,9 @@ function RouteComponent() {
   const pendingTransferEvents = useRef<Map<string, TransferProgressEvent>>(
     new Map(),
   );
+  const relayReceiverStarters = useRef<
+    Map<string, (fallbackReason?: string) => Promise<void>>
+  >(new Map());
   const flushTimerRef = useRef<number | null>(null);
   const titlebarHelperActions = useMemo(
     () => [
@@ -293,28 +373,50 @@ function RouteComponent() {
         sameAccount,
       });
 
-      const hasActiveDirect = await invoke<boolean>(
-        "socket_server_has_active_connection",
-      );
-
       let address = "0.0.0.0";
       let port = 0;
       let reuse = false;
 
-      if (!hasActiveDirect) {
-        // Automatically accept all incoming file offers for now
-        const a = await invoke<{
-          address: string;
-          port: number;
-          message?: string;
-        }>("socket_server_start", {
-          senderFingerprint: senderDeviceFingerprint,
-        });
+      logTransferDecision(transferId, {
+        mode: SELECTED_TRANSFER_MODE,
+        attemptedTransport:
+          SELECTED_TRANSFER_MODE === "RELAY" ? "RELAY_WS" : "NATIVE_TCP",
+      });
 
-        address = a.address;
-        port = a.port;
-      } else {
-        reuse = true;
+      if (SELECTED_TRANSFER_MODE !== "RELAY") {
+        const hasActiveDirect = await invoke<boolean>(
+          "socket_server_has_active_connection",
+        );
+
+        if (!hasActiveDirect) {
+          try {
+            console.log("[TransferTransport] direct listener start", {
+              transferId,
+              timeoutMs: DIRECT_FALLBACK_TIMEOUT_MS,
+            });
+            const a = await invoke<{
+              address: string;
+              port: number;
+              message?: string;
+            }>("socket_server_start", {
+              senderFingerprint: senderDeviceFingerprint,
+            });
+
+            address = a.address;
+            port = a.port;
+          } catch (error) {
+            console.error("[TransferTransport] direct listener failed", {
+              transferId,
+              error,
+            });
+            if (SELECTED_TRANSFER_MODE === "LAN_DIRECT") {
+              toast.error("Direct receive setup failed");
+              return;
+            }
+          }
+        } else {
+          reuse = true;
+        }
       }
 
       const acceptPayload = {
@@ -331,8 +433,27 @@ function RouteComponent() {
         w.writeString(JSON.stringify(acceptPayload));
       });
 
-      if (RELAY_DEBUG_TRANSFER_MODE) {
+      let relayReceiverStarted = false;
+      const startRelayReceiver = async (fallbackReason?: string) => {
+        if (relayReceiverStarted) {
+          console.log("[TransferTransport] relay receiver already started", {
+            transferId,
+            fallbackReason,
+          });
+          return;
+        }
+
+        relayReceiverStarted = true;
         try {
+          logTransferDecision(transferId, {
+            mode: SELECTED_TRANSFER_MODE,
+            attemptedTransport: "RELAY_WS",
+            fallbackReason,
+          });
+          console.log("[TransferTransport] relay receiver start", {
+            transferId,
+            fallbackReason,
+          });
           const relayTicket = await requestRelayTicketWithRetry(
             transferId,
             userDeviceId,
@@ -349,9 +470,21 @@ function RouteComponent() {
           console.error("[FILE_OFFER] Failed to start relay receiver:", error);
           toast.error("Relay receive setup failed");
         }
+      };
+
+      if (SELECTED_TRANSFER_MODE === "AUTO") {
+        relayReceiverStarters.current.set(transferId, startRelayReceiver);
       }
 
-      if (!reuse) {
+      if (SELECTED_TRANSFER_MODE === "RELAY") {
+        await startRelayReceiver("manual relay mode");
+      }
+
+      if (SELECTED_TRANSFER_MODE === "RELAY") {
+        console.log("[FILE_OFFER] Direct listener skipped for relay mode", {
+          transferId,
+        });
+      } else if (!reuse) {
         console.log("[FILE_OFFER] Listening for incoming connection on:", {
           address,
           port,
@@ -391,23 +524,49 @@ function RouteComponent() {
         return;
       }
 
-      if (RELAY_DEBUG_TRANSFER_MODE) {
+      let relaySenderStarted = false;
+      const requestReceiverRelayFallback = (fallbackReason: string) => {
+        const signal: RelayReceiverFallbackSignal = {
+          action: START_RELAY_RECEIVER_ACTION,
+          transferId,
+          reason: fallbackReason,
+        };
+
+        console.log("[TransferTransport] requesting receiver relay fallback", {
+          transferId,
+          fallbackReason,
+        });
+        send(PacketType.FILE_ACK, (w) => {
+          w.writeString(receiverDeviceId);
+          w.writeString(JSON.stringify(signal));
+        });
+      };
+
+      const startRelaySender = async (fallbackReason?: string) => {
+        if (relaySenderStarted) {
+          console.log("[TransferTransport] relay sender already started", {
+            transferId,
+            fallbackReason,
+          });
+          return;
+        }
+
+        relaySenderStarted = true;
         try {
+          logTransferDecision(transferId, {
+            mode: SELECTED_TRANSFER_MODE,
+            attemptedTransport: "RELAY_WS",
+            fallbackReason,
+          });
+          console.log("[TransferTransport] relay sender start", {
+            transferId,
+            fallbackReason,
+          });
           const relayTicket = await requestRelayTicketWithRetry(
             transferId,
             userDeviceId,
           );
-          const relayFiles = await Promise.all(
-            filesToSend.map(async (filePath) => {
-              const fileStat = await stat(filePath);
-              const fileName = filePath.split(/[\\/]/).pop() || filePath;
-              return {
-                path: filePath,
-                fileName,
-                size: fileStat.size,
-              };
-            }),
-          );
+          const relayFiles = await toRelayFiles(filesToSend);
 
           await invoke("relay_send_files", {
             input: {
@@ -429,35 +588,102 @@ function RouteComponent() {
           console.error("[FILE_ACCEPT] Failed to start relay sender:", error);
           toast.error("Relay transfer failed to start");
         }
+      };
+
+      const connectDirectSender = async (isLateConnect?: () => boolean) => {
+        logTransferDecision(transferId, {
+          mode: SELECTED_TRANSFER_MODE,
+          attemptedTransport: "NATIVE_TCP",
+        });
+        console.log("[TransferTransport] direct sender setup start", {
+          transferId,
+          address,
+          port,
+          timeoutMs: DIRECT_FALLBACK_TIMEOUT_MS,
+        });
+
+        await invoke("socket_client_connect_to", {
+          deviceId: userDeviceId,
+          receiverId: receiverDeviceId,
+          receiverAddress: address,
+          receiverPort: port,
+          receiverFingerprint,
+        });
+        if (isLateConnect?.()) {
+          console.warn("[TransferTransport] late direct connect ignored", {
+            transferId,
+          });
+          return false;
+        }
+
+        console.log("[TransferTransport] direct sender connected", {
+          transferId,
+        });
+        return true;
+      };
+
+      const sendDirectFiles = async () => {
+        console.log(
+          `[FILE_ACCEPT] Starting transfer for ${transferId}`,
+          filesToSend,
+        );
+
+        await invoke("socket_client_send_files", {
+          deviceId: userDeviceId,
+          targetId: receiverDeviceId,
+          filePaths: filesToSend,
+          transferId,
+          sourceUserId: userId,
+          sourceUserName: user.name ?? null,
+          sourceDeviceName: currentDevice.name,
+        });
+
+        pendingTransfers.current.delete(transferId);
+        console.log("[TransferTransport] direct transfer started", {
+          transferId,
+        });
+        toast.success("Transfer started!");
+      };
+
+      const startDirectSender = async () => {
+        await connectDirectSender();
+        await sendDirectFiles();
+      };
+
+      if (SELECTED_TRANSFER_MODE === "RELAY") {
+        await startRelaySender("manual relay mode");
         return;
       }
 
-      await invoke("socket_client_connect_to", {
-        deviceId: userDeviceId,
-        receiverId: receiverDeviceId,
-        receiverAddress: address,
-        receiverPort: port,
-        receiverFingerprint,
-        route: "direct",
-      });
-      console.log(
-        `[FILE_ACCEPT] Starting transfer for ${transferId}`,
-        filesToSend,
-      );
+      if (SELECTED_TRANSFER_MODE === "LAN_DIRECT") {
+        await startDirectSender();
+        return;
+      }
 
-      await invoke("socket_client_send_files", {
-        deviceId: userDeviceId,
-        targetId: receiverDeviceId,
-        filePaths: filesToSend,
-        transferId,
-        sourceUserId: userId,
-        sourceUserName: user.name ?? null,
-        sourceDeviceName: currentDevice.name,
-        route: "direct",
-      });
-
-      pendingTransfers.current.delete(transferId);
-      toast.success("Transfer started!");
+      let directTimedOut = false;
+      try {
+        await withTimeout(
+          connectDirectSender(() => directTimedOut),
+          DIRECT_FALLBACK_TIMEOUT_MS,
+          "Direct transfer setup timed out",
+          () => {
+            directTimedOut = true;
+          },
+        );
+        await sendDirectFiles();
+      } catch (error) {
+        const fallbackReason = directTimedOut
+          ? "direct setup timeout"
+          : error instanceof Error
+            ? error.message
+            : "direct setup failed";
+        console.warn("[TransferTransport] direct sender setup failed/timed out", {
+          transferId,
+          fallbackReason,
+        });
+        requestReceiverRelayFallback(fallbackReason);
+        await startRelaySender(fallbackReason);
+      }
     },
     [PacketType.FILE_REJECT]: (message) => {
       if (message.status === "error") {
@@ -471,6 +697,39 @@ function RouteComponent() {
       console.error("Received ERROR_GENERIC packet:", message);
     },
   });
+
+  useEffect(() => {
+    return on(PacketType.FILE_ACK, (reader) => {
+      try {
+        const rawData = reader.readString();
+        const signal = JSON.parse(rawData) as Partial<RelayReceiverFallbackSignal>;
+
+        if (
+          signal.action !== START_RELAY_RECEIVER_ACTION ||
+          typeof signal.transferId !== "string"
+        ) {
+          return;
+        }
+
+        const startRelayReceiver = relayReceiverStarters.current.get(
+          signal.transferId,
+        );
+        if (!startRelayReceiver) {
+          console.warn("[TransferTransport] receiver relay fallback ignored", {
+            transferId: signal.transferId,
+            reason: "missing receiver context",
+          });
+          return;
+        }
+
+        void startRelayReceiver(signal.reason ?? "sender direct fallback");
+      } catch (error) {
+        console.error("[TransferTransport] relay fallback signal failed", {
+          error,
+        });
+      }
+    });
+  }, [on]);
 
   useSocketInterval(async () => {
     try {
