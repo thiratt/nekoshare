@@ -18,7 +18,8 @@ use crate::state::GlobalState;
 
 struct TransferState {
     writer: Mutex<BufWriter<File>>,
-    file_path: PathBuf,
+    final_path: PathBuf,
+    partial_path: PathBuf,
     file_name: String,
     file_id: String,
     transfer_id: String,
@@ -85,6 +86,120 @@ fn emit_transfer_progress(service: &FileTransferService, event: TransferProgress
     }
 }
 
+fn safe_file_name(name: &str) -> String {
+    let sanitized = name
+        .chars()
+        .map(|c| match c {
+            '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*' => '_',
+            c if c.is_control() => '_',
+            c => c,
+        })
+        .collect::<String>();
+
+    let trimmed = sanitized.trim().trim_matches('.');
+    if trimmed.is_empty() {
+        "received-file".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn duplicate_file_name(file_name: &str, index: usize) -> String {
+    let path = std::path::Path::new(file_name);
+    let stem = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .unwrap_or(file_name);
+    let extension = path.extension().and_then(|value| value.to_str());
+
+    match extension {
+        Some(extension) if !extension.is_empty() => format!("{stem} ({index}).{extension}"),
+        _ => format!("{stem} ({index})"),
+    }
+}
+
+async fn resolve_available_receive_paths(
+    base_dir: &std::path::Path,
+    file_name: &str,
+) -> SocketResult<(String, PathBuf, PathBuf)> {
+    for index in 0..1000usize {
+        let candidate_name = if index == 0 {
+            file_name.to_string()
+        } else {
+            duplicate_file_name(file_name, index)
+        };
+        let final_path = base_dir.join(&candidate_name);
+        let partial_path = PathBuf::from(format!("{}.neko-partial", final_path.to_string_lossy()));
+
+        let final_exists = tokio::fs::try_exists(&final_path).await?;
+        let partial_exists = tokio::fs::try_exists(&partial_path).await?;
+        if !final_exists && !partial_exists {
+            return Ok((candidate_name, final_path, partial_path));
+        }
+    }
+
+    Err(SocketError::other("Could not allocate a unique receive filename").into())
+}
+
+fn emit_receive_failure(
+    service: &FileTransferService,
+    state: &TransferState,
+    error_message: String,
+) {
+    let received_size = state.received_size.load(Ordering::SeqCst);
+    let progress_percent = if state.expected_size == 0 {
+        0.0
+    } else {
+        ((received_size as f64 / state.expected_size as f64) * 100.0).min(100.0)
+    };
+
+    emit_transfer_progress(
+        service,
+        TransferProgressEventPayload {
+            transfer_id: state.transfer_id.clone(),
+            file_id: state.file_id.clone(),
+            file_path: state.final_path.to_string_lossy().to_string(),
+            file_name: state.file_name.clone(),
+            direction: "receive".to_string(),
+            source_user_id: None,
+            source_user_name: None,
+            source_device_id: None,
+            source_device_name: None,
+            same_account: None,
+            target_device_id: String::new(),
+            total_bytes: state.expected_size,
+            sent_bytes: received_size,
+            progress_percent,
+            status: "failed".to_string(),
+            error: Some(error_message),
+            timestamp_ms: now_timestamp_ms(),
+        },
+    );
+}
+
+pub fn fail_active_transfers_for_connection(conn_id: &str, reason: &str) {
+    let service = GlobalState::get::<FileTransferService>();
+    let keys = service
+        .active_transfers
+        .iter()
+        .filter_map(|entry| {
+            let key = entry.key();
+            if key.0 == conn_id {
+                Some(key.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    for key in keys {
+        if let Some((_, state)) = service.active_transfers.remove(&key) {
+            emit_receive_failure(&service, &state, reason.to_string());
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileMetadata {
     pub id: String,
@@ -102,7 +217,15 @@ async fn handle_file_offer(
     let metadata: FileMetadata =
         serde_json::from_slice(&payload).map_err(|e| SocketError::parse(e.to_string()))?;
 
-    log::info!("Starting transfer: {} ({})", metadata.name, metadata.size);
+    if metadata.id.trim().is_empty() {
+        return Err(SocketError::parse("File metadata is missing file id").into());
+    }
+    if metadata.name.trim().is_empty() {
+        return Err(SocketError::parse("File metadata is missing file name").into());
+    }
+
+    let safe_name = safe_file_name(&metadata.name);
+    log::info!("Starting transfer: {} ({})", safe_name, metadata.size);
 
     let user_dirs = directories::UserDirs::new()
         .ok_or_else(|| SocketError::other("Failed to get user directories"))?;
@@ -132,10 +255,11 @@ async fn handle_file_offer(
         })?;
     }
 
-    let file_path = base_dir.join(&metadata.name);
-    log::info!("Receive target path: {:?}", file_path);
+    let (file_name, final_path, partial_path) =
+        resolve_available_receive_paths(&base_dir, &safe_name).await?;
+    log::info!("Receive target path: {:?}", final_path);
 
-    let file = File::create(&file_path).await?;
+    let file = File::create(&partial_path).await?;
 
     if config.preallocate_files && metadata.size > 0 {
         if let Err(e) = file.set_len(metadata.size).await {
@@ -149,8 +273,9 @@ async fn handle_file_offer(
 
     let state = Arc::new(TransferState {
         writer: Mutex::new(writer),
-        file_path: file_path.clone(),
-        file_name: metadata.name.clone(),
+        final_path: final_path.clone(),
+        partial_path,
+        file_name: file_name.clone(),
         file_id: metadata.id.clone(),
         transfer_id: transfer_id.clone(),
         expected_size: metadata.size,
@@ -167,8 +292,8 @@ async fn handle_file_offer(
         TransferProgressEventPayload {
             transfer_id,
             file_id: metadata.id,
-            file_path: file_path.to_string_lossy().to_string(),
-            file_name: metadata.name,
+            file_path: final_path.to_string_lossy().to_string(),
+            file_name,
             direction: "receive".to_string(),
             source_user_id: None,
             source_user_name: None,
@@ -194,7 +319,6 @@ async fn handle_file_chunk(
     _req_id: i32,
 ) -> SocketResult<()> {
     let service = GlobalState::get::<FileTransferService>();
-    let config = TransferConfig::global();
 
     let mut reader = BinaryReader::new(&payload);
     let file_id = reader
@@ -212,6 +336,23 @@ async fn handle_file_chunk(
     };
 
     if let Some(state) = state {
+        let current_before = state.received_size.load(Ordering::SeqCst);
+        let next_size = current_before
+            .checked_add(chunk_len)
+            .ok_or_else(|| SocketError::other("Received file size overflowed local counter"))?;
+        if next_size > state.expected_size {
+            service.active_transfers.remove(&(conn_id, file_id.clone()));
+            emit_receive_failure(
+                &service,
+                &state,
+                format!(
+                    "Received file exceeded expected size: {} of {} bytes",
+                    next_size, state.expected_size
+                ),
+            );
+            return Err(SocketError::other("Received file exceeded expected size").into());
+        }
+
         let mut writer = state.writer.lock().await;
         writer.write_all(chunk).await?;
 
@@ -236,7 +377,7 @@ async fn handle_file_chunk(
                 TransferProgressEventPayload {
                     transfer_id: state.transfer_id.clone(),
                     file_id: state.file_id.clone(),
-                    file_path: state.file_path.to_string_lossy().to_string(),
+                    file_path: state.final_path.to_string_lossy().to_string(),
                     file_name: state.file_name.clone(),
                     direction: "receive".to_string(),
                     source_user_id: None,
@@ -253,39 +394,6 @@ async fn handle_file_chunk(
                     timestamp_ms: now_timestamp_ms(),
                 },
             );
-        }
-
-        if current_size >= state.expected_size {
-            writer.flush().await?;
-            if config.sync_on_complete {
-                writer.get_ref().sync_all().await?;
-            }
-
-            log::info!("Transfer complete: {:?}", state.file_path);
-            emit_transfer_progress(
-                &service,
-                TransferProgressEventPayload {
-                    transfer_id: state.transfer_id.clone(),
-                    file_id: state.file_id.clone(),
-                    file_path: state.file_path.to_string_lossy().to_string(),
-                    file_name: state.file_name.clone(),
-                    direction: "receive".to_string(),
-                    source_user_id: None,
-                    source_user_name: None,
-                    source_device_id: None,
-                    source_device_name: None,
-                    same_account: None,
-                    target_device_id: String::new(),
-                    total_bytes: state.expected_size,
-                    sent_bytes: state.expected_size,
-                    progress_percent: 100.0,
-                    status: "success".to_string(),
-                    error: None,
-                    timestamp_ms: now_timestamp_ms(),
-                },
-            );
-
-            service.active_transfers.remove(&(conn_id, file_id));
         }
     } else {
         log::debug!("Received chunk for unknown transfer: {}", file_id);
@@ -315,20 +423,32 @@ async fn handle_file_finish(
         if config.sync_on_complete {
             writer.get_ref().sync_all().await?;
         }
-        log::info!("File finished manually: {:?}", state.file_path);
-
         let received_size = state.received_size.load(Ordering::SeqCst);
-        let progress_percent = if state.expected_size == 0 {
-            100.0
-        } else {
-            ((received_size as f64 / state.expected_size as f64) * 100.0).min(100.0)
-        };
+        if received_size != state.expected_size {
+            emit_receive_failure(
+                &service,
+                &state,
+                format!(
+                    "File ended before expected bytes were written: {} of {} bytes",
+                    received_size, state.expected_size
+                ),
+            );
+            return Err(SocketError::other("File ended before expected bytes were written").into());
+        }
+
+        let final_path = state.final_path.clone();
+        let partial_path = state.partial_path.clone();
+        drop(writer);
+
+        tokio::fs::rename(&partial_path, &final_path).await?;
+        log::info!("File finished manually: {:?}", final_path);
+
         emit_transfer_progress(
             &service,
             TransferProgressEventPayload {
                 transfer_id: state.transfer_id.clone(),
                 file_id: state.file_id.clone(),
-                file_path: state.file_path.to_string_lossy().to_string(),
+                file_path: final_path.to_string_lossy().to_string(),
                 file_name: state.file_name.clone(),
                 direction: "receive".to_string(),
                 source_user_id: None,
@@ -339,7 +459,7 @@ async fn handle_file_finish(
                 target_device_id: String::new(),
                 total_bytes: state.expected_size,
                 sent_bytes: received_size,
-                progress_percent,
+                progress_percent: 100.0,
                 status: "success".to_string(),
                 error: None,
                 timestamp_ms: now_timestamp_ms(),

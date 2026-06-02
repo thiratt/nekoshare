@@ -13,6 +13,7 @@ use tokio_rustls::TlsAcceptor;
 use uuid::Uuid;
 
 use crate::core::device::DeviceManager;
+use crate::core::socket::handlers::file::fail_active_transfers_for_connection;
 use crate::core::socket::stream::SocketStream;
 use crate::core::socket::tls::FingerprintVerifier;
 use crate::state::GlobalState;
@@ -341,6 +342,10 @@ impl SocketServer {
 
         log::info!("Closing connection {}", conn_id);
         connection.close().await;
+        fail_active_transfers_for_connection(
+            &conn_id,
+            "Direct connection closed before transfer completed",
+        );
 
         if let Some(ref tx) = event_tx {
             let _ = tx

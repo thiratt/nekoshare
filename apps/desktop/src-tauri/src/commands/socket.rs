@@ -41,6 +41,11 @@ struct FileMetadata {
     size: u64,
 }
 
+struct SourceFileInfo {
+    file_name: String,
+    size: u64,
+}
+
 #[derive(Clone)]
 struct SendTransferContext {
     app_handle: AppHandle,
@@ -158,6 +163,42 @@ impl SendTransferContext {
             timestamp_ms: now_timestamp_ms(),
         });
     }
+
+    fn emit_failed(
+        &self,
+        file_id: &str,
+        file_path: &str,
+        file_name: &str,
+        total_bytes: u64,
+        sent_bytes: u64,
+        error_message: String,
+    ) {
+        let progress_percent = if total_bytes == 0 {
+            0.0
+        } else {
+            ((sent_bytes as f64 / total_bytes as f64) * 100.0).min(100.0)
+        };
+
+        self.emit_event(TransferProgressEventPayload {
+            transfer_id: self.transfer_id.clone(),
+            file_id: file_id.to_string(),
+            file_path: file_path.to_string(),
+            file_name: file_name.to_string(),
+            direction: "send".to_string(),
+            source_user_id: self.source_user_id.clone(),
+            source_user_name: self.source_user_name.clone(),
+            source_device_id: Some(self.source_device_id.clone()),
+            source_device_name: self.source_device_name.clone(),
+            same_account: Some(true),
+            target_device_id: self.target_device_id.clone(),
+            total_bytes,
+            sent_bytes,
+            progress_percent,
+            status: "failed".to_string(),
+            error: Some(error_message),
+            timestamp_ms: now_timestamp_ms(),
+        });
+    }
 }
 
 fn map_transfer_error(stage: &str, err: impl std::fmt::Display) -> SocketCommandError {
@@ -169,6 +210,32 @@ fn file_name_from_path(path: &Path) -> String {
         .unwrap_or_default()
         .to_string_lossy()
         .to_string()
+}
+
+async fn validate_source_file(path: &Path) -> Result<SourceFileInfo, SocketCommandError> {
+    let metadata = tokio::fs::metadata(path)
+        .await
+        .map_err(|e| map_transfer_error("Source metadata error", e))?;
+
+    if !metadata.is_file() {
+        return Err(SocketCommandError::ConnectionFailed(format!(
+            "Source path is not a file: {}",
+            path.to_string_lossy()
+        )));
+    }
+
+    let file_name = file_name_from_path(path);
+    if file_name.trim().is_empty() {
+        return Err(SocketCommandError::ConnectionFailed(format!(
+            "Source file name is empty: {}",
+            path.to_string_lossy()
+        )));
+    }
+
+    Ok(SourceFileInfo {
+        file_name,
+        size: metadata.len(),
+    })
 }
 
 async fn send_file_offer(
@@ -206,74 +273,121 @@ async fn transfer_single_file(
 ) -> Result<(), SocketCommandError> {
     let file_id = format!("{}:{}", context.transfer_id, Uuid::new_v4());
     let path = Path::new(path_str);
-    let file_name = file_name_from_path(path);
-
-    let mut file = File::open(path)
-        .await
-        .map_err(|e| map_transfer_error("Open error", e))?;
-    let metadata = file
-        .metadata()
-        .await
-        .map_err(|e| map_transfer_error("Metadata error", e))?;
-
-    let total_size = metadata.len();
-    let mut last_progress_emitted: u64 = 0;
+    let fallback_name = file_name_from_path(path);
+    let mut event_file_name = if fallback_name.trim().is_empty() {
+        "unknown-file".to_string()
+    } else {
+        fallback_name
+    };
+    let mut event_total_size = 0u64;
     let mut file_sent_bytes: u64 = 0;
 
-    context.emit_started(&file_id, path_str, &file_name, total_size);
+    let result: Result<(), SocketCommandError> = async {
+        let source_info = validate_source_file(path).await?;
+        let file_name = source_info.file_name;
+        let total_size = source_info.size;
+        event_file_name = file_name.clone();
+        event_total_size = total_size;
 
-    send_file_offer(connection, &file_id, &file_name, total_size).await?;
-
-    log::info!("Sent offer for {} (id: {})", file_name, file_id);
-    log::info!(
-        "Starting chunk transfer for {} (size: {} bytes, id: {})",
-        file_name,
-        total_size,
-        file_id
-    );
-
-    loop {
-        let n = file
-            .read(buffer)
+        let mut file = File::open(path)
             .await
-            .map_err(|e| map_transfer_error("Read error", e))?;
+            .map_err(|e| map_transfer_error("Open error", e))?;
+        let mut last_progress_emitted: u64 = 0;
 
-        if n == 0 {
-            log::info!("EOF reached for {}", file_name);
-            break;
+        context.emit_started(&file_id, path_str, &file_name, total_size);
+
+        send_file_offer(connection, &file_id, &file_name, total_size).await?;
+
+        log::info!("Sent offer for {} (id: {})", file_name, file_id);
+        log::info!(
+            "Starting chunk transfer for {} (size: {} bytes, id: {})",
+            file_name,
+            total_size,
+            file_id
+        );
+
+        loop {
+            let n = file
+                .read(buffer)
+                .await
+                .map_err(|e| map_transfer_error("Read error", e))?;
+
+            if n == 0 {
+                log::info!("EOF reached for {}", file_name);
+                break;
+            }
+
+            let current_size = file
+                .metadata()
+                .await
+                .map_err(|e| map_transfer_error("Source metadata changed/unreadable", e))?
+                .len();
+            if current_size != total_size {
+                return Err(SocketCommandError::ConnectionFailed(format!(
+                    "Source file size changed during transfer: {} (expected {} bytes, now {} bytes)",
+                    file_name, total_size, current_size
+                )));
+            }
+
+            let next_sent = file_sent_bytes.checked_add(n as u64).ok_or_else(|| {
+                SocketCommandError::ConnectionFailed(format!(
+                    "Source file byte counter overflowed for {}",
+                    file_name
+                ))
+            })?;
+            if next_sent > total_size {
+                return Err(SocketCommandError::ConnectionFailed(format!(
+                    "Source file exceeded expected size during transfer: {}",
+                    file_name
+                )));
+            }
+
+            connection
+                .send_packet(PacketType::FileChunk, |w| {
+                    w.write_string(&file_id);
+                    w.write_bytes(&buffer[..n]);
+                })
+                .await
+                .map_err(|e| map_transfer_error("Send chunk error", e))?;
+
+            *total_bytes_sent += n as u64;
+            file_sent_bytes = next_sent;
+
+            let sent_bytes = file_sent_bytes.min(total_size);
+            let should_emit = sent_bytes == total_size
+                || sent_bytes.saturating_sub(last_progress_emitted) >= SEND_PROGRESS_EMIT_STEP;
+
+            if should_emit {
+                last_progress_emitted = sent_bytes;
+                context.emit_processing(&file_id, path_str, &file_name, total_size, sent_bytes);
+            }
         }
 
+        log::info!("Sending FileFinish for {}", file_name);
         connection
-            .send_packet(PacketType::FileChunk, |w| {
+            .send_packet(PacketType::FileFinish, |w| {
                 w.write_string(&file_id);
-                w.write_bytes(&buffer[..n]);
             })
             .await
-            .map_err(|e| map_transfer_error("Send chunk error", e))?;
+            .map_err(|e| map_transfer_error("Send finish error", e))?;
 
-        *total_bytes_sent += n as u64;
-        file_sent_bytes += n as u64;
-
-        let sent_bytes = file_sent_bytes.min(total_size);
-        let should_emit = sent_bytes == total_size
-            || sent_bytes.saturating_sub(last_progress_emitted) >= SEND_PROGRESS_EMIT_STEP;
-
-        if should_emit {
-            last_progress_emitted = sent_bytes;
-            context.emit_processing(&file_id, path_str, &file_name, total_size, sent_bytes);
-        }
+        log::info!("File transfer complete for {} (id: {})", file_name, file_id);
+        context.emit_completed(&file_id, path_str, &file_name, total_size);
+        Ok(())
     }
+    .await;
 
-    log::info!("Sending FileFinish for {}", file_name);
-    connection
-        .send_packet(PacketType::FileFinish, |w| {
-            w.write_string(&file_id);
-        })
-        .await
-        .map_err(|e| map_transfer_error("Send finish error", e))?;
-
-    log::info!("File transfer complete for {} (id: {})", file_name, file_id);
-    context.emit_completed(&file_id, path_str, &file_name, total_size);
+    if let Err(err) = result {
+        context.emit_failed(
+            &file_id,
+            path_str,
+            &event_file_name,
+            event_total_size,
+            file_sent_bytes,
+            err.to_string(),
+        );
+        return Err(err);
+    }
 
     Ok(())
 }
@@ -487,7 +601,9 @@ pub async fn socket_client_send_files(
     source_user_name: Option<String>,
     source_device_name: Option<String>,
 ) -> Result<ClientConnectionResponse, SocketCommandError> {
-    let chunk_size = TransferConfig::global().chunk_size.min(MAX_RELAY_FRAME_PAYLOAD_BYTES);
+    let chunk_size = TransferConfig::global()
+        .chunk_size
+        .min(MAX_RELAY_FRAME_PAYLOAD_BYTES);
 
     let manager = state.inner().clone();
 

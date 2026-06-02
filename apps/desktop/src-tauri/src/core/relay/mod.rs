@@ -104,6 +104,11 @@ struct ReceiveState {
     last_emitted_size: u64,
 }
 
+struct SourceFileInfo {
+    file_name: String,
+    size: u64,
+}
+
 #[derive(Debug)]
 enum RelayFrame {
     FileStart(RelayFileMetadata),
@@ -140,9 +145,9 @@ fn relay_authorized_request(
     token: &str,
 ) -> Result<tokio_tungstenite::tungstenite::http::Request<()>, RelayTransferError> {
     let mut request = relay_url.into_client_request()?;
-    let header_value = format!("Bearer {token}")
-        .parse()
-        .map_err(|e| RelayTransferError::Connection(format!("Invalid relay authorization header: {e}")))?;
+    let header_value = format!("Bearer {token}").parse().map_err(|e| {
+        RelayTransferError::Connection(format!("Invalid relay authorization header: {e}"))
+    })?;
     request.headers_mut().insert(AUTHORIZATION, header_value);
     Ok(request)
 }
@@ -152,6 +157,29 @@ fn file_name_from_path(path: &Path) -> String {
         .unwrap_or_default()
         .to_string_lossy()
         .to_string()
+}
+
+async fn validate_source_file(path: &Path) -> Result<SourceFileInfo, RelayTransferError> {
+    let metadata = tokio::fs::metadata(path).await?;
+    if !metadata.is_file() {
+        return Err(RelayTransferError::File(format!(
+            "Source path is not a file: {}",
+            path.to_string_lossy()
+        )));
+    }
+
+    let file_name = file_name_from_path(path);
+    if file_name.trim().is_empty() {
+        return Err(RelayTransferError::File(format!(
+            "Source file name is empty: {}",
+            path.to_string_lossy()
+        )));
+    }
+
+    Ok(SourceFileInfo {
+        file_name,
+        size: metadata.len(),
+    })
 }
 
 fn push_u32_le(buffer: &mut Vec<u8>, value: usize) -> Result<(), RelayTransferError> {
@@ -500,7 +528,7 @@ fn safe_file_name(name: &str) -> String {
         })
         .collect::<String>();
 
-    let trimmed = sanitized.trim();
+    let trimmed = sanitized.trim().trim_matches('.');
     if trimmed.is_empty() {
         "received-file".to_string()
     } else {
@@ -554,6 +582,17 @@ async fn start_receive_file(
     base_dir: &Path,
     metadata: RelayFileMetadata,
 ) -> Result<ReceiveState, RelayTransferError> {
+    if metadata.file_id.trim().is_empty() {
+        return Err(RelayTransferError::Protocol(
+            "Relay file metadata is missing file id".to_string(),
+        ));
+    }
+    if metadata.name.trim().is_empty() {
+        return Err(RelayTransferError::Protocol(
+            "Relay file metadata is missing file name".to_string(),
+        ));
+    }
+
     let requested_name = safe_file_name(&metadata.name);
     let (file_name, final_path, partial_path) =
         resolve_available_receive_paths(base_dir, &requested_name).await?;
@@ -592,9 +631,19 @@ async fn finish_receive_file(
     if TransferConfig::global().sync_on_complete {
         state.writer.get_ref().sync_all().await?;
     }
-    if state.expected_size > 0 && state.received_size < state.expected_size {
+    if state.received_size != state.expected_size {
+        emit_receive_progress(
+            app,
+            transfer_id,
+            &state,
+            "failed",
+            Some(format!(
+                "Relay file ended before expected bytes were written: {} of {} bytes",
+                state.received_size, state.expected_size
+            )),
+        );
         return Err(RelayTransferError::Protocol(format!(
-            "Relay file ended early: {} of {} bytes",
+            "Relay file ended before expected bytes were written: {} of {} bytes",
             state.received_size, state.expected_size
         )));
     }
@@ -677,8 +726,16 @@ async fn send_relay_files_inner(
 
     for file_input in &input.files {
         let path = Path::new(&file_input.path);
+        let source_info = validate_source_file(path).await?;
+        if source_info.size != file_input.size {
+            return Err(RelayTransferError::File(format!(
+                "Source file size changed before relay transfer: {} (expected {} bytes, now {} bytes)",
+                file_input.path, file_input.size, source_info.size
+            )));
+        }
+
         let file_name = if file_input.file_name.trim().is_empty() {
-            file_name_from_path(path)
+            source_info.file_name.clone()
         } else {
             file_input.file_name.clone()
         };
@@ -721,9 +778,30 @@ async fn send_relay_files_inner(
                 break;
             }
 
+            let current_size = file.metadata().await?.len();
+            if current_size != file_input.size {
+                return Err(RelayTransferError::File(format!(
+                    "Source file size changed during relay transfer: {} (expected {} bytes, now {} bytes)",
+                    file_name, file_input.size, current_size
+                )));
+            }
+
+            let next_sent = sent_bytes.checked_add(read as u64).ok_or_else(|| {
+                RelayTransferError::File(format!(
+                    "Source file byte counter overflowed for {}",
+                    file_name
+                ))
+            })?;
+            if next_sent > file_input.size {
+                return Err(RelayTransferError::File(format!(
+                    "Source file exceeded expected size during relay transfer: {}",
+                    file_name
+                )));
+            }
+
             sink.send(Message::Binary(encode_chunk(&file_id, &buffer[..read])?))
                 .await?;
-            sent_bytes += read as u64;
+            sent_bytes = next_sent;
 
             let should_emit = sent_bytes == file_input.size
                 || sent_bytes.saturating_sub(last_emitted_size) >= SEND_PROGRESS_EMIT_STEP;
@@ -809,6 +887,15 @@ async fn receive_relay_transfer_inner(
         match decode_frame(&data)? {
             RelayFrame::FileStart(metadata) => {
                 if active_file.is_some() {
+                    if let Some(state) = active_file.as_ref() {
+                        emit_receive_progress(
+                            app,
+                            &input.transfer_id,
+                            state,
+                            "failed",
+                            Some("Received file-start before previous file ended".to_string()),
+                        );
+                    }
                     return Err(RelayTransferError::Protocol(
                         "Received file-start before previous file ended".to_string(),
                     ));
@@ -823,6 +910,13 @@ async fn receive_relay_transfer_inner(
                     )
                 })?;
                 if state.file_id != file_id {
+                    emit_receive_progress(
+                        app,
+                        &input.transfer_id,
+                        state,
+                        "failed",
+                        Some("Relay chunk file id does not match active file".to_string()),
+                    );
                     return Err(RelayTransferError::Protocol(
                         "Relay chunk file id does not match active file".to_string(),
                     ));
@@ -837,6 +931,16 @@ async fn receive_relay_transfer_inner(
                         )
                     })?;
                 if next_size > state.expected_size {
+                    emit_receive_progress(
+                        app,
+                        &input.transfer_id,
+                        state,
+                        "failed",
+                        Some(format!(
+                            "Relay file exceeded expected size: {} of {} bytes",
+                            next_size, state.expected_size
+                        )),
+                    );
                     return Err(RelayTransferError::Protocol(format!(
                         "Relay file exceeded expected size: {} of {} bytes",
                         next_size, state.expected_size
@@ -859,6 +963,13 @@ async fn receive_relay_transfer_inner(
                     RelayTransferError::Protocol("Received file-end before file-start".to_string())
                 })?;
                 if state.file_id != file_id {
+                    emit_receive_progress(
+                        app,
+                        &input.transfer_id,
+                        &state,
+                        "failed",
+                        Some("Relay file-end id does not match active file".to_string()),
+                    );
                     return Err(RelayTransferError::Protocol(
                         "Relay file-end id does not match active file".to_string(),
                     ));
@@ -867,6 +978,15 @@ async fn receive_relay_transfer_inner(
             }
             RelayFrame::TransferEnd => {
                 if active_file.is_some() {
+                    if let Some(state) = active_file.as_ref() {
+                        emit_receive_progress(
+                            app,
+                            &input.transfer_id,
+                            state,
+                            "failed",
+                            Some("Received transfer-end while a file is still active".to_string()),
+                        );
+                    }
                     return Err(RelayTransferError::Protocol(
                         "Received transfer-end while a file is still active".to_string(),
                     ));
@@ -876,6 +996,19 @@ async fn receive_relay_transfer_inner(
                 break;
             }
         }
+    }
+
+    if let Some(state) = active_file.as_ref() {
+        emit_receive_progress(
+            app,
+            &input.transfer_id,
+            state,
+            "failed",
+            Some("Relay connection closed before file completed".to_string()),
+        );
+        return Err(RelayTransferError::Connection(
+            "Relay connection closed before file completed".to_string(),
+        ));
     }
 
     Ok(())
