@@ -1,7 +1,5 @@
-import { CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Separator } from "@workspace/ui/components/separator";
 
-import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
 import type { HistoryProps } from "@workspace/app-ui/types/history";
 
 import { useHistoryTransfers } from "../hooks/useHistoryTransfers";
@@ -27,11 +25,11 @@ export function HistoryUI(props: HistoryProps) {
 			onKeyDown={controller.handleKeyDown}
 			tabIndex={0}
 		>
-			<CardTransition className="flex h-full flex-col gap-0" tag="history-card">
-				<CardHeader>
+			<div className="flex min-h-0 flex-1 flex-col">
+				<header className="space-y-4 pb-4">
 					<div className="space-y-1">
-						<CardTitle>ประวัติการแชร์</CardTitle>
-						<CardDescription>ไฟล์ที่กำลังรับส่งและประวัติการแชร์จะแสดงที่นี่</CardDescription>
+						<h1 className="text-2xl font-semibold tracking-tight">ประวัติการแชร์</h1>
+						<p className="text-sm text-muted-foreground">ไฟล์ที่กำลังรับส่งและประวัติการแชร์จะแสดงที่นี่</p>
 					</div>
 
 					<HistoryToolbar
@@ -41,14 +39,14 @@ export function HistoryUI(props: HistoryProps) {
 					/>
 
 					<Separator className="my-1" />
-				</CardHeader>
+				</header>
 
 				<HistoryTransferList
 					controller={controller}
 					linkComponent={props.linkComponent}
 					onTransferDetails={props.onTransferDetails}
 				/>
-			</CardTransition>
+			</div>
 
 			<HistoryRemoveDialog controller={controller} />
 		</div>
