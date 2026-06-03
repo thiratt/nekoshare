@@ -288,6 +288,7 @@ function RouteComponent() {
   const setGlobalLoading = useSetGlobalLoading();
 
   const location = useLocation();
+  const navigate = Route.useNavigate();
   const {
     currentDevice,
     notificationStatus,
@@ -913,10 +914,17 @@ function RouteComponent() {
       });
 
       toast.info(`Sending ${files.length} file(s) to ${device.name}...`);
+
+      navigate({
+        to: "/share/$id",
+        params: { id: transferId },
+        viewTransition: true,
+      });
     },
     [
       currentDevice.name,
       devices,
+      navigate,
       send,
       toast,
       upsertTransfer,
