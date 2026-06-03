@@ -14,6 +14,8 @@ import { Progress } from "@workspace/ui/components/progress";
 
 import type { HomeActiveTransferItem, HomeRecentTransferItem } from "../types";
 
+const HOME_ACTIVITY_VISIBLE_LIMIT = 3;
+
 const activeStatusLabel: Record<HomeActiveTransferItem["status"], string> = {
 	cancelled: "ยกเลิกแล้ว",
 	completed: "เสร็จแล้ว",
@@ -79,6 +81,9 @@ function activeTransferStatusLabel(direction: "send" | "receive", status: HomeAc
 }
 
 export function HomeTransfers({ transfers }: { transfers: HomeActiveTransferItem[] }) {
+	const visibleTransfers = transfers.slice(0, HOME_ACTIVITY_VISIBLE_LIMIT);
+	const hiddenCount = Math.max(0, transfers.length - visibleTransfers.length);
+
 	return (
 		<section className="w-full">
 			<div className="mb-2 flex items-center justify-between">
@@ -92,7 +97,7 @@ export function HomeTransfers({ transfers }: { transfers: HomeActiveTransferItem
 					</div>
 				) : null}
 
-				{transfers.map((transfer) => {
+				{visibleTransfers.map((transfer) => {
 					const Icon = fileIconFor(transfer.fileName);
 					const progress = clampProgress(transfer.progress);
 					const statusText = activeTransferStatusLabel(transfer.direction, transfer.status);
@@ -131,6 +136,12 @@ export function HomeTransfers({ transfers }: { transfers: HomeActiveTransferItem
 						</div>
 					);
 				})}
+
+				{hiddenCount > 0 ? (
+					<div className="rounded-xl border border-dashed border-border bg-card/60 px-4 py-2 text-sm text-muted-foreground">
+						และอื่น ๆ อีก {hiddenCount} ไฟล์
+					</div>
+				) : null}
 			</div>
 		</section>
 	);
@@ -145,6 +156,9 @@ export function HomeRecentItems({
 	items: HomeRecentTransferItem[];
 	onViewAll?: () => void;
 }) {
+	const visibleItems = items.slice(0, HOME_ACTIVITY_VISIBLE_LIMIT);
+	const hiddenCount = Math.max(0, items.length - visibleItems.length);
+
 	return (
 		<section className="w-full">
 			<div className="mb-2 flex items-center justify-between">
@@ -170,7 +184,7 @@ export function HomeRecentItems({
 					</div>
 				) : null}
 
-				{items.map((item) => {
+				{visibleItems.map((item) => {
 					const Icon = fileIconFor(item.fileName);
 					const StatusIcon = item.status === "failed" ? LuCircleX : LuCircleCheck;
 					const statusText = recentStatusLabel[item.status];
@@ -188,6 +202,12 @@ export function HomeRecentItems({
 						</Button>
 					);
 				})}
+
+				{hiddenCount > 0 ? (
+					<Button type="button" variant="outline" onClick={onViewAll}>
+						และอื่น ๆ อีก {hiddenCount} ไฟล์
+					</Button>
+				) : null}
 			</div>
 		</section>
 	);

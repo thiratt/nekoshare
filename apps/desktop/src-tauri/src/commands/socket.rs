@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_store::StoreExt;
 use thiserror::Error;
@@ -31,7 +32,10 @@ fn now_timestamp_ms() -> i64 {
     }
 }
 
-const SEND_PROGRESS_EMIT_STEP: u64 = 1024 * 1024;
+const SEND_PROGRESS_EMIT_STEP: u64 = 16 * 1024 * 1024;
+const SEND_PROGRESS_EMIT_INTERVAL: Duration = Duration::from_millis(250);
+const SOURCE_METADATA_CHECK_STEP: u64 = 64 * 1024 * 1024;
+const SOURCE_METADATA_CHECK_INTERVAL: Duration = Duration::from_secs(1);
 const MAX_RELAY_FRAME_PAYLOAD_BYTES: usize = 8 * 1024 * 1024;
 
 #[derive(serde::Serialize)]
@@ -238,6 +242,30 @@ async fn validate_source_file(path: &Path) -> Result<SourceFileInfo, SocketComma
     })
 }
 
+async fn validate_source_size_unchanged(
+    path: &Path,
+    file_name: &str,
+    expected_size: u64,
+) -> Result<(), SocketCommandError> {
+    let current_size = tokio::fs::metadata(path)
+        .await
+        .map_err(|e| map_transfer_error("Source metadata changed/unreadable", e))?
+        .len();
+
+    if current_size != expected_size {
+        return Err(SocketCommandError::ConnectionFailed(format!(
+            "Source file size changed during transfer: {} (expected {} bytes, now {} bytes)",
+            file_name, expected_size, current_size
+        )));
+    }
+
+    Ok(())
+}
+
+fn bytes_to_mb(bytes: u64) -> f64 {
+    bytes as f64 / (1024.0 * 1024.0)
+}
+
 async fn send_file_offer(
     connection: &Arc<Connection>,
     file_id: &str,
@@ -293,6 +321,11 @@ async fn transfer_single_file(
             .await
             .map_err(|e| map_transfer_error("Open error", e))?;
         let mut last_progress_emitted: u64 = 0;
+        let mut last_progress_emit_at = Instant::now();
+        let mut last_metadata_check_sent: u64 = 0;
+        let mut last_metadata_check_at = Instant::now();
+        let mut last_throughput_log_sent: u64 = 0;
+        let mut last_throughput_log_at = Instant::now();
 
         context.emit_started(&file_id, path_str, &file_name, total_size);
 
@@ -317,24 +350,22 @@ async fn transfer_single_file(
                 break;
             }
 
-            let current_size = file
-                .metadata()
-                .await
-                .map_err(|e| map_transfer_error("Source metadata changed/unreadable", e))?
-                .len();
-            if current_size != total_size {
-                return Err(SocketCommandError::ConnectionFailed(format!(
-                    "Source file size changed during transfer: {} (expected {} bytes, now {} bytes)",
-                    file_name, total_size, current_size
-                )));
-            }
-
             let next_sent = file_sent_bytes.checked_add(n as u64).ok_or_else(|| {
                 SocketCommandError::ConnectionFailed(format!(
                     "Source file byte counter overflowed for {}",
                     file_name
                 ))
             })?;
+
+            let metadata_check_due =
+                next_sent.saturating_sub(last_metadata_check_sent) >= SOURCE_METADATA_CHECK_STEP
+                    || last_metadata_check_at.elapsed() >= SOURCE_METADATA_CHECK_INTERVAL;
+            if metadata_check_due {
+                validate_source_size_unchanged(path, &file_name, total_size).await?;
+                last_metadata_check_sent = next_sent;
+                last_metadata_check_at = Instant::now();
+            }
+
             if next_sent > total_size {
                 return Err(SocketCommandError::ConnectionFailed(format!(
                     "Source file exceeded expected size during transfer: {}",
@@ -355,13 +386,32 @@ async fn transfer_single_file(
 
             let sent_bytes = file_sent_bytes.min(total_size);
             let should_emit = sent_bytes == total_size
-                || sent_bytes.saturating_sub(last_progress_emitted) >= SEND_PROGRESS_EMIT_STEP;
+                || sent_bytes.saturating_sub(last_progress_emitted) >= SEND_PROGRESS_EMIT_STEP
+                || last_progress_emit_at.elapsed() >= SEND_PROGRESS_EMIT_INTERVAL;
 
             if should_emit {
                 last_progress_emitted = sent_bytes;
+                last_progress_emit_at = Instant::now();
                 context.emit_processing(&file_id, path_str, &file_name, total_size, sent_bytes);
             }
+
+            if last_throughput_log_at.elapsed() >= Duration::from_secs(1) {
+                let elapsed = last_throughput_log_at.elapsed().as_secs_f64();
+                let delta_bytes = sent_bytes.saturating_sub(last_throughput_log_sent);
+                log::info!(
+                    "[DirectSenderThroughput] transferId={} fileId={} sentMB={:.2} totalMB={:.2} mbps={:.2}",
+                    context.transfer_id,
+                    file_id,
+                    bytes_to_mb(sent_bytes),
+                    bytes_to_mb(total_size),
+                    bytes_to_mb(delta_bytes) / elapsed
+                );
+                last_throughput_log_sent = sent_bytes;
+                last_throughput_log_at = Instant::now();
+            }
         }
+
+        validate_source_size_unchanged(path, &file_name, total_size).await?;
 
         log::info!("Sending FileFinish for {}", file_name);
         connection
@@ -601,9 +651,8 @@ pub async fn socket_client_send_files(
     source_user_name: Option<String>,
     source_device_name: Option<String>,
 ) -> Result<ClientConnectionResponse, SocketCommandError> {
-    let chunk_size = TransferConfig::global()
-        .chunk_size
-        .min(MAX_RELAY_FRAME_PAYLOAD_BYTES);
+    let config = TransferConfig::global();
+    let chunk_size = config.chunk_size.min(MAX_RELAY_FRAME_PAYLOAD_BYTES);
 
     let manager = state.inner().clone();
 
@@ -620,6 +669,17 @@ pub async fn socket_client_send_files(
         "Starting transfer {} files to {}",
         file_paths.len(),
         target_id
+    );
+    log::info!(
+        "[DirectSenderConfig] transferId={} chunkSize={} progressEmitStep={} progressEmitIntervalMs={} sourceMetadataCheckStep={} sourceMetadataCheckIntervalMs={} syncOnComplete={} preallocateFiles={}",
+        transfer_id.as_deref().unwrap_or("<generated>"),
+        chunk_size,
+        SEND_PROGRESS_EMIT_STEP,
+        SEND_PROGRESS_EMIT_INTERVAL.as_millis(),
+        SOURCE_METADATA_CHECK_STEP,
+        SOURCE_METADATA_CHECK_INTERVAL.as_millis(),
+        config.sync_on_complete,
+        config.preallocate_files
     );
 
     let queued_count = file_paths.len();

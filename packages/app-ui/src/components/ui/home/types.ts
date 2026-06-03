@@ -39,6 +39,13 @@ export type HomeDropHandle = {
 	addDroppedPaths: (entries: HomeDroppedPath[]) => void;
 };
 
+export type HomeSendPayload = {
+	files: HomeDraftFile[];
+	selectedTargetIds: string[];
+	encrypted: boolean;
+	publicShare: boolean;
+};
+
 export type HomeActiveTransferItem = {
 	id: string;
 	transferId: string;
@@ -83,6 +90,7 @@ export type HomeUIProps = {
 	onResolvePdfPreview?: (file: HomeDraftFile) => Promise<string | undefined>;
 	onResolveTextPreview?: (file: HomeDraftFile) => Promise<string | undefined>;
 	onResolveVideoPreview?: (file: HomeDraftFile) => Promise<string | undefined>;
+	onSend?: (payload: HomeSendPayload) => Promise<void> | void;
 	onViewAllRecentTransfers?: () => void;
 	recentTransfers?: HomeRecentTransferItem[];
 };

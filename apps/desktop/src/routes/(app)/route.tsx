@@ -45,6 +45,7 @@ import type { Mode } from "@workspace/app-ui/types/context";
 
 import { DesktopTitlebar } from "@/components/navbar";
 import { SetupApplicationUI } from "@/components/setup";
+import { HomeSendProvider } from "@/context/home-send";
 import { useNSDesktop } from "@/context/NSDesktopContext";
 import { useTauriFileDrop } from "@/hooks/use-tauri-file-drop";
 import { authClient, getCachedSession, type SessionUser } from "@/lib/auth";
@@ -207,6 +208,7 @@ interface HomeContentProps {
   location: { pathname: string };
   mode: Mode;
   notificationStatus: "on" | "off";
+  onHomeSendToDevice: (files: string[], deviceId: string) => Promise<void>;
 }
 
 function HomeContent({
@@ -216,6 +218,7 @@ function HomeContent({
   location,
   mode,
   notificationStatus,
+  onHomeSendToDevice,
 }: HomeContentProps) {
   const isHomeRoute =
     location.pathname === "/home" || location.pathname === "/home/";
@@ -258,7 +261,9 @@ function HomeContent({
               isOpen={sidebarToggle.isOpen}
             />
             <main className="flex-1 p-4 flex flex-col min-w-0 overflow-hidden">
-              <Outlet />
+              <HomeSendProvider onHomeSendToDevice={onHomeSendToDevice}>
+                <Outlet />
+              </HomeSendProvider>
             </main>
             <NotificationSidebar />
           </div>
@@ -837,94 +842,77 @@ function RouteComponent() {
     [],
   );
 
-  const handleQuickUpload = useCallback(
-    async (
-      files: string[],
-      targetId: string,
-      targetType: "device" | "friend",
-    ) => {
-      console.log(
-        `[Transfer] Quick upload to ${targetType}: ${targetId}`,
-        files,
+  const startDeviceTransfer = useCallback(
+    async (files: string[], deviceId: string) => {
+      console.log("[Transfer] Start device transfer:", deviceId, files);
+
+      const device = devices.find((d) => d.id === deviceId);
+      console.log("[Transfer] Resolved device:", device);
+      if (!device) {
+        throw new Error("Device not found");
+      }
+
+      if (device.status !== "online") {
+        throw new Error(`${device.name} is offline`);
+      }
+
+      const transferId = crypto.randomUUID();
+      if (!userDeviceId) {
+        throw new Error("Session is missing device information");
+      }
+      const filesPayload = await Promise.all(
+        files.map(async (filePath) => {
+          const fileStat = await stat(filePath);
+          const fileName = filePath.split(/[\\/]/).pop() || filePath;
+          const extension = fileName.includes(".")
+            ? fileName.split(".").pop() || ""
+            : "";
+          return {
+            fileName,
+            extension,
+            size: fileStat.size,
+          };
+        }),
       );
 
-      if (targetType === "device") {
-        const parsed = parseDropZoneId(targetId);
-        if (parsed.type === "device") {
-          const device = devices.find((d) => d.id === parsed.id);
-          console.log("[Transfer] Resolved device:", device);
-          if (!device) {
-            toast.error("Device not found");
-            return;
-          }
+      const seedTimestamp = Date.now();
+      files.forEach((filePath, index) => {
+        const meta = filesPayload[index];
+        upsertTransfer({
+          transferId,
+          fileId: `${transferId}:pending:${index}`,
+          filePath,
+          fileName: meta.fileName,
+          direction: "send",
+          sourceUserId: userId,
+          sourceUserName: user.name ?? null,
+          sourceDeviceId: userDeviceId,
+          sourceDeviceName: currentDevice.name,
+          sameAccount: true,
+          targetDeviceId: device.id,
+          totalBytes: meta.size,
+          sentBytes: 0,
+          progressPercent: 0,
+          status: "processing",
+          error: null,
+          timestampMs: seedTimestamp + index,
+        });
+      });
 
-          if (device.status !== "online") {
-            toast.error(`${device.name} is offline`);
-            return;
-          }
+      pendingTransfers.current.set(transferId, files);
 
-          const transferId = crypto.randomUUID();
-          if (!userDeviceId) {
-            toast.error("Session is missing device information");
-            return;
-          }
-          const filesPayload = await Promise.all(
-            files.map(async (filePath) => {
-              const fileStat = await stat(filePath);
-              const fileName = filePath.split(/[\\/]/).pop() || filePath;
-              const extension = fileName.includes(".")
-                ? fileName.split(".").pop() || ""
-                : "";
-              return {
-                fileName,
-                extension,
-                size: fileStat.size,
-              };
-            }),
-          );
+      const offerPayload = {
+        transferId,
+        fromDeviceId: userDeviceId,
+        toDeviceId: device.id,
+        files: filesPayload,
+      };
 
-          const seedTimestamp = Date.now();
-          files.forEach((filePath, index) => {
-            const meta = filesPayload[index];
-            upsertTransfer({
-              transferId,
-              fileId: `${transferId}:pending:${index}`,
-              filePath,
-              fileName: meta.fileName,
-              direction: "send",
-              sourceUserId: userId,
-              sourceUserName: user.name ?? null,
-              sourceDeviceId: userDeviceId,
-              sourceDeviceName: currentDevice.name,
-              sameAccount: true,
-              targetDeviceId: device.id,
-              totalBytes: meta.size,
-              sentBytes: 0,
-              progressPercent: 0,
-              status: "processing",
-              error: null,
-              timestampMs: seedTimestamp + index,
-            });
-          });
+      send(PacketType.FILE_OFFER, (w) => {
+        w.writeString(JSON.stringify(offerPayload));
+      });
 
-          pendingTransfers.current.set(transferId, files);
-
-          const offerPayload = {
-            transferId,
-            fromDeviceId: userDeviceId,
-            toDeviceId: device.id,
-            files: filesPayload,
-          };
-
-          send(PacketType.FILE_OFFER, (w) => {
-            w.writeString(JSON.stringify(offerPayload));
-          });
-
-          toast.info(`Sending ${files.length} file(s) to ${device.name}...`);
-        }
-      } else if (targetType === "friend") {
-        toast.info("Friend transfers coming soon!");
-      }
+      toast.info(`Sending ${files.length} file(s) to ${device.name}...`);
     },
     [
       currentDevice.name,
@@ -936,6 +924,33 @@ function RouteComponent() {
       userDeviceId,
       userId,
     ],
+  );
+
+  const handleQuickUpload = useCallback(
+    (files: string[], targetId: string, targetType: "device" | "friend") => {
+      console.log(
+        `[Transfer] Quick upload to ${targetType}: ${targetId}`,
+        files,
+      );
+
+      if (targetType === "device") {
+        const parsed = parseDropZoneId(targetId);
+        if (parsed.type !== "device") {
+          toast.error(`Device not found for target: ${targetId}`);
+          return;
+        }
+
+        void startDeviceTransfer(files, parsed.id).catch((error) => {
+          console.error("[Transfer] Quick upload failed:", error);
+          toast.error(
+            error instanceof Error ? error.message : "Transfer failed to start",
+          );
+        });
+      } else if (targetType === "friend") {
+        toast.info("Friend transfers coming soon!");
+      }
+    },
+    [startDeviceTransfer, toast],
   );
 
   const handleSendFiles = useCallback(
@@ -990,6 +1005,7 @@ function RouteComponent() {
         location={location}
         mode={mode}
         notificationStatus={notificationStatus}
+        onHomeSendToDevice={startDeviceTransfer}
       />
     </DropOverlayProvider>
   );

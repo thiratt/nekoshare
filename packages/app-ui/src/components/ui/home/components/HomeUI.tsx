@@ -24,12 +24,14 @@ export const HomeUI = forwardRef<HomeDropHandle, HomeUIProps>(function HomeUI(
 		onResolvePdfPreview,
 		onResolveTextPreview,
 		onResolveVideoPreview,
+		onSend,
 		onViewAllRecentTransfers,
 		recentTransfers,
 	},
 	ref,
 ) {
 	const inputRef = useRef<HTMLInputElement | null>(null);
+	const [isSending, setIsSending] = useState(false);
 	const [viewAllMode, setViewAllMode] = useState<HomeViewAllMode | null>(null);
 	const preview = useHomePreview({
 		onResolveAudioPreview,
@@ -38,7 +40,7 @@ export const HomeUI = forwardRef<HomeDropHandle, HomeUIProps>(function HomeUI(
 		onResolveTextPreview,
 		onResolveVideoPreview,
 	});
-	const { addFilesToStage, addPathEntriesToStage, files, removeFile, selectedFileCount, totalSelectedSize } =
+	const { addFilesToStage, addPathEntriesToStage, clearFiles, files, removeFile, selectedFileCount, totalSelectedSize } =
 		useHomeDraftFiles({
 			onRemoveFile: preview.clearPreviewForFile,
 		});
@@ -60,6 +62,23 @@ export const HomeUI = forwardRef<HomeDropHandle, HomeUIProps>(function HomeUI(
 
 	function toggleViewAllMode(mode: HomeViewAllMode) {
 		setViewAllMode((current) => (current === mode ? null : mode));
+	}
+
+	async function handleSend() {
+		if (isSending || !onSend || !targets.sendReady || files.length === 0) return;
+
+		setIsSending(true);
+		try {
+			await onSend?.({
+				files,
+				selectedTargetIds: targets.selectedTargetIds,
+				encrypted: targets.encrypted,
+				publicShare: targets.publicShare,
+			});
+			clearFiles();
+		} finally {
+			setIsSending(false);
+		}
 	}
 
 	const isDraggingInApp = drag.isBrowserDraggingInApp || (dropState?.isDragging ?? false);
@@ -89,9 +108,12 @@ export const HomeUI = forwardRef<HomeDropHandle, HomeUIProps>(function HomeUI(
 						isStageDropActive={isStageDropActive}
 						encrypted={targets.encrypted}
 						publicShare={targets.publicShare}
+						sendReady={targets.sendReady && Boolean(onSend)}
+						isSending={isSending}
 						onEncryptedChange={targets.setEncrypted}
 						onPublicShareChange={targets.setPublicShareMode}
 						onBrowse={() => inputRef.current?.click()}
+						onSend={() => void handleSend()}
 						onPreviewImage={preview.openPreview}
 						onRemoveFile={removeFile}
 						onViewAllFiles={() => toggleViewAllMode("files")}

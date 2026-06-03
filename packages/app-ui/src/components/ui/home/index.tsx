@@ -7,6 +7,7 @@ export type {
 	HomeDroppedPath,
 	HomeDropState,
 	HomeRecentTransferItem,
+	HomeSendPayload,
 	HomeTarget,
 	HomeUIProps,
 	PreviewKind,

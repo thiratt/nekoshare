@@ -26,11 +26,16 @@ struct TransferState {
     expected_size: u64,
     received_size: AtomicU64,
     last_emitted_size: AtomicU64,
+    last_emitted_at_ms: AtomicU64,
+    last_throughput_log_size: AtomicU64,
+    last_throughput_log_at_ms: AtomicU64,
 }
 
 type TransferMap = DashMap<(String, String), Arc<TransferState>>;
 
-const RECEIVE_PROGRESS_EMIT_STEP: u64 = 1024 * 1024;
+const RECEIVE_PROGRESS_EMIT_STEP: u64 = 16 * 1024 * 1024;
+const RECEIVE_PROGRESS_EMIT_INTERVAL_MS: u64 = 250;
+const RECEIVE_THROUGHPUT_LOG_INTERVAL_MS: u64 = 1_000;
 
 pub struct FileTransferService {
     active_transfers: TransferMap,
@@ -84,6 +89,10 @@ fn emit_transfer_progress(service: &FileTransferService, event: TransferProgress
             let _ = app.emit("transfer-progress", event);
         }
     }
+}
+
+fn bytes_to_mb(bytes: u64) -> f64 {
+    bytes as f64 / (1024.0 * 1024.0)
 }
 
 fn safe_file_name(name: &str) -> String {
@@ -226,6 +235,16 @@ async fn handle_file_offer(
 
     let safe_name = safe_file_name(&metadata.name);
     log::info!("Starting transfer: {} ({})", safe_name, metadata.size);
+    log::info!(
+        "[DirectReceiverConfig] transferId={} fileId={} chunkSize={} progressEmitStep={} progressEmitIntervalMs={} syncOnComplete={} preallocateFiles={}",
+        parse_transfer_id(&metadata.id),
+        metadata.id,
+        config.chunk_size,
+        RECEIVE_PROGRESS_EMIT_STEP,
+        RECEIVE_PROGRESS_EMIT_INTERVAL_MS,
+        config.sync_on_complete,
+        config.preallocate_files
+    );
 
     let user_dirs = directories::UserDirs::new()
         .ok_or_else(|| SocketError::other("Failed to get user directories"))?;
@@ -270,6 +289,7 @@ async fn handle_file_offer(
     let writer = BufWriter::with_capacity(config.write_buffer_size, file);
     let conn_id = conn.id().to_string();
     let transfer_id = parse_transfer_id(&metadata.id);
+    let now_ms = now_timestamp_ms().max(0) as u64;
 
     let state = Arc::new(TransferState {
         writer: Mutex::new(writer),
@@ -281,6 +301,9 @@ async fn handle_file_offer(
         expected_size: metadata.size,
         received_size: AtomicU64::new(0),
         last_emitted_size: AtomicU64::new(0),
+        last_emitted_at_ms: AtomicU64::new(now_ms),
+        last_throughput_log_size: AtomicU64::new(0),
+        last_throughput_log_at_ms: AtomicU64::new(now_ms),
     });
 
     service
@@ -359,14 +382,18 @@ async fn handle_file_chunk(
         let current_size = state.received_size.fetch_add(chunk_len, Ordering::SeqCst) + chunk_len;
         let total_size = state.expected_size;
 
+        let now_ms = now_timestamp_ms().max(0) as u64;
+        let last_emitted_size = state.last_emitted_size.load(Ordering::SeqCst);
+        let last_emitted_at_ms = state.last_emitted_at_ms.load(Ordering::SeqCst);
         let should_emit = current_size == total_size
-            || current_size.saturating_sub(state.last_emitted_size.load(Ordering::SeqCst))
-                >= RECEIVE_PROGRESS_EMIT_STEP;
+            || current_size.saturating_sub(last_emitted_size) >= RECEIVE_PROGRESS_EMIT_STEP
+            || now_ms.saturating_sub(last_emitted_at_ms) >= RECEIVE_PROGRESS_EMIT_INTERVAL_MS;
 
         if should_emit {
             state
                 .last_emitted_size
                 .store(current_size, Ordering::SeqCst);
+            state.last_emitted_at_ms.store(now_ms, Ordering::SeqCst);
             let progress_percent = if total_size == 0 {
                 100.0
             } else {
@@ -394,6 +421,27 @@ async fn handle_file_chunk(
                     timestamp_ms: now_timestamp_ms(),
                 },
             );
+        }
+
+        let last_log_at_ms = state.last_throughput_log_at_ms.load(Ordering::SeqCst);
+        if now_ms.saturating_sub(last_log_at_ms) >= RECEIVE_THROUGHPUT_LOG_INTERVAL_MS {
+            let last_log_size = state.last_throughput_log_size.load(Ordering::SeqCst);
+            let elapsed_seconds = (now_ms.saturating_sub(last_log_at_ms) as f64 / 1000.0).max(0.001);
+            let delta_bytes = current_size.saturating_sub(last_log_size);
+            log::info!(
+                "[DirectReceiverThroughput] transferId={} fileId={} receivedMB={:.2} totalMB={:.2} mbps={:.2}",
+                state.transfer_id,
+                state.file_id,
+                bytes_to_mb(current_size),
+                bytes_to_mb(total_size),
+                bytes_to_mb(delta_bytes) / elapsed_seconds
+            );
+            state
+                .last_throughput_log_size
+                .store(current_size, Ordering::SeqCst);
+            state
+                .last_throughput_log_at_ms
+                .store(now_ms, Ordering::SeqCst);
         }
     } else {
         log::debug!("Received chunk for unknown transfer: {}", file_id);

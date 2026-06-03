@@ -1,7 +1,7 @@
 import type { DragEventHandler } from "react";
 
 import { AnimatePresence, motion } from "motion/react";
-import { LuFolderDown, LuGlobe, LuPaperclip, LuSend, LuShieldCheck } from "react-icons/lu";
+import { LuFolderDown, LuGlobe, LuLoader, LuPaperclip, LuSend, LuShieldCheck } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
@@ -19,12 +19,15 @@ type HomeDropTargetProps = {
 	isDraggingInApp: boolean;
 	isStageDropActive: boolean;
 	encrypted: boolean;
+	isSending: boolean;
 	publicShare: boolean;
+	sendReady: boolean;
 	onEncryptedChange: (encrypted: boolean) => void;
 	onPublicShareChange: (publicShare: boolean) => void;
 	onBrowse: () => void;
 	onPreviewImage: (file: HomeDraftFile) => void;
 	onRemoveFile: (id: string) => void;
+	onSend: () => void;
 	onViewAllFiles: () => void;
 	onDragEnter: DragEventHandler<HTMLElement>;
 	onDragOver: DragEventHandler<HTMLElement>;
@@ -37,6 +40,7 @@ export function HomeDropTarget({
 	files,
 	isViewingAllFiles,
 	isDraggingInApp,
+	isSending,
 	isStageDropActive,
 	onBrowse,
 	onDragEnter,
@@ -47,8 +51,10 @@ export function HomeDropTarget({
 	onPreviewImage,
 	onPublicShareChange,
 	onRemoveFile,
+	onSend,
 	onViewAllFiles,
 	publicShare,
+	sendReady,
 	totalSelectedSize,
 }: HomeDropTargetProps) {
 	const showDropCue = isDraggingInApp || isStageDropActive;
@@ -162,8 +168,15 @@ export function HomeDropTarget({
 							</TooltipContent>
 						</Tooltip>
 
-						<Button type="button" size="icon" className="size-11 rounded-full" disabled>
-							<LuSend />
+						<Button
+							type="button"
+							size="icon"
+							className="size-11 rounded-full"
+							disabled={!sendReady || isSending}
+							onClick={onSend}
+							title={isSending ? "กำลังเริ่มส่งไฟล์" : "ส่งไฟล์"}
+						>
+							{isSending ? <LuLoader className="animate-spin" /> : <LuSend />}
 						</Button>
 					</div>
 				</div>
