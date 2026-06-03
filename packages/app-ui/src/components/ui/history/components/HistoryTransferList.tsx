@@ -66,7 +66,7 @@ export function HistoryTransferList({ controller, linkComponent, onTransferDetai
 											}}
 											className="flex min-h-[calc(100vh-260px)] flex-1 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground"
 										>
-											ไม่พบรายการที่ตรงกับการค้นหา
+											{controller.emptyStateText}
 										</motion.div>
 									) : (
 										controller.visibleTransfers.map((transfer) => (
@@ -104,12 +104,9 @@ export function HistoryTransferList({ controller, linkComponent, onTransferDetai
 												<ActiveTransferCard
 													selected={controller.isSelected(transfer.id)}
 													transfer={transfer}
-													onPause={controller.handleCardPause}
-													onResume={controller.handleCardResume}
-													onCancel={controller.handleCardCancel}
 													onShowDetails={onTransferDetails}
 													linkComponent={linkComponent}
-													detailsHref={`/share/${transfer.id}`}
+													detailsHref={`/share/${transfer.transferDetailsId ?? transfer.id}`}
 													onSelected={(event) => controller.selectItem(transfer.id, event)}
 													onContextSelected={() => {
 														controller.setContextTransferId(transfer.id);

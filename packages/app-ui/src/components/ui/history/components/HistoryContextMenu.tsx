@@ -84,7 +84,7 @@ export function HistoryContextMenu({ controller }: HistoryContextMenuProps) {
 						คัดลอก Transfer ID
 					</ContextMenuItem>
 					<ContextMenuItem
-						disabled={!controller.contextActionState.isSingle}
+						disabled={!controller.contextActionState.canReveal}
 						onSelect={controller.handleContextReveal}
 					>
 						<LuFolderOpen />

@@ -32,16 +32,13 @@ export function HistoryRemoveDialog({ controller }: HistoryRemoveDialogProps) {
 					</AlertDialogMedia>
 					<AlertDialogTitle>{controller.pendingRemoveTitle}</AlertDialogTitle>
 					<AlertDialogDescription>
-						เลือกว่าจะลบเฉพาะประวัติการโอน หรือจะลบไฟล์ออกจากเครื่องพร้อมประวัติ
+						การลบรายการนี้จะลบเฉพาะประวัติการโอนใน Neko Share ไม่ได้ลบไฟล์จริงในเครื่อง
 					</AlertDialogDescription>
 				</AlertDialogHeader>
-				<AlertDialogFooter className="sm:flex-col sm:justify-start">
+				<AlertDialogFooter>
 					<AlertDialogCancel onClick={controller.clearPendingRemove}>ยกเลิก</AlertDialogCancel>
-					<AlertDialogAction variant="outline" onClick={controller.handleConfirmRemoveHistory}>
-						ลบเฉพาะประวัติ
-					</AlertDialogAction>
-					<AlertDialogAction variant="destructive" onClick={controller.handleConfirmRemoveFiles}>
-						ลบไฟล์และประวัติ
+					<AlertDialogAction variant="destructive" onClick={controller.handleConfirmRemoveHistory}>
+						ลบออกจากประวัติ
 					</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>

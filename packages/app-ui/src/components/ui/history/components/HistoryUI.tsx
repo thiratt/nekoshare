@@ -11,6 +11,12 @@ import { HistoryTransferList } from "./HistoryTransferList";
 
 export function HistoryUI(props: HistoryProps) {
 	const controller = useHistoryTransfers({
+		data: props.data,
+		loading: props.loading,
+		onBulkDelete: props.onBulkDelete,
+		onItemRemove: props.onItemRemove,
+		onItemReveal: props.onItemReveal,
+		onRefresh: props.onRefresh,
 		onTransferDetails: props.onTransferDetails,
 	});
 

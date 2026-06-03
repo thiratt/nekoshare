@@ -1,4 +1,4 @@
-import { LuEllipsis, LuPause, LuPlay, LuRefreshCcw, LuTrash2 } from "react-icons/lu";
+import { LuEllipsis, LuRefreshCcw, LuTrash2 } from "react-icons/lu";
 import { TbDeselect, TbSelectAll } from "react-icons/tb";
 
 import { Button } from "@workspace/ui/components/button";
@@ -7,7 +7,6 @@ import {
 	DropdownMenuContent,
 	DropdownMenuGroup,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { SearchInput } from "@workspace/ui/components/search-input";
@@ -93,25 +92,6 @@ export function HistoryToolbar({ controller, linkComponent, loading }: HistoryTo
 								</DropdownMenuItem>
 							</DropdownMenuGroup>
 
-							<DropdownMenuSeparator />
-
-							<DropdownMenuGroup>
-								<DropdownMenuItem
-									disabled={!controller.selectedActionState.canPause}
-									onSelect={controller.handlePauseSelected}
-								>
-									<LuPause />
-									หยุดชั่วคราว
-								</DropdownMenuItem>
-
-								<DropdownMenuItem
-									disabled={!controller.selectedActionState.canResume}
-									onSelect={controller.handleResumeSelected}
-								>
-									<LuPlay />
-									ดำเนินการต่อ
-								</DropdownMenuItem>
-							</DropdownMenuGroup>
 						</DropdownMenuContent>
 					</DropdownMenu>
 				</div>

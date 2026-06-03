@@ -183,7 +183,7 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 						</div>
 
 						<div className="space-x-1">
-							{isPaused ? (
+							{isPaused && onResume ? (
 								<Button
 									type="button"
 									size="icon"
@@ -196,7 +196,7 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 								>
 									<LuPlay />
 								</Button>
-							) : transfer.state === "transferring" ? (
+							) : transfer.state === "transferring" && onPause ? (
 								<Button
 									type="button"
 									size="icon"
@@ -210,7 +210,7 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 									<LuPause />
 								</Button>
 							) : null}
-							{!isDone && transfer.state !== "failed" && transfer.state !== "cancelled" ? (
+							{onCancel && !isDone && transfer.state !== "failed" && transfer.state !== "cancelled" ? (
 								<Button
 									type="button"
 									size="icon"

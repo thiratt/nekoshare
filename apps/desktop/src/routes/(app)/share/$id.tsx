@@ -4,11 +4,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import {
-  type ActiveTransferView,
   mockActiveTransfers,
   tickActiveTransfers,
   TRANSFER_TICK_MS,
-} from "@workspace/app-ui/components/ui/history/index";
+} from "@workspace/app-ui/components/ui/history/data/transfer-demo";
+import { type ActiveTransferView } from "@workspace/app-ui/components/ui/history/index";
 import {
   type ShareDetailData,
   type ShareDetailFileStatus,

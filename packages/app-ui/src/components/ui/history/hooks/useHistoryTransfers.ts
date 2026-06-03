@@ -1,48 +1,51 @@
-import { type SyntheticEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type SyntheticEvent, useCallback, useMemo, useRef, useState } from "react";
 
 import { useDragSelection } from "@workspace/app-ui/hooks/useDragSelection";
 import { useExplorerSelection } from "@workspace/app-ui/hooks/useExplorerSelection";
-import type { HistoryProps } from "@workspace/app-ui/types/history";
+import type { HistoryFileData, HistoryProps } from "@workspace/app-ui/types/history";
 
-import { PAUSABLE_STATES, TERMINAL_STATES } from "../constants";
+import { TERMINAL_STATES } from "../constants";
+import { generateHistoryStableId } from "../utils/history-id";
 import {
-	type ActiveTransferView,
-	mockActiveTransfers,
-	tickActiveTransfers,
-	TRANSFER_TICK_MS,
-} from "../data/transfer-demo";
-import {
-	aggregateTransferView,
-	canCancelTransfer,
-	canPauseTransfer,
 	canRemoveTransfer,
 	copyTransfersInfo,
-	defaultSpeedBps,
 	matchTransferFilter,
 	matchTransferSearch,
 } from "../utils/transfer-utils";
+import type { ActiveTransferView, TransferDeliveryState } from "../../transfer-model";
 import type { HistoryPendingRemove, HistoryTransferFilter } from "../types";
 
 type UseHistoryTransfersOptions = {
+	data: HistoryFileData[];
+	loading?: boolean;
+	onBulkDelete?: HistoryProps["onBulkDelete"];
+	onItemRemove?: HistoryProps["onItemRemove"];
+	onItemReveal?: HistoryProps["onItemReveal"];
+	onRefresh?: HistoryProps["onRefresh"];
 	onTransferDetails?: HistoryProps["onTransferDetails"];
 };
 
-export function useHistoryTransfers({ onTransferDetails }: UseHistoryTransfersOptions) {
+type TransferWithHistoryId = ActiveTransferView & {
+	historyId: number;
+	transferDetailsId?: string;
+};
+
+export function useHistoryTransfers({
+	data,
+	loading = false,
+	onItemRemove,
+	onItemReveal,
+	onRefresh,
+	onTransferDetails,
+}: UseHistoryTransfersOptions) {
 	const [query, setQuery] = useState("");
 	const [filter, setFilter] = useState<HistoryTransferFilter>("all");
-	const [transfers, setTransfers] = useState<ActiveTransferView[]>(() => mockActiveTransfers);
 	const [contextTransferId, setContextTransferId] = useState<string | null>(null);
 	const [isBackgroundContext, setIsBackgroundContext] = useState(false);
 	const [pendingRemove, setPendingRemove] = useState<HistoryPendingRemove | null>(null);
 	const scrollAreaRootRef = useRef<HTMLDivElement | null>(null);
 
-	useEffect(() => {
-		const interval = window.setInterval(() => {
-			setTransfers(tickActiveTransfers);
-		}, TRANSFER_TICK_MS);
-
-		return () => window.clearInterval(interval);
-	}, []);
+	const transfers = useMemo(() => data.map(toTransferView), [data]);
 
 	const visibleTransfers = useMemo(() => {
 		return transfers.filter((transfer) => {
@@ -91,37 +94,37 @@ export function useHistoryTransfers({ onTransferDetails }: UseHistoryTransfersOp
 
 		return selectedIds
 			.map((id) => transferById.get(id))
-			.filter((transfer): transfer is ActiveTransferView => Boolean(transfer));
+			.filter((transfer): transfer is TransferWithHistoryId => Boolean(transfer));
 	}, [contextTransferId, isBackgroundContext, selectedIds, selectedSet, transferById]);
 
 	const contextActionState = useMemo(() => {
 		return {
-			canCancel: contextTransfers.some(canCancelTransfer),
-			canPause: contextTransfers.some(canPauseTransfer),
-			canRemove: contextTransfers.some(canRemoveTransfer),
-			canResume: contextTransfers.some((transfer) => transfer.state === "paused"),
-			canRetry: contextTransfers.some(
-				(transfer) => transfer.state === "failed" || transfer.state === "cancelled",
-			),
+			canCancel: false,
+			canPause: false,
+			canRemove: Boolean(onItemRemove) && contextTransfers.some(canRemoveTransfer),
+			canResume: false,
+			canRetry: false,
+			canReveal: Boolean(onItemReveal) && contextTransfers.length === 1,
 			isSingle: contextTransfers.length === 1,
 		};
-	}, [contextTransfers]);
+	}, [contextTransfers, onItemRemove, onItemReveal]);
 
 	const selectedActionState = useMemo(() => {
 		const selectedTransfers = selectedIds
 			.map((id) => transferById.get(id))
-			.filter((transfer): transfer is ActiveTransferView => Boolean(transfer));
+			.filter((transfer): transfer is TransferWithHistoryId => Boolean(transfer));
 
 		return {
-			canPause: selectedTransfers.some(canPauseTransfer),
-			canRemove: selectedTransfers.some(canRemoveTransfer),
-			canResume: selectedTransfers.some((transfer) => transfer.state === "paused"),
+			canPause: false,
+			canRemove: Boolean(onItemRemove) && selectedTransfers.some(canRemoveTransfer),
+			canResume: false,
 		};
-	}, [selectedIds, transferById]);
+	}, [onItemRemove, selectedIds, transferById]);
 
 	const refreshData = useCallback(() => {
-		setTransfers(mockActiveTransfers);
-	}, []);
+		if (loading) return;
+		void onRefresh?.();
+	}, [loading, onRefresh]);
 
 	const clearSearch = useCallback(() => {
 		setQuery("");
@@ -137,134 +140,17 @@ export function useHistoryTransfers({ onTransferDetails }: UseHistoryTransfersOp
 		event.stopPropagation();
 	}, []);
 
-	const pauseTransfers = useCallback((ids: string[]) => {
-		const idSet = new Set(ids);
-		setTransfers((currentTransfers) =>
-			currentTransfers.map((transfer) => {
-				if (!idSet.has(transfer.id) || !PAUSABLE_STATES.has(transfer.state)) return transfer;
-
-				return aggregateTransferView({
-					...transfer,
-					targets: transfer.targets.map((target) =>
-						target.state === "transferring"
-							? {
-									...target,
-									state: "paused",
-									speedBps: 0,
-									etaSeconds: undefined,
-								}
-							: target,
-					),
-				});
-			}),
-		);
-	}, []);
-
-	const resumeTransfers = useCallback((ids: string[]) => {
-		const idSet = new Set(ids);
-		setTransfers((currentTransfers) =>
-			currentTransfers.map((transfer) => {
-				if (!idSet.has(transfer.id) || transfer.state !== "paused") return transfer;
-
-				return aggregateTransferView({
-					...transfer,
-					targets: transfer.targets.map((target) => {
-						if (target.state !== "paused") return target;
-
-						const speedBps = defaultSpeedBps(target.route.type);
-						return {
-							...target,
-							state: "transferring",
-							connectionState: "connected",
-							speedBps,
-							etaSeconds: Math.ceil((target.totalBytes - target.transferredBytes) / speedBps),
-						};
-					}),
-				});
-			}),
-		);
-	}, []);
-
-	const retryTransfers = useCallback((ids: string[]) => {
-		const idSet = new Set(ids);
-		setTransfers((currentTransfers) =>
-			currentTransfers.map((transfer) => {
-				if (!idSet.has(transfer.id) || (transfer.state !== "failed" && transfer.state !== "cancelled"))
-					return transfer;
-
-				return aggregateTransferView({
-					...transfer,
-					error: undefined,
-					targets: transfer.targets.map((target) => {
-						if (target.state !== "failed" && target.state !== "cancelled") return target;
-
-						const speedBps = defaultSpeedBps(target.route.type);
-						return {
-							...target,
-							state: "transferring",
-							connectionState: "connected",
-							speedBps,
-							etaSeconds: Math.ceil((target.totalBytes - target.transferredBytes) / speedBps),
-							error: undefined,
-						};
-					}),
-				});
-			}),
-		);
-	}, []);
-
-	const cancelTransfers = useCallback((ids: string[]) => {
-		const idSet = new Set(ids);
-		setTransfers((currentTransfers) =>
-			currentTransfers.map((transfer) => {
-				if (!idSet.has(transfer.id) || TERMINAL_STATES.has(transfer.state)) return transfer;
-
-				return aggregateTransferView({
-					...transfer,
-					error: {
-						code: "cancelled",
-						message: "Transfer cancelled.",
-						retryable: true,
-					},
-					targets: transfer.targets.map((target) =>
-						TERMINAL_STATES.has(target.state)
-							? target
-							: {
-									...target,
-									state: "cancelled",
-									connectionState: "disconnected",
-									speedBps: 0,
-									etaSeconds: undefined,
-									error: {
-										code: "cancelled",
-										message: "Transfer cancelled.",
-										retryable: true,
-									},
-								},
-					),
-				});
-			}),
-		);
-	}, []);
-
-	const removeTransfersFromHistory = useCallback(
+	const requestRemoveTransfers = useCallback(
 		(ids: string[]) => {
-			const idSet = new Set(ids);
-			setTransfers((currentTransfers) =>
-				currentTransfers.filter((transfer) => !idSet.has(transfer.id) || !TERMINAL_STATES.has(transfer.state)),
-			);
-			setContextTransferId((currentId) => (currentId && idSet.has(currentId) ? null : currentId));
-			replaceSelection(selectedIds.filter((id) => !idSet.has(id)));
+			if (!onItemRemove) return;
+
+			const uniqueIds = Array.from(new Set(ids));
+			if (uniqueIds.length === 0) return;
+
+			setPendingRemove({ ids: uniqueIds });
 		},
-		[replaceSelection, selectedIds],
+		[onItemRemove],
 	);
-
-	const requestRemoveTransfers = useCallback((ids: string[]) => {
-		const uniqueIds = Array.from(new Set(ids));
-		if (uniqueIds.length === 0) return;
-
-		setPendingRemove({ ids: uniqueIds });
-	}, []);
 
 	const handleRemoveDialogOpenChange = useCallback((open: boolean) => {
 		if (!open) {
@@ -276,28 +162,40 @@ export function useHistoryTransfers({ onTransferDetails }: UseHistoryTransfersOp
 		setPendingRemove(null);
 	}, []);
 
-	const handleConfirmRemoveHistory = useCallback(() => {
-		if (!pendingRemove) return;
+	const handleConfirmRemoveHistory = useCallback(async () => {
+		if (!pendingRemove || !onItemRemove) return;
 
-		removeTransfersFromHistory(pendingRemove.ids);
+		const targets = pendingRemove.ids
+			.map((id) => transferById.get(id))
+			.filter((transfer): transfer is TransferWithHistoryId => Boolean(transfer));
+
+		for (const transfer of targets) {
+			await onItemRemove(transfer.historyId, "history");
+		}
+
 		setPendingRemove(null);
-	}, [pendingRemove, removeTransfersFromHistory]);
+		setContextTransferId(null);
+		replaceSelection(selectedIds.filter((id) => !pendingRemove.ids.includes(id)));
+	}, [onItemRemove, pendingRemove, replaceSelection, selectedIds, transferById]);
 
-	const handleConfirmRemoveFiles = useCallback(() => {
-		if (!pendingRemove) return;
+	const handleConfirmRemoveFiles = useCallback(async () => {
+		if (!pendingRemove || !onItemRemove) return;
 
-		// Mock UI only: the runtime file deletion path is not wired here yet.
-		removeTransfersFromHistory(pendingRemove.ids);
+		const targets = pendingRemove.ids
+			.map((id) => transferById.get(id))
+			.filter((transfer): transfer is TransferWithHistoryId => Boolean(transfer));
+
+		for (const transfer of targets) {
+			await onItemRemove(transfer.historyId, "both");
+		}
+
 		setPendingRemove(null);
-	}, [pendingRemove, removeTransfersFromHistory]);
+		setContextTransferId(null);
+		replaceSelection(selectedIds.filter((id) => !pendingRemove.ids.includes(id)));
+	}, [onItemRemove, pendingRemove, replaceSelection, selectedIds, transferById]);
 
-	const handlePauseSelected = useCallback(() => {
-		pauseTransfers(selectedIds);
-	}, [pauseTransfers, selectedIds]);
-
-	const handleResumeSelected = useCallback(() => {
-		resumeTransfers(selectedIds);
-	}, [resumeTransfers, selectedIds]);
+	const handlePauseSelected = useCallback(() => undefined, []);
+	const handleResumeSelected = useCallback(() => undefined, []);
 
 	const handleRemoveSelected = useCallback(() => {
 		requestRemoveTransfers(
@@ -308,31 +206,10 @@ export function useHistoryTransfers({ onTransferDetails }: UseHistoryTransfersOp
 		);
 	}, [requestRemoveTransfers, selectedIds, transferById]);
 
-	const handleContextPause = useCallback(() => {
-		pauseTransfers(
-			contextTransfers.filter((transfer) => PAUSABLE_STATES.has(transfer.state)).map((transfer) => transfer.id),
-		);
-	}, [contextTransfers, pauseTransfers]);
-
-	const handleContextResume = useCallback(() => {
-		resumeTransfers(
-			contextTransfers.filter((transfer) => transfer.state === "paused").map((transfer) => transfer.id),
-		);
-	}, [contextTransfers, resumeTransfers]);
-
-	const handleContextRetry = useCallback(() => {
-		retryTransfers(
-			contextTransfers
-				.filter((transfer) => transfer.state === "failed" || transfer.state === "cancelled")
-				.map((transfer) => transfer.id),
-		);
-	}, [contextTransfers, retryTransfers]);
-
-	const handleContextCancel = useCallback(() => {
-		cancelTransfers(
-			contextTransfers.filter((transfer) => !TERMINAL_STATES.has(transfer.state)).map((transfer) => transfer.id),
-		);
-	}, [cancelTransfers, contextTransfers]);
+	const handleContextPause = useCallback(() => undefined, []);
+	const handleContextResume = useCallback(() => undefined, []);
+	const handleContextRetry = useCallback(() => undefined, []);
+	const handleContextCancel = useCallback(() => undefined, []);
 
 	const handleContextRemove = useCallback(() => {
 		requestRemoveTransfers(
@@ -344,43 +221,28 @@ export function useHistoryTransfers({ onTransferDetails }: UseHistoryTransfersOp
 		const transfer = contextTransfers[0];
 		if (!transfer) return;
 
-		onTransferDetails?.(transfer.id);
+		onTransferDetails?.(transfer.transferDetailsId ?? transfer.id);
 	}, [contextTransfers, onTransferDetails]);
 
 	const handleContextReveal = useCallback(() => {
 		const transfer = contextTransfers[0];
-		if (!transfer) return;
+		if (!transfer || !onItemReveal) return;
 
-		console.log("reveal file", transfer.id);
-	}, [contextTransfers]);
+		onItemReveal(transfer.historyId);
+	}, [contextTransfers, onItemReveal]);
 
-	const handleCardPause = useCallback(
-		(id: string) => {
-			pauseTransfers([id]);
-		},
-		[pauseTransfers],
-	);
-
-	const handleCardResume = useCallback(
-		(id: string) => {
-			resumeTransfers([id]);
-		},
-		[resumeTransfers],
-	);
-
-	const handleCardCancel = useCallback(
-		(id: string) => {
-			cancelTransfers([id]);
-		},
-		[cancelTransfers],
-	);
+	const handleCardPause = useCallback(() => undefined, []);
+	const handleCardResume = useCallback(() => undefined, []);
+	const handleCardCancel = useCallback(() => undefined, []);
 
 	const handleContextCopyInfo = useCallback(() => {
 		copyTransfersInfo(contextTransfers);
 	}, [contextTransfers]);
 
 	const handleContextCopyTransferIds = useCallback(() => {
-		void window.navigator.clipboard.writeText(contextTransfers.map((transfer) => transfer.id).join("\n"));
+		void window.navigator.clipboard.writeText(
+			contextTransfers.map((transfer) => transfer.transferDetailsId ?? transfer.id).join("\n"),
+		);
 	}, [contextTransfers]);
 
 	const pendingRemoveTransfers = useMemo(() => {
@@ -388,7 +250,7 @@ export function useHistoryTransfers({ onTransferDetails }: UseHistoryTransfersOp
 
 		return pendingRemove.ids
 			.map((id) => transferById.get(id))
-			.filter((transfer): transfer is ActiveTransferView => Boolean(transfer));
+			.filter((transfer): transfer is TransferWithHistoryId => Boolean(transfer));
 	}, [pendingRemove, transferById]);
 
 	const pendingRemoveCount = pendingRemoveTransfers.length;
@@ -396,6 +258,8 @@ export function useHistoryTransfers({ onTransferDetails }: UseHistoryTransfersOp
 		pendingRemoveCount > 1
 			? `ลบรายการ ${pendingRemoveCount} รายการ?`
 			: `ลบ ${pendingRemoveTransfers[0]?.title ?? "รายการนี้"}?`;
+	const emptyStateText =
+		transfers.length === 0 ? "ยังไม่มีประวัติการโอน" : "ไม่พบรายการที่ตรงกับการค้นหา";
 
 	return {
 		clearPendingRemove,
@@ -404,6 +268,7 @@ export function useHistoryTransfers({ onTransferDetails }: UseHistoryTransfersOp
 		contextActionState,
 		contextTransfers,
 		dragSelection,
+		emptyStateText,
 		ensureSelectedForContextMenu,
 		filter,
 		handleCardCancel,
@@ -444,6 +309,69 @@ export function useHistoryTransfers({ onTransferDetails }: UseHistoryTransfersOp
 		stopSurfaceEvent,
 		visibleTransfers,
 	};
+}
+
+function toTransferView(row: HistoryFileData): TransferWithHistoryId {
+	const historyId = generateHistoryStableId(row.stableKey ?? row.path);
+	const transfer = row.transfer;
+	const totalBytes = Math.max(0, row.size);
+	const progressPercent =
+		transfer?.status === "success" ? 100 : clampPercent(transfer?.progressPercent ?? 0);
+	const transferredBytes =
+		transfer?.status === "success"
+			? totalBytes
+			: Math.round((totalBytes * progressPercent) / 100);
+	const state = toDeliveryState(transfer?.status);
+	const error = transfer?.error
+		? {
+				code: "unknown" as const,
+				message: transfer.error,
+				retryable: false,
+			}
+		: undefined;
+
+	return {
+		id: transfer?.transferId ?? String(historyId),
+		historyId,
+		transferDetailsId: transfer?.transferId,
+		title: row.name,
+		kind: row.isDirectory ? "folder" : "file",
+		fileCount: 1,
+		direction: transfer?.direction ?? "receive",
+		state,
+		encrypted: false,
+		transferredBytes,
+		totalBytes,
+		targets: [
+			{
+				id: String(historyId),
+				name: transfer?.fromLabel ?? "Unknown",
+				deviceName: transfer?.deviceLabel ?? undefined,
+				state,
+				connectionState: state === "transferring" ? "connected" : state === "failed" ? "failed" : "idle",
+				route: {
+					type: "unknown",
+					protocol: "unknown",
+				},
+				transferredBytes,
+				totalBytes,
+				error,
+			},
+		],
+		error,
+	};
+}
+
+function toDeliveryState(status?: HistoryFileData["transfer"] extends infer T ? T extends { status: infer S } ? S : never : never): TransferDeliveryState {
+	if (status === "processing") return "transferring";
+	if (status === "success") return "completed";
+	if (status === "failed") return "failed";
+	return "completed";
+}
+
+function clampPercent(value: number): number {
+	if (!Number.isFinite(value)) return 0;
+	return Math.max(0, Math.min(100, value));
 }
 
 export type HistoryTransfersController = ReturnType<typeof useHistoryTransfers>;
