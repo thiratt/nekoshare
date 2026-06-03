@@ -10,11 +10,15 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@workspace/ui/components/alert-dialog";
+import { ScrollArea } from "@workspace/ui/components/scroll-area";
+
+import { DetailPanel, DetailPanelContent, DetailPanelProvider } from "@workspace/app-ui/components/detail-panel";
 
 import { useReceivedFiles } from "../hooks/useReceivedFiles";
-import { FileInspectorPanel } from "./FileInspectorPanel";
+import { FileInspector } from "./FileInspector";
+import { FileRow } from "./FileRow";
+import { FilesEmptyState } from "./FilesEmptyState";
 import { FilesHeader } from "./FilesHeader";
-import { FilesList } from "./FilesList";
 import { FilesToolbar } from "./FilesToolbar";
 import type { FilesPageAction, FilesPageItem } from "../types";
 
@@ -110,25 +114,46 @@ export function ReceivedFilesUI({
 				<p className="mb-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
 			) : null}
 
-			<div className="flex min-h-0 flex-1 overflow-hidden">
-				<FilesList
-					files={filteredFiles}
-					selectedFileId={selectedFileId}
-					onInspectFile={setSelectedFileId}
-					onMissingFile={showMissingFileDialog}
-					onOpenFile={openFile}
-					onRemoveFromList={setDeleteFile}
-					onRevealFile={revealFile}
-				/>
-				<FileInspectorPanel
-					file={selectedFile}
-					onClose={closeInspector}
-					onMissingFile={showMissingFileDialog}
-					onOpenFile={openFile}
-					onRemoveFromList={setDeleteFile}
-					onRevealFile={revealFile}
-				/>
-			</div>
+			<DetailPanelProvider open={selectedFile !== null} width={320} gap={16}>
+				<DetailPanel className="rounded-2xl border bg-card shadow-sm">
+					<div className="border-b px-4 py-3">
+						<h2 className="text-sm font-medium text-foreground">ล่าสุด</h2>
+					</div>
+
+					{filteredFiles.length > 0 ? (
+						<ScrollArea className="min-h-0 flex-1">
+							<div className="min-w-0">
+								{filteredFiles.map((file) => (
+									<FileRow
+										key={file.id}
+										file={file}
+										selected={selectedFileId === file.id}
+										onInspect={() => setSelectedFileId(file.id)}
+										onMissing={() => showMissingFileDialog(file)}
+										onOpen={() => openFile(file)}
+										onRemoveFromList={() => setDeleteFile(file)}
+										onReveal={() => revealFile(file)}
+									/>
+								))}
+							</div>
+						</ScrollArea>
+					) : (
+						<FilesEmptyState />
+					)}
+				</DetailPanel>
+				<DetailPanelContent className="rounded-2xl border bg-card shadow-sm overflow-hidden">
+					{selectedFile && (
+						<FileInspector
+							file={selectedFile}
+							onClose={closeInspector}
+							onMissingFile={showMissingFileDialog}
+							onOpenFile={openFile}
+							onRemoveFromList={setDeleteFile}
+							onRevealFile={revealFile}
+						/>
+					)}
+				</DetailPanelContent>
+			</DetailPanelProvider>
 
 			<AlertDialog open={missingFile !== null} onOpenChange={(open) => !open && setMissingFile(null)}>
 				<AlertDialogContent>

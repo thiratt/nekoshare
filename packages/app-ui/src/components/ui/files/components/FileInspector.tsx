@@ -1,6 +1,8 @@
-import { LuExternalLink, LuFileImage, LuFolderOpen, LuTrash, LuX } from "react-icons/lu";
+import { LuExternalLink, LuFileImage, LuFolderOpen, LuTrash } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
+
+import { DetailPanelHeader } from "@workspace/app-ui/components/detail-panel";
 
 import { fileTypeLabel } from "../constants";
 import { formatFileSize, formatRelativeTime, getFileKind, getReceivedFileIcon } from "../utils/file-utils";
@@ -25,14 +27,7 @@ function availabilityLabel(availability: FilesPageItem["availability"]) {
 	return "กำลังตรวจสอบ";
 }
 
-export function FileInspector({
-	file,
-	onClose,
-	onMissingFile,
-	onOpenFile,
-	onRemoveFromList,
-	onRevealFile,
-}: FileInspectorProps) {
+export function FileInspector({ file, onMissingFile, onOpenFile, onRemoveFromList, onRevealFile }: FileInspectorProps) {
 	const fileKind = getFileKind(file.fileName);
 	const FileIcon = getReceivedFileIcon(fileKind);
 	const isMissing = file.availability === "missing";
@@ -54,22 +49,8 @@ export function FileInspector({
 	}
 
 	return (
-		<aside className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-			<div className="flex items-center justify-between border-b px-4 py-3">
-				<h2 className="text-sm font-medium text-foreground">รายละเอียด</h2>
-
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon"
-					className="size-8 rounded-full"
-					onClick={onClose}
-					title="ปิด"
-				>
-					<LuX className="size-4" />
-				</Button>
-			</div>
-
+		<>
+			<DetailPanelHeader />
 			<div className="p-4">
 				<div className="mb-4 flex aspect-video items-center justify-center rounded-xl bg-muted">
 					{fileKind === "image" ? (
@@ -134,7 +115,7 @@ export function FileInspector({
 					</div>
 				</div>
 			</div>
-		</aside>
+		</>
 	);
 }
 
