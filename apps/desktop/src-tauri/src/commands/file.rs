@@ -21,6 +21,12 @@ pub enum FileError {
 
     #[error("Failed to delete: {0}")]
     DeleteError(String),
+
+    #[error("Failed to open file: {0}")]
+    OpenError(String),
+
+    #[error("Failed to reveal file: {0}")]
+    RevealError(String),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -333,6 +339,53 @@ pub async fn delete_file(path: String) -> Result<(), FileError> {
     .await
     .map_err(|e| FileError::DeleteError(format!("Task join error: {}", e)))?
     .map_err(|e| FileError::DeleteError(e.to_string()))?;
+
+    Ok(())
+}
+
+fn validate_transfer_file_path(path: &str) -> Result<(), FileError> {
+    let file_path = Path::new(path);
+
+    if !file_path.exists() {
+        return Err(FileError::FileNotFound(path.to_string()));
+    }
+
+    let metadata = fs::metadata(file_path).map_err(|e| FileError::MetadataError(e.to_string()))?;
+    if !metadata.is_file() {
+        return Err(FileError::FileNotFound(path.to_string()));
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn transfer_file_exists(file_path: String) -> bool {
+    validate_transfer_file_path(&file_path).is_ok()
+}
+
+#[tauri::command]
+pub fn open_transfer_file(file_path: String) -> Result<(), FileError> {
+    validate_transfer_file_path(&file_path)?;
+    tauri_plugin_opener::open_path(&file_path, None::<&str>)
+        .map_err(|e| FileError::OpenError(e.to_string()))
+}
+
+#[tauri::command]
+pub fn reveal_transfer_file(file_path: String) -> Result<(), FileError> {
+    validate_transfer_file_path(&file_path)?;
+    tauri_plugin_opener::reveal_item_in_dir(file_path)
+        .map_err(|e| FileError::RevealError(e.to_string()))
+}
+
+#[tauri::command]
+pub async fn delete_transfer_file(file_path: String) -> Result<(), FileError> {
+    validate_transfer_file_path(&file_path)?;
+
+    let path_clone = file_path.clone();
+    tokio::task::spawn_blocking(move || fs::remove_file(&path_clone))
+        .await
+        .map_err(|e| FileError::DeleteError(format!("Task join error: {}", e)))?
+        .map_err(|e| FileError::DeleteError(e.to_string()))?;
 
     Ok(())
 }

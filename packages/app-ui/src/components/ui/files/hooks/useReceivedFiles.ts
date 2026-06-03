@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 
 import { matchReceivedFileSearch } from "../utils/file-utils";
-import type { ReceivedFile } from "../types";
+import type { FilesPageItem } from "../types";
 
-export function useReceivedFiles(files: ReceivedFile[]) {
+export function useReceivedFiles(files: FilesPageItem[]) {
 	const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 
@@ -36,4 +36,3 @@ export function useReceivedFiles(files: ReceivedFile[]) {
 		setSelectedFileId,
 	};
 }
-

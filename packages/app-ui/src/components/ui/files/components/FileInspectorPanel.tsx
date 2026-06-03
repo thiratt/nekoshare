@@ -1,14 +1,25 @@
 import { AnimatePresence, motion } from "@workspace/app-ui/components/provide-animate";
 
 import { FileInspector } from "./FileInspector";
-import type { ReceivedFile } from "../types";
+import type { FilesPageAction, FilesPageItem } from "../types";
 
 type FileInspectorPanelProps = {
-	file: ReceivedFile | null;
+	file: FilesPageItem | null;
 	onClose: () => void;
+	onMissingFile: FilesPageAction;
+	onOpenFile: FilesPageAction;
+	onRemoveFromList: FilesPageAction;
+	onRevealFile: FilesPageAction;
 };
 
-export function FileInspectorPanel({ file, onClose }: FileInspectorPanelProps) {
+export function FileInspectorPanel({
+	file,
+	onClose,
+	onMissingFile,
+	onOpenFile,
+	onRemoveFromList,
+	onRevealFile,
+}: FileInspectorPanelProps) {
 	return (
 		<AnimatePresence initial={false}>
 			{file ? (
@@ -26,7 +37,14 @@ export function FileInspectorPanel({ file, onClose }: FileInspectorPanelProps) {
 					style={{ willChange: "width, margin-left, opacity" }}
 				>
 					<div className="h-full w-80 overflow-hidden">
-						<FileInspector file={file} onClose={onClose} />
+						<FileInspector
+							file={file}
+							onClose={onClose}
+							onMissingFile={onMissingFile}
+							onOpenFile={onOpenFile}
+							onRemoveFromList={onRemoveFromList}
+							onRevealFile={onRevealFile}
+						/>
 					</div>
 				</motion.div>
 			) : null}

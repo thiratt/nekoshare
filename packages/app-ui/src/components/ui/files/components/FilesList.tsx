@@ -1,14 +1,26 @@
 import { FileRow } from "./FileRow";
 import { FilesEmptyState } from "./FilesEmptyState";
-import type { ReceivedFile } from "../types";
+import type { FilesPageAction, FilesPageItem } from "../types";
 
 type FilesListProps = {
-	files: ReceivedFile[];
+	files: FilesPageItem[];
 	selectedFileId: string | null;
-	onSelectFile: (id: string) => void;
+	onInspectFile: (id: string) => void;
+	onMissingFile: FilesPageAction;
+	onOpenFile: FilesPageAction;
+	onRemoveFromList: FilesPageAction;
+	onRevealFile: FilesPageAction;
 };
 
-export function FilesList({ files, onSelectFile, selectedFileId }: FilesListProps) {
+export function FilesList({
+	files,
+	onInspectFile,
+	onMissingFile,
+	onOpenFile,
+	onRemoveFromList,
+	onRevealFile,
+	selectedFileId,
+}: FilesListProps) {
 	return (
 		<section className="min-w-0 flex-1 overflow-hidden rounded-2xl border bg-card shadow-sm">
 			<div className="border-b px-4 py-3">
@@ -21,7 +33,11 @@ export function FilesList({ files, onSelectFile, selectedFileId }: FilesListProp
 						key={file.id}
 						file={file}
 						selected={selectedFileId === file.id}
-						onSelect={() => onSelectFile(file.id)}
+						onInspect={() => onInspectFile(file.id)}
+						onMissing={() => onMissingFile(file)}
+						onOpen={() => onOpenFile(file)}
+						onRemoveFromList={() => onRemoveFromList(file)}
+						onReveal={() => onRevealFile(file)}
 					/>
 				))
 			) : (

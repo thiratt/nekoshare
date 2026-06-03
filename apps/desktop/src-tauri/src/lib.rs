@@ -72,6 +72,10 @@ pub fn run() {
             commands::file::read_files_in_dir,
             commands::file::read_files_ready_to_use,
             commands::file::delete_file,
+            commands::file::transfer_file_exists,
+            commands::file::open_transfer_file,
+            commands::file::reveal_transfer_file,
+            commands::file::delete_transfer_file,
             // Search
             commands::search::search_items,
             commands::search::search_items_paginated,

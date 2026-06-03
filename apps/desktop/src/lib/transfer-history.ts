@@ -55,15 +55,38 @@ function clampProgress(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
-export async function listTransferHistory(limit = 500): Promise<TransferRecord[]> {
-  const rows = await invoke<TransferHistoryRecordDto[]>("transfer_history_list", {
-    limit,
-  });
+export async function listTransferHistory(
+  limit = 500,
+): Promise<TransferRecord[]> {
+  const rows = await invoke<TransferHistoryRecordDto[]>(
+    "transfer_history_list",
+    {
+      limit,
+    },
+  );
   return rows.map(toTransferRecord);
 }
 
-export async function deleteTransferHistoryByFileId(fileId: string): Promise<void> {
+export async function deleteTransferHistoryByFileId(
+  fileId: string,
+): Promise<void> {
   await invoke("transfer_history_delete", { fileId });
+}
+
+export async function transferFileExists(filePath: string): Promise<boolean> {
+  return invoke<boolean>("transfer_file_exists", { filePath });
+}
+
+export async function openTransferFile(filePath: string): Promise<void> {
+  await invoke("open_transfer_file", { filePath });
+}
+
+export async function revealTransferFile(filePath: string): Promise<void> {
+  await invoke("reveal_transfer_file", { filePath });
+}
+
+export async function deleteTransferFile(filePath: string): Promise<void> {
+  await invoke("delete_transfer_file", { filePath });
 }
 
 export async function deleteTransferHistoryByTransferId(
@@ -72,7 +95,9 @@ export async function deleteTransferHistoryByTransferId(
   await invoke("transfer_history_delete_transfer", { transferId });
 }
 
-export function eventToTransferRecord(event: TransferProgressEvent): TransferRecord {
+export function eventToTransferRecord(
+  event: TransferProgressEvent,
+): TransferRecord {
   return {
     transferId: event.transferId,
     fileId: event.fileId,

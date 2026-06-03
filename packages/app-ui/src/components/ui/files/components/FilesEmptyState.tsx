@@ -1,8 +1,10 @@
 export function FilesEmptyState() {
 	return (
-		<div className="flex flex-col items-center justify-center px-6 py-14 text-center">
-			<p className="text-sm font-medium text-foreground">ไม่พบไฟล์</p>
-			<p className="mt-1 text-sm text-muted-foreground">ลองเปลี่ยนคำค้นหาหรือตัวกรองอีกครั้ง</p>
+		<div className="flex h-64 flex-col items-center justify-center gap-1 px-4 text-center text-muted-foreground">
+			<p className="text-sm font-medium text-foreground">ยังไม่มีไฟล์จาก Neko Share</p>
+			<p className="max-w-sm text-xs">
+				ไฟล์ที่ส่งหรือรับผ่าน Neko Share จะแสดงที่นี่จากประวัติการโอนในเครื่องนี้
+			</p>
 		</div>
 	);
 }
