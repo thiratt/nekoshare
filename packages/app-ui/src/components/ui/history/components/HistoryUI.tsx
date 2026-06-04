@@ -26,7 +26,7 @@ export function HistoryUI(props: HistoryProps) {
 			tabIndex={0}
 		>
 			<div className="flex min-h-0 flex-1 flex-col">
-				<header className="space-y-4 pb-4">
+				<header className="space-y-4">
 					<div className="space-y-1">
 						<h1 className="text-2xl font-semibold tracking-tight">ประวัติการแชร์</h1>
 						<p className="text-sm text-muted-foreground">ไฟล์ที่กำลังรับส่งและประวัติการแชร์จะแสดงที่นี่</p>

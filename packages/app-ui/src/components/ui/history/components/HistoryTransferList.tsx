@@ -1,6 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
 
-import { CardContent } from "@workspace/ui/components/card";
 import { ContextMenu, ContextMenuTrigger } from "@workspace/ui/components/context-menu";
 import { ScrollArea } from "@workspace/ui/components/scroll-area";
 
@@ -19,7 +18,7 @@ type HistoryTransferListProps = {
 
 export function HistoryTransferList({ controller, linkComponent, onTransferDetails }: HistoryTransferListProps) {
 	return (
-		<CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden">
+		<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 			<div ref={controller.scrollAreaRootRef} className="min-h-0 flex-1">
 				<ScrollArea className="h-full">
 					<ContextMenu>
@@ -129,6 +128,6 @@ export function HistoryTransferList({ controller, linkComponent, onTransferDetai
 				<p>{controller.visibleTransfers.length} รายการ</p>
 				{controller.selectedCount > 0 && <p>({controller.selectedCount} รายการที่เลือก)</p>}
 			</div>
-		</CardContent>
+		</div>
 	);
 }
