@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from "react";
 
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { stat } from "@tauri-apps/plugin-fs";
 
 import {
@@ -111,7 +111,6 @@ function RouteComponent() {
       devices={devices}
       friends={friends}
       dropState={dropState}
-      linkComponent={Link}
       backHref="/home"
     />
   );

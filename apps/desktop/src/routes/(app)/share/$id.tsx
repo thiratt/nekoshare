@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import {
@@ -716,7 +716,6 @@ function RouteComponent() {
     <ShareDetailUI
       data={detail}
       backHref="/home"
-      linkComponent={Link}
       onCopyId={(transferId) => {
         void window.navigator.clipboard.writeText(transferId);
       }}

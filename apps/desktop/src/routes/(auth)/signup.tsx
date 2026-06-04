@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 
 import { useToast } from "@workspace/ui/hooks/use-toast";
 
@@ -95,6 +95,6 @@ function RouteComponent() {
   };
 
   return (
-    <SignupCard linkComponent={Link} onSubmit={onSubmit} onGoogle={onGoogle} />
+    <SignupCard onSubmit={onSubmit} onGoogle={onGoogle} />
   );
 }

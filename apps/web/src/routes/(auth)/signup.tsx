@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   createFileRoute,
-  Link,
   useLocation,
   useRouter,
 } from "@tanstack/react-router";
@@ -107,7 +106,6 @@ function RouteComponent() {
 
   return (
     <SignupCard
-      linkComponent={Link}
       onGoogle={onGoogle}
       onSubmit={onSubmit}
       socialErrorMessage={socialErrorMessage}

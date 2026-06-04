@@ -11,10 +11,9 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
 
+import { AppLink } from "@workspace/app-ui/components/app-link";
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
-import { ExtendLink } from "@workspace/app-ui/components/ext/link";
 import { createLoginFormSchema } from "@workspace/app-ui/schemas/auth";
-import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
 import type { TLoginSchema } from "@workspace/app-ui/types/schema";
 
 import { useAppI18n } from "@workspace/i18n/react";
@@ -24,7 +23,7 @@ interface ExampleDataLoginProps {
 	password: string;
 }
 
-interface LoginCardProps extends IncludeLinkComponentProps {
+interface LoginCardProps {
 	data?: ExampleDataLoginProps;
 	onGoogle: () => Promise<void>;
 	onSubmit: (data: TLoginSchema) => Promise<void>;
@@ -33,7 +32,6 @@ interface LoginCardProps extends IncludeLinkComponentProps {
 
 export function LoginCard({
 	data,
-	linkComponent,
 	onGoogle,
 	onSubmit,
 	socialErrorMessage,
@@ -59,14 +57,13 @@ export function LoginCard({
 						<div className={name === "password" ? "flex justify-between" : ""}>
 							<FormLabel>{label}</FormLabel>
 							{name === "password" && (
-								<ExtendLink
+								<AppLink
 									className="underline-offset-3 text-sm"
-									linkComponent={linkComponent}
 									href="/reset-pwd"
 									tabIndex={-1}
 								>
 									{t("auth.login.forgotPassword")}
-								</ExtendLink>
+								</AppLink>
 							)}
 						</div>
 						<FormControl>
@@ -82,7 +79,7 @@ export function LoginCard({
 				)}
 			/>
 		),
-		[form.control, form.formState.isSubmitting, linkComponent, t],
+		[form.control, form.formState.isSubmitting, t],
 	);
 
 	return (
@@ -136,9 +133,9 @@ export function LoginCard({
 								</Button>
 								<div className="flex gap-1 justify-center items-center text-sm">
 									{t("auth.login.signUpPrompt")}{" "}
-									<ExtendLink linkComponent={linkComponent} href="/signup">
+									<AppLink href="/signup">
 										{t("auth.login.signUpCta")}
-									</ExtendLink>
+									</AppLink>
 								</div>
 							</div>
 						</CardContent>

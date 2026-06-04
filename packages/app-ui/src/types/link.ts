@@ -1,4 +1,4 @@
-export type LinkComponentProps = {
+export type LinkComponentProps = Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
 	to: string;
 	children: React.ReactNode;
 	className?: string;
@@ -6,15 +6,9 @@ export type LinkComponentProps = {
 
 export type LinkComponent = React.ComponentType<LinkComponentProps>;
 
-export interface IncludeLinkComponentProps {
-	linkComponent: LinkComponent;
-}
-
-export interface ExtendLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+export interface AppLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
 	href: string;
 	children: React.ReactNode;
 	className?: string;
-	linkComponent: LinkComponent;
-	enableTransition?: boolean;
 	asButton?: boolean;
 }

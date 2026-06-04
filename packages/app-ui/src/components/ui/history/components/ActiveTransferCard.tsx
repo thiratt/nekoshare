@@ -18,8 +18,7 @@ import { Button } from "@workspace/ui/components/button";
 import { Progress } from "@workspace/ui/components/progress";
 import { cn } from "@workspace/ui/lib/utils";
 
-import { ExtendLink } from "@workspace/app-ui/components/ext/link";
-import type { LinkComponent } from "@workspace/app-ui/types/link";
+import { AppLink } from "@workspace/app-ui/components/app-link";
 
 import {
 	type ActiveTransferTargetView,
@@ -37,7 +36,6 @@ type ActiveTransferCardProps = {
 	onResume?: (id: string) => void;
 	onCancel?: (id: string) => void;
 	onShowDetails?: (id: string) => void;
-	linkComponent?: LinkComponent;
 	detailsHref?: string;
 	onSelected?: (event: React.MouseEvent<HTMLDivElement>) => void;
 	onContextSelected?: (event: React.MouseEvent<HTMLDivElement>) => void;
@@ -50,7 +48,6 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 	onResume,
 	onCancel,
 	onShowDetails,
-	linkComponent,
 	detailsHref,
 	onSelected,
 	onContextSelected,
@@ -96,17 +93,16 @@ export const ActiveTransferCard = memo(function ActiveTransferCard({
 				<div className="min-w-0 flex-1">
 					<div className="flex min-w-0 items-start justify-between gap-3">
 						<div className="min-w-0">
-							{linkComponent && detailsHref ? (
-								<ExtendLink
+							{detailsHref ? (
+								<AppLink
 									href={detailsHref}
-									linkComponent={linkComponent}
 									className="block w-fit max-w-full truncate text-foreground underline underline-offset-8 transition-all hover:cursor-pointer hover:underline hover:underline-offset-2"
 									onClick={(event) => {
 										event.stopPropagation();
 									}}
 								>
 									{transfer.title}
-								</ExtendLink>
+								</AppLink>
 							) : (
 								<button
 									type="button"

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
@@ -83,7 +83,6 @@ function RouteComponent() {
 
   return (
     <HistoryUI
-      linkComponent={Link}
       onItemClick={(id) => {
         const transferId = resolveTransferId(id);
         if (transferId) {

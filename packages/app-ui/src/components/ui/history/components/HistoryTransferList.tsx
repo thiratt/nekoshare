@@ -3,8 +3,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { ContextMenu, ContextMenuTrigger } from "@workspace/ui/components/context-menu";
 import { ScrollArea } from "@workspace/ui/components/scroll-area";
 
-import type { LinkComponent } from "@workspace/app-ui/types/link";
-
 import { TRANSFER_ITEM_TRANSITION, TRANSFER_LIST_TRANSITION } from "../constants";
 import { ActiveTransferCard } from "./ActiveTransferCard";
 import { HistoryContextMenu } from "./HistoryContextMenu";
@@ -12,11 +10,10 @@ import type { HistoryTransfersController } from "../hooks/useHistoryTransfers";
 
 type HistoryTransferListProps = {
 	controller: HistoryTransfersController;
-	linkComponent: LinkComponent;
 	onTransferDetails?: (id: string) => void;
 };
 
-export function HistoryTransferList({ controller, linkComponent, onTransferDetails }: HistoryTransferListProps) {
+export function HistoryTransferList({ controller, onTransferDetails }: HistoryTransferListProps) {
 	return (
 		<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 			<div ref={controller.scrollAreaRootRef} className="min-h-0 flex-1">
@@ -104,7 +101,6 @@ export function HistoryTransferList({ controller, linkComponent, onTransferDetai
 													selected={controller.isSelected(transfer.id)}
 													transfer={transfer}
 													onShowDetails={onTransferDetails}
-													linkComponent={linkComponent}
 													detailsHref={`/share/${transfer.transferDetailsId ?? transfer.id}`}
 													onSelected={(event) => controller.selectItem(transfer.id, event)}
 													onContextSelected={() => {

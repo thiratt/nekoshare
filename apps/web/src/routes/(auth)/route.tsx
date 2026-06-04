@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { createFileRoute, Outlet, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouter } from "@tanstack/react-router";
 
 import {
   NekoShareProvider,
@@ -25,6 +25,7 @@ function RouteComponent() {
     <AppI18nProvider>
       <NekoShareProvider
         router={router}
+        linkComponent={Link}
         currentDevice={undefined}
         appMode="web"
       >

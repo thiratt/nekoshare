@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
 import { useToast } from "@workspace/ui/hooks/use-toast";
 
@@ -19,5 +19,5 @@ function RouteComponent() {
     toast.info(t("auth.callbacks.passwordHelpFailed"));
   };
 
-  return <ResetPasswordCard linkComponent={Link} onSubmit={onSubmit} />;
+  return <ResetPasswordCard onSubmit={onSubmit} />;
 }

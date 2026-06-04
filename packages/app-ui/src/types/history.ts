@@ -1,5 +1,3 @@
-import type { IncludeLinkComponentProps } from "./link";
-
 export type HistoryStatus = "success" | "failed" | "processing";
 
 export interface HistoryTransferSnapshot {
@@ -34,7 +32,7 @@ export type HistoryInvokeFunction = <T>(
 ) => Promise<T>;
 export type HistoryDeleteScope = "history" | "both";
 
-export interface HistoryProps extends IncludeLinkComponentProps {
+export interface HistoryProps {
   onItemClick: (id: number) => void;
   onItemReveal: (id: number) => void;
   onItemRemove: (id: number, scope?: HistoryDeleteScope) => Promise<void>;

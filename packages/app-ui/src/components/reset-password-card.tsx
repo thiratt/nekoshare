@@ -9,22 +9,21 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
 
+import { AppLink } from "@workspace/app-ui/components/app-link";
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
-import { ExtendLink } from "@workspace/app-ui/components/ext/link";
 import { createResetPasswordFormSchema } from "@workspace/app-ui/schemas/auth";
-import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
 import type { TResetPasswordSchema } from "@workspace/app-ui/types/schema";
 
 import { useAppI18n } from "@workspace/i18n/react";
 
-interface ResetPasswordCardProps extends IncludeLinkComponentProps {
+interface ResetPasswordCardProps {
 	data?: {
 		email: string;
 	};
 	onSubmit: (data: TResetPasswordSchema) => Promise<void>;
 }
 
-export function ResetPasswordCard({ data, linkComponent, onSubmit }: ResetPasswordCardProps) {
+export function ResetPasswordCard({ data, onSubmit }: ResetPasswordCardProps) {
 	const { t } = useAppI18n();
 	const form = useForm<TResetPasswordSchema>({
 		mode: "onSubmit",
@@ -77,9 +76,9 @@ export function ResetPasswordCard({ data, linkComponent, onSubmit }: ResetPasswo
 
 								<div className="flex gap-1 justify-center items-center text-sm">
 									{t("auth.resetPassword.loginPrompt")}
-									<ExtendLink linkComponent={linkComponent} href="/login">
+									<AppLink href="/login">
 										{t("auth.resetPassword.loginCta")}
-									</ExtendLink>
+									</AppLink>
 								</div>
 							</div>
 						</CardContent>

@@ -14,6 +14,7 @@ import { PacketType, socketClient } from "@workspace/app-ui/lib/nk-socket";
 import { useGlobalLoading, useMode, useNekoShareStore, useSetMode } from "@workspace/app-ui/lib/store/nekoshareStore";
 import type { Router, UseNekoShareReturn } from "@workspace/app-ui/types/context";
 import type { LocalDeviceInfo } from "@workspace/app-ui/types/device";
+import type { LinkComponent } from "@workspace/app-ui/types/link";
 
 import { authClient, invalidateSessionCache } from "../lib/auth";
 import { useTheme } from "../providers/theme-provider";
@@ -22,6 +23,7 @@ import { useAppI18n } from "@workspace/i18n/react";
 
 interface NekoShareContextValue {
 	readonly router: Router;
+	readonly linkComponent: LinkComponent;
 	readonly currentDevice: LocalDeviceInfo | undefined;
 	readonly onBeforeSignOut?: () => Promise<void> | void;
 }
@@ -75,6 +77,7 @@ const INITIAL_SESSION_STATE: SessionTerminatedState = {
 
 interface NekoShareProviderProps<TRouter extends Router = Router> {
 	router: TRouter;
+	linkComponent: LinkComponent;
 	children: ReactNode;
 	currentDevice: LocalDeviceInfo | undefined;
 	appMode: "desktop" | "web";
@@ -83,6 +86,7 @@ interface NekoShareProviderProps<TRouter extends Router = Router> {
 
 const NekoShareProvider = <TRouter extends Router>({
 	router,
+	linkComponent,
 	children,
 	currentDevice,
 	appMode = "desktop",
@@ -167,10 +171,11 @@ const NekoShareProvider = <TRouter extends Router>({
 	const contextValue = useMemo<NekoShareContextValue>(
 		() => ({
 			router,
+			linkComponent,
 			currentDevice,
 			onBeforeSignOut,
 		}),
-		[router, currentDevice, onBeforeSignOut],
+		[router, linkComponent, currentDevice, onBeforeSignOut],
 	);
 
 	const isHomeMode = mode === "home";
@@ -279,6 +284,7 @@ const useNekoShare = (): UseNekoShareReturn => {
 
 	return {
 		router: context.router,
+		linkComponent: context.linkComponent,
 		currentDevice: context.currentDevice,
 		mode,
 		notificationStatus,

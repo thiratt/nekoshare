@@ -6,13 +6,12 @@ import { Button } from "@workspace/ui/components/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 
-import { ExtendLink } from "@workspace/app-ui/components/ext/link";
+import { AppLink } from "@workspace/app-ui/components/app-link";
 import { useSidebar } from "@workspace/app-ui/hooks/use-sidebar";
-import type { IncludeLinkComponentProps, LinkComponent } from "@workspace/app-ui/types/link";
 
 import { useAppI18n } from "@workspace/i18n/react";
 
-interface HomeSidebarProps extends IncludeLinkComponentProps {
+interface HomeSidebarProps {
 	pathname: string;
 	mode?: "desktop" | "website";
 	onSettings?: () => Promise<void>;
@@ -28,16 +27,15 @@ interface SidebarButtonProps {
 	icon: React.ElementType;
 	isActive: boolean;
 	isOpen: boolean;
-	linkComponent: LinkComponent;
 }
 
-const SidebarButton = ({ label, link, icon: Icon, isActive, isOpen, linkComponent }: SidebarButtonProps) => {
+const SidebarButton = ({ label, link, icon: Icon, isActive, isOpen }: SidebarButtonProps) => {
 	const content = (
 		<Button variant={isActive ? "default" : "ghost"} className="w-full h-10 justify-start" asChild>
-			<ExtendLink href={link} linkComponent={linkComponent} asButton>
+			<AppLink href={link} asButton>
 				<Icon className={isOpen ? "ms-0" : "ms-0.5"} size={20} />
 				{isOpen && <span className="truncate">{label}</span>}
-			</ExtendLink>
+			</AppLink>
 		</Button>
 	);
 
@@ -56,7 +54,6 @@ const SidebarButton = ({ label, link, icon: Icon, isActive, isOpen, linkComponen
 };
 
 export function HomeSidebar({
-	linkComponent,
 	pathname,
 	collapseWhenNotificationOpen = false,
 	isOpen: controlledIsOpen,
@@ -124,7 +121,6 @@ export function HomeSidebar({
 							icon={item.icon}
 							isActive={normalizePath === item.link}
 							isOpen={effectiveIsOpen}
-							linkComponent={linkComponent}
 						/>
 					))}
 				</div>

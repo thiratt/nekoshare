@@ -1,4 +1,5 @@
 import type { LocalDeviceInfo } from "./device";
+import type { LinkComponent } from "./link";
 
 export const ApplicationMode = {
 	HOME: "home",
@@ -42,6 +43,7 @@ export interface NekoShareContextType {
 	readonly mode: Mode;
 	readonly notificationStatus: NotificationStatus;
 	readonly router: Router;
+	readonly linkComponent: LinkComponent;
 	readonly currentDevice: LocalDeviceInfo | undefined;
 	readonly setGlobalLoading: (loading: boolean) => void;
 	readonly setMode: (mode: Mode) => void;
@@ -51,6 +53,7 @@ export interface NekoShareContextType {
 
 export interface NekoShareProviderProps<TRouter extends Router = Router> {
 	router: TRouter;
+	linkComponent: LinkComponent;
 	children: React.ReactNode;
 	currentDevice: LocalDeviceInfo | undefined;
 	onBeforeSignOut?: () => Promise<void> | void;
@@ -58,6 +61,7 @@ export interface NekoShareProviderProps<TRouter extends Router = Router> {
 
 export interface UseNekoShareReturn {
 	readonly router: Router;
+	readonly linkComponent: LinkComponent;
 	readonly currentDevice: LocalDeviceInfo | undefined;
 	readonly mode: Mode;
 	readonly notificationStatus: NotificationStatus;

@@ -12,8 +12,7 @@ import {
 import { SearchInput } from "@workspace/ui/components/search-input";
 import { Separator } from "@workspace/ui/components/separator";
 
-import { ExtendLink } from "@workspace/app-ui/components/ext/link";
-import type { LinkComponent } from "@workspace/app-ui/types/link";
+import { AppLink } from "@workspace/app-ui/components/app-link";
 
 import { HISTORY_FILTER_ITEMS } from "../constants";
 import { FilterTabs } from "./FilterTabs";
@@ -21,11 +20,10 @@ import type { HistoryTransfersController } from "../hooks/useHistoryTransfers";
 
 type HistoryToolbarProps = {
 	controller: HistoryTransfersController;
-	linkComponent: LinkComponent;
 	loading?: boolean;
 };
 
-export function HistoryToolbar({ controller, linkComponent, loading }: HistoryToolbarProps) {
+export function HistoryToolbar({ controller, loading }: HistoryToolbarProps) {
 	return (
 		<div className="flex items-center gap-2">
 			<div className="flex min-w-0 items-center gap-2">
@@ -99,9 +97,9 @@ export function HistoryToolbar({ controller, linkComponent, loading }: HistoryTo
 
 			<div className="ms-auto flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
 				<Button asChild>
-					<ExtendLink href="/share/new" linkComponent={linkComponent} asButton>
+					<AppLink href="/share/new" asButton>
 						แชร์ไฟล์
-					</ExtendLink>
+					</AppLink>
 				</Button>
 			</div>
 		</div>

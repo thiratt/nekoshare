@@ -12,11 +12,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@workspace/ui/components/input";
 
 import { createSignupFormSchema } from "@workspace/app-ui/schemas/auth";
-import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
 import type { TSignupSchema } from "@workspace/app-ui/types/schema";
 
+import { AppLink } from "./app-link";
 import { CardTransition } from "./ext/card-transition";
-import { ExtendLink } from "./ext/link";
 
 import { useAppI18n } from "@workspace/i18n/react";
 
@@ -26,7 +25,7 @@ interface ExampleDataSignupProps {
 	password: string;
 }
 
-interface SignupCardProps extends IncludeLinkComponentProps {
+interface SignupCardProps {
 	data?: ExampleDataSignupProps;
 	onGoogle?: () => Promise<void>;
 	onSubmit: (data: TSignupSchema) => Promise<void>;
@@ -35,7 +34,6 @@ interface SignupCardProps extends IncludeLinkComponentProps {
 
 export function SignupCard({
 	data,
-	linkComponent,
 	onGoogle,
 	onSubmit,
 	socialErrorMessage,
@@ -131,9 +129,9 @@ export function SignupCard({
 								</Button>
 								<div className="flex gap-1 justify-center items-center text-sm">
 									{t("auth.signup.loginPrompt")}
-									<ExtendLink linkComponent={linkComponent} href="/login">
+									<AppLink href="/login">
 										{t("auth.signup.loginCta")}
-									</ExtendLink>
+									</AppLink>
 								</div>
 							</div>
 						</CardContent>

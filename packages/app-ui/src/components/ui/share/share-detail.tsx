@@ -23,6 +23,7 @@ import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { Separator } from "@workspace/ui/components/separator";
 import { cn } from "@workspace/ui/lib/utils";
 
+import { AppLink } from "@workspace/app-ui/components/app-link";
 import {
 	DetailPanel,
 	DetailPanelContent,
@@ -30,8 +31,6 @@ import {
 	DetailPanelTrigger,
 } from "@workspace/app-ui/components/detail-panel";
 import { CardTransition } from "@workspace/app-ui/components/ext/card-transition";
-import { ExtendLink } from "@workspace/app-ui/components/ext/link";
-import type { IncludeLinkComponentProps } from "@workspace/app-ui/types/link";
 
 import { formatFileSize } from "../drop-overlay";
 import type { TransferDeliveryState, TransferDirection, TransferProtocol, TransferRouteType } from "../transfer-model";
@@ -95,9 +94,10 @@ export type ShareDetailData = {
 	recipients: ShareDetailRecipient[];
 };
 
-export type ShareDetailUIProps = IncludeLinkComponentProps & {
+export type ShareDetailUIProps = {
 	data: ShareDetailData | null;
 	backHref: string;
+	onBack?: () => void;
 	onCopyId?: (id: string) => void;
 	onOpenFolder?: () => void;
 	onPause?: () => void;
@@ -400,14 +400,14 @@ function DetailRow({ label, value }: { label: string; value: string | number | n
 	);
 }
 
-function EmptyDetail({ linkComponent, backHref }: IncludeLinkComponentProps & { backHref: string }) {
+function EmptyDetail({ backHref }: { backHref: string }) {
 	return (
 		<CardTransition className="flex h-full flex-col" tag="share-detail-card">
 			<div className="flex items-center gap-3 border-b px-6 py-4">
 				<Button variant="outline" size="icon" asChild>
-					<ExtendLink href={backHref} linkComponent={linkComponent} asButton>
+					<AppLink href={backHref} asButton>
 						<LuArrowLeft />
-					</ExtendLink>
+					</AppLink>
 				</Button>
 				<div>
 					<h1 className="text-lg font-semibold">ไม่พบรายละเอียดการแชร์</h1>
@@ -426,7 +426,7 @@ function EmptyDetail({ linkComponent, backHref }: IncludeLinkComponentProps & { 
 export function ShareDetailUI({
 	data,
 	backHref,
-	linkComponent,
+	onBack,
 	onCopyId,
 	onOpenFolder,
 	onPause,
@@ -449,7 +449,7 @@ export function ShareDetailUI({
 	}, [data, selectedRecipientId]);
 
 	if (!data) {
-		return <EmptyDetail backHref={backHref} linkComponent={linkComponent} />;
+		return <EmptyDetail backHref={backHref} />;
 	}
 
 	const recipientStates = data.recipients.map((recipient) => ({
@@ -500,10 +500,8 @@ export function ShareDetailUI({
 	return (
 		<div className="flex min-h-full flex-col">
 			<div className="flex flex-wrap items-start gap-3 mb-4">
-				<Button variant="outline" size="icon" asChild>
-					<ExtendLink href={backHref} linkComponent={linkComponent} asButton>
-						<LuArrowLeft />
-					</ExtendLink>
+				<Button variant="outline" size="icon" onClick={onBack}>
+					<LuArrowLeft />
 				</Button>
 
 				<div className="min-w-0 flex-1">

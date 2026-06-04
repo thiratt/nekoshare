@@ -34,7 +34,6 @@ export function HistoryUI(props: HistoryProps) {
 
 					<HistoryToolbar
 						controller={controller}
-						linkComponent={props.linkComponent}
 						loading={props.loading}
 					/>
 
@@ -43,7 +42,6 @@ export function HistoryUI(props: HistoryProps) {
 
 				<HistoryTransferList
 					controller={controller}
-					linkComponent={props.linkComponent}
 					onTransferDetails={props.onTransferDetails}
 				/>
 			</div>

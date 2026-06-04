@@ -40,6 +40,7 @@ function RouteComponent() {
     <AppI18nProvider>
       <NekoShareProvider
         router={router}
+        linkComponent={Link}
         currentDevice={undefined}
         appMode="web"
       >
@@ -97,7 +98,6 @@ function HomeRouteContent() {
       <WebTitlebar helperActions={titlebarHelperActions} />
       <div className="flex flex-1 divide-x overflow-hidden">
         <HomeSidebar
-          linkComponent={Link}
           pathname={location.pathname}
           mode="website"
           collapseWhenNotificationOpen={notificationStatus === "on"}

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
   createFileRoute,
-  Link,
   Outlet,
   redirect,
   useLocation,
@@ -254,7 +253,6 @@ function HomeContent({
           />
           <div className="flex flex-1 divide-x overflow-hidden">
             <HomeSidebar
-              linkComponent={Link}
               pathname={location.pathname}
               mode="desktop"
               collapseWhenNotificationOpen={notificationStatus === "on"}
