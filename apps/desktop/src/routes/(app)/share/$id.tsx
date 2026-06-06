@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { createFileRoute } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  useCanGoBack,
+  useRouter,
+} from "@tanstack/react-router";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import {
@@ -532,6 +536,8 @@ function isTerminalMockState(state: ActiveTransferView["state"]) {
 
 function RouteComponent() {
   const { id } = Route.useParams();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
   const loadedHistoryForIdRef = useRef<string | null>(null);
   const [mockTransfers, setMockTransfers] = useState(() => mockActiveTransfers);
   const [fileActionOverrides, setFileActionOverrides] = useState<
@@ -712,10 +718,19 @@ function RouteComponent() {
     }));
   };
 
+  function onNavigateBack() {
+    if (canGoBack) {
+      router.history.back();
+    } else {
+      router.navigate({ to: "/home", viewTransition: true });
+    }
+  }
+
   return (
     <ShareDetailUI
       data={detail}
       backHref="/home"
+      onBack={onNavigateBack}
       onCopyId={(transferId) => {
         void window.navigator.clipboard.writeText(transferId);
       }}
