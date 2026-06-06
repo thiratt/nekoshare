@@ -8,7 +8,10 @@ import type {
 
 import type { TransferRecord, TransferStatus } from "@/lib/store/transfers";
 import { useTransferRecords } from "@/lib/store/transfers";
-import { listTransferHistory } from "@/lib/transfer-history";
+import {
+  listTransferHistory,
+  transferFileExists,
+} from "@/lib/transfer-history";
 
 const TERMINAL_ACTIVE_VISIBLE_MS = 2500;
 
@@ -102,6 +105,36 @@ function toRecentTransferItem(
   };
 }
 
+async function listAvailableReceivedHistoryRecords(): Promise<
+  TransferRecord[]
+> {
+  const historyRecords = await listTransferHistory();
+  const candidates = historyRecords
+    .filter(
+      (record) =>
+        record.direction === "receive" &&
+        mapRecentStatus(record.status) !== null,
+    )
+    .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+  const availableRecords: TransferRecord[] = [];
+
+  for (const record of candidates) {
+    try {
+      if (await transferFileExists(record.filePath)) {
+        availableRecords.push(record);
+      }
+    } catch {
+      // Missing or inaccessible files should not appear in Home recent files.
+    }
+
+    if (availableRecords.length >= HOME_RECENT_TRANSFER_LIMIT) {
+      break;
+    }
+  }
+
+  return availableRecords;
+}
+
 export function useTransferActivity(
   deviceNamesById: DeviceNameLookup = new Map(),
 ) {
@@ -118,7 +151,7 @@ export function useTransferActivity(
   const refreshRecentTransfers = useCallback(async () => {
     setIsLoadingRecent(true);
     try {
-      const historyRecords = await listTransferHistory();
+      const historyRecords = await listAvailableReceivedHistoryRecords();
       setRecentHistoryRecords(historyRecords);
     } catch (error) {
       console.error("Failed to load transfer history:", error);
