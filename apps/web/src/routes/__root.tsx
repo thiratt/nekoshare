@@ -11,64 +11,6 @@ import { GoogleAnalytics } from "@/components/google-analytics";
 import { NotFoundComponent } from "@/components/not-found";
 import { ThemeHeadSync } from "@/components/theme-head-sync";
 
-const THEME_INIT_SCRIPT = `(() => {
-  const storageKey = "nekoshare-ui-theme";
-  let storedTheme = null;
-
-  try {
-    storedTheme = window.localStorage.getItem(storageKey);
-  } catch (error) {}
-
-  const prefersDark =
-    window.matchMedia &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches;
-  const resolvedTheme =
-    storedTheme === "dark"
-      ? "dark"
-      : storedTheme === "light"
-        ? "light"
-        : prefersDark
-          ? "dark"
-          : "light";
-  const themeColor = resolvedTheme === "dark" ? "#09090b" : "#ffffff";
-  const assets =
-    resolvedTheme === "dark"
-      ? {
-          svg: "/favicon-dark.svg",
-          png: "/favicon-96x96-dark.png",
-          ico: "/favicon-dark.ico",
-          apple: "/apple-touch-icon-dark.png",
-          manifest: "/site-dark.webmanifest",
-        }
-      : {
-          svg: "/favicon.svg",
-          png: "/favicon-96x96.png",
-          ico: "/favicon.ico",
-          apple: "/apple-touch-icon.png",
-          manifest: "/site.webmanifest",
-        };
-
-  const setHref = (id, href) => {
-    const element = document.getElementById(id);
-
-    if (element) {
-      element.setAttribute("href", href);
-    }
-  };
-
-  setHref("app-favicon-svg", assets.svg);
-  setHref("app-favicon-png", assets.png);
-  setHref("app-favicon-ico", assets.ico);
-  setHref("app-apple-touch-icon", assets.apple);
-  setHref("app-manifest", assets.manifest);
-
-  const themeColorMeta = document.getElementById("theme-color-meta");
-
-  if (themeColorMeta) {
-    themeColorMeta.setAttribute("content", themeColor);
-  }
-})();`;
-
 export const Route = createRootRoute({
   errorComponent: ErrorComponent,
   notFoundComponent: NotFoundComponent,
@@ -84,11 +26,6 @@ export const Route = createRootRoute({
         name: "description",
         content:
           "Neko Share is an open-source, self-hostable file sharing app with secure transfers. Free to use.",
-      },
-      {
-        name: "keywords",
-        content:
-          "NekoShare, Neko Share, open-source file sharing, self-hostable file sharing, cross-device file sharing, direct file transfer, secure file sharing",
       },
       { name: "robots", content: "index,follow" },
       { name: "referrer", content: "strict-origin-when-cross-origin" },
@@ -144,7 +81,6 @@ export const Route = createRootRoute({
               alternateName: "NekoShare",
               url: "https://nekoshare.app/",
               logo: "https://nekoshare.app/favicon.svg",
-              sameAs: ["https://github.com/nekoshare/nekoshare"],
             },
           ],
         },
@@ -174,7 +110,6 @@ export const Route = createRootRoute({
       },
       { rel: "manifest", href: "/site.webmanifest", id: "app-manifest" },
     ],
-    headScripts: [{ children: THEME_INIT_SCRIPT }],
   }),
   shellComponent: RootDocument,
 });

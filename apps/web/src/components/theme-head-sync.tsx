@@ -13,14 +13,6 @@ const LIGHT_ASSETS = {
   manifest: "/site.webmanifest",
 };
 
-const DARK_ASSETS = {
-  svg: "/favicon-dark.svg",
-  png: "/favicon-96x96-dark.png",
-  ico: "/favicon-dark.ico",
-  apple: "/apple-touch-icon-dark.png",
-  manifest: "/site-dark.webmanifest",
-};
-
 function resolveTheme(theme: "light" | "dark" | "system"): "light" | "dark" {
   if (theme === "system") {
     return window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -32,7 +24,7 @@ function resolveTheme(theme: "light" | "dark" | "system"): "light" | "dark" {
 }
 
 function syncHead(theme: "light" | "dark") {
-  const assets = theme === "dark" ? DARK_ASSETS : LIGHT_ASSETS;
+  const assets = LIGHT_ASSETS;
   const themeColor = theme === "dark" ? DARK_THEME_COLOR : LIGHT_THEME_COLOR;
 
   const setHref = (id: string, href: string) => {
