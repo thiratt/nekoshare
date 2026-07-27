@@ -1,6 +1,6 @@
 {
   "appearance": {
-    "description": "Adjust how Nekoshare looks on this device.",
+    "description": "Adjust how Neko Share looks on this device.",
     "language": {
       "description": "Choose the language used on this device.",
       "saveError": "Unable to save language settings.",

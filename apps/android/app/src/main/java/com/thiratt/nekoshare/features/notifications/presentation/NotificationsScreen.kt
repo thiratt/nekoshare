@@ -80,7 +80,7 @@ fun NotificationsScreen(
             NotificationModel("1", "ได้รับไฟล์", "ได้รับ 'Project_Final.pdf' จาก Kenneth", "2 นาทีที่แล้ว", NotificationType.TransferSuccess, true),
             NotificationModel("2", "คำขอเป็นเพื่อน", "Sarah ต้องการเป็นเพื่อนกับคุณ", "1 ชั่วโมงที่แล้ว", NotificationType.Social, true),
             NotificationModel("3", "โอนส่งล้มเหลว", "ส่ง 'Movie.mp4' ไปยัง iPad Air ไม่สำเร็จ", "3 ชั่วโมงที่แล้ว", NotificationType.TransferFail, false),
-            NotificationModel("4", "อัปเดตระบบ", "NekoShare v2.0 พร้อมให้ใช้งานแล้ว!", "เมื่อวาน", NotificationType.System, false),
+            NotificationModel("4", "อัปเดตระบบ", "Neko Share v2.0 พร้อมให้ใช้งานแล้ว!", "เมื่อวาน", NotificationType.System, false),
             NotificationModel("5", "ส่งไฟล์แล้ว", "ส่งรูป 5 รูปไปยัง Mike สำเร็จ", "เมื่อวาน", NotificationType.TransferSuccess, false),
         )
     }

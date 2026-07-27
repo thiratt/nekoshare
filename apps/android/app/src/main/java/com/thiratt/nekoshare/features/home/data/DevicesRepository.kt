@@ -224,10 +224,10 @@ class DevicesRepository(context: Context) {
 
     private fun getAppName(type: DeviceType): String {
         return when (type) {
-            DeviceType.Android -> "NekoShare App"
-            DeviceType.Windows -> "NekoShare Desktop"
-            DeviceType.Website -> "NekoShare Web"
-            DeviceType.Other -> "NekoShare"
+            DeviceType.Android -> "Neko Share App"
+            DeviceType.Windows -> "Neko Share Desktop"
+            DeviceType.Website -> "Neko Share Web"
+            DeviceType.Other -> "Neko Share"
         }
     }
 

@@ -18,7 +18,7 @@ function WebTitlebar({ helperActions }: WebTitlebarProps) {
     <div className="flex items-center w-full h-11 bg-primary dark:bg-background border-b-2">
       <div data-tauri-drag-region className="flex-1 h-full flex items-center">
         <h1 className="pointer-events-none select-none pl-3 font-semibold text-background dark:text-foreground text-sm lg:text-base">
-          Nekoshare Desktop
+          Neko Share Desktop
         </h1>
       </div>
       <div className="flex items-center h-full text-background dark:text-foreground">

@@ -109,7 +109,7 @@ function SetupApplicationUI() {
     <div className="w-full max-w-2xl space-y-8 rounded-lg border bg-card p-8 shadow-lg">
       <header className="space-y-2 text-center">
         <h1 className="text-3xl font-bold tracking-tight">
-          ยินดีต้อนรับสู่ Nekoshare
+          ยินดีต้อนรับสู่ Neko Share
         </h1>
         <p className="text-muted-foreground">
           ตั้งค่าตำแหน่งบันทึกไฟล์ที่คุณได้รับ
@@ -197,7 +197,7 @@ function SetupApplicationUI() {
           ) : (
             <Check className="h-4 w-4 mr-2" />
           )}
-          เริ่มใช้งาน Nekoshare
+          เริ่มใช้งาน Neko Share
         </Button>
       </div>
     </div>

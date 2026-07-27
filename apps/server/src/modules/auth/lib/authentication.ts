@@ -16,7 +16,7 @@ import { accountSchemaOptions, userSchemaOptions } from "./schema";
 import { env } from "@/config/env";
 
 export const auth = betterAuth({
-	appName: "Nekoshare",
+	appName: "Neko Share",
 	baseURL: env.BETTER_AUTH_URL,
 	basePath: "auth",
 	database: databaseOptions,

@@ -81,8 +81,8 @@ fun ShareActionSheet(
     val scope = rememberCoroutineScope()
 
     val nearbyDevices = listOf(
-        DeviceItem("2", "Kenneth's PC", "NekoShare Desktop", "2.1.0", DeviceType.Windows, DeviceStatus.Online, "192.168.1.5", "ใกล้คุณ", "ตอนนี้"),
-        DeviceItem("3", "Pixel 8", "NekoShare Android", "1.0.0", DeviceType.Android, DeviceStatus.Offline, "192.168.1.9", "ออฟไลน์", "10 นาทีที่แล้ว")
+        DeviceItem("2", "Kenneth's PC", "Neko Share Desktop", "2.1.0", DeviceType.Windows, DeviceStatus.Online, "192.168.1.5", "ใกล้คุณ", "ตอนนี้"),
+        DeviceItem("3", "Pixel 8", "Neko Share Android", "1.0.0", DeviceType.Android, DeviceStatus.Offline, "192.168.1.9", "ออฟไลน์", "10 นาทีที่แล้ว")
     )
 
     fun simulateFileSelection() {

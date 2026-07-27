@@ -1,6 +1,6 @@
-# NekoShare
+# Neko Share
 
-Welcome to **NekoShare**!
+Welcome to **Neko Share**!
 This project is currently under development.
 
 ## Installation

@@ -60,7 +60,7 @@
     },
     "displayName": {
       "description": "Your display name appears in your profile and notifications.",
-      "hint": "Use a name other people can easily recognize in Nekoshare.",
+      "hint": "Use a name other people can easily recognize in Neko Share.",
       "placeholder": "Your name",
       "saveError": "Unable to save your display name right now. Please try again.",
       "saveSuccess": "Display name updated.",

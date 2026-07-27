@@ -14,7 +14,7 @@ export function NotFoundComponent() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
       <div className="flex h-12 items-center border-b bg-card px-4">
-        <h1 className="font-semibold">NekoShare Web</h1>
+        <h1 className="font-semibold">Neko Share Web</h1>
       </div>
       <div className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-md">

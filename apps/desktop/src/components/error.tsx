@@ -21,7 +21,7 @@ export function ErrorComponent({
   return (
     <div className="bg-background flex h-screen w-full flex-col">
       <div className="flex h-11 items-center border-b-2 bg-primary px-3 dark:bg-background">
-        <h1 className="font-semibold text-background dark:text-foreground">Nekoshare Desktop</h1>
+        <h1 className="font-semibold text-background dark:text-foreground">Neko Share Desktop</h1>
       </div>
       <div className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-md">

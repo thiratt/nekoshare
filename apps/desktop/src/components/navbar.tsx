@@ -56,7 +56,7 @@ function DesktopTitlebar({
           className="flex h-full min-w-0 flex-1 items-center"
         >
           <h1 className="pointer-events-none select-none pl-3 font-semibold text-background dark:text-foreground text-sm lg:text-base">
-            Nekoshare Desktop
+            Neko Share Desktop
           </h1>
         </div>
       </div>

@@ -189,7 +189,7 @@ fn error_page_html(error: &str) -> String {
         "<body>",
         "<main class=\"stack\">",
         "<h1>Verification failed</h1>",
-        "<p>Nekoshare received the error result.</p>",
+        "<p>Neko Share received the error result.</p>",
         "<p>You can return to the app and try again.</p>",
         "<p class=\"detail\">Status: ",
         &escaped_error,

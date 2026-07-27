@@ -42,7 +42,7 @@ export async function createApp(): Promise<ServerType> {
 	app.use("*", cors(CORS_CONFIG));
 	app.use(authMiddleware);
 	app.use(logger(nekoShareLogger));
-	app.use(poweredBy({ serverName: "Nekoshare Server" }));
+	app.use(poweredBy({ serverName: "Neko Share Server" }));
 
 	app.onError(onError);
 	const moduleDependencies = createModuleDependencies();

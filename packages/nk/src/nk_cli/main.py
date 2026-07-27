@@ -40,7 +40,7 @@ def main(
 def build_parser(command_specs: Sequence[CommandSpec]) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="nk.py",
-        description="Nekoshare control CLI.",
+        description="Neko Share control CLI.",
     )
     subparsers = parser.add_subparsers(dest="command", metavar="command")
     subparsers.required = True

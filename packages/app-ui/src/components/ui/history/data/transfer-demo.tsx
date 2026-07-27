@@ -256,7 +256,7 @@ export const mockActiveTransfers: ActiveTransferView[] = [
 			makeTarget(
 				"max-laptop",
 				"Max Laptop",
-				"Nekoshare Desktop",
+				"Neko Share Desktop",
 				"paused",
 				"disconnected",
 				"lan",

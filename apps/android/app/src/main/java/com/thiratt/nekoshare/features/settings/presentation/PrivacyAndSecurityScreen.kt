@@ -103,7 +103,7 @@ fun PrivacyAndSecurityScreen(
             SettingsSwitchItem(
                 icon = Icons.Rounded.Analytics,
                 title = "แชร์ข้อมูลการใช้งาน",
-                subtitle = "ช่วยพัฒนา NekoShare โดยส่งข้อมูลแบบไม่ระบุตัวตน",
+                subtitle = "ช่วยพัฒนา Neko Share โดยส่งข้อมูลแบบไม่ระบุตัวตน",
                 checked = shareUsageData,
                 onCheckedChange = { shareUsageData = it }
             )

@@ -137,7 +137,7 @@ fun SettingsScreen(
 
             SettingsItem(
                 icon = Icons.Rounded.Info,
-                title = "เกี่ยวกับ NekoShare",
+                title = "เกี่ยวกับ Neko Share",
                 subtitle = "เวอร์ชัน 0.0.1 (บิลด์ 2026)",
                 onClick = onAboutClick
             )
@@ -152,7 +152,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
             title = { Text(text = "ออกจากระบบ") },
-            text = { Text(text = "คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ NekoShare?") },
+            text = { Text(text = "คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ Neko Share?") },
             confirmButton = {
                 TextButton(
                     onClick = {

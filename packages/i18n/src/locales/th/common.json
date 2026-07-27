@@ -1,7 +1,7 @@
 {
-  "appName": "Nekoshare",
+  "appName": "Neko Share",
   "loading": {
-    "app": "กำลังโหลด NekoShare...",
+    "app": "กำลังโหลด Neko Share...",
     "deviceData": "กำลังโหลดข้อมูลอุปกรณ์..."
   },
   "actions": {

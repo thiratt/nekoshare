@@ -1,5 +1,5 @@
 export class RootService {
 	getHealthMessage() {
-		return { message: "Nekoshare Server is running." };
+		return { message: "Neko Share Server is running." };
 	}
 }

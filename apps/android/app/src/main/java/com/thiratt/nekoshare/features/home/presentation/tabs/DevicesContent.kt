@@ -408,7 +408,7 @@ fun DevicesListPreview() {
                     DeviceItem(
                         id = "1",
                         name = "Xiaomi 15 Pro",
-                        appName = "NekoShare App",
+                        appName = "Neko Share App",
                         appVersion = "1.0.0",
                         type = DeviceType.Android,
                         status = DeviceStatus.Current,
@@ -419,7 +419,7 @@ fun DevicesListPreview() {
                     DeviceItem(
                         id = "2",
                         name = "Kenneth's PC",
-                        appName = "NekoShare Desktop",
+                        appName = "Neko Share Desktop",
                         appVersion = "2.1.0",
                         type = DeviceType.Windows,
                         status = DeviceStatus.Online,
