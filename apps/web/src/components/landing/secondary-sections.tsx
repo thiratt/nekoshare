@@ -11,7 +11,7 @@ export function LandingSecondarySections({
   compact?: boolean;
 }) {
   return (
-    <div className="[content-visibility:auto] [contain-intrinsic-size:1px_3200px]">
+    <div>
       <Features compact={compact} />
       <HowItWorks compact={compact} />
       <Platforms compact={compact} />
