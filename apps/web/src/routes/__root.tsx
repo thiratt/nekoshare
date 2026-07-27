@@ -6,6 +6,8 @@ import globalStylesUrl from "@workspace/ui/globals.css?url";
 
 import { ThemeProvider } from "@workspace/app-ui/providers/theme-provider";
 
+import fontBoldUrl from "../assets/fonts/LINESeedSansTH_W_Bd.woff2?url";
+import fontRegularUrl from "../assets/fonts/LINESeedSansTH_W_Rg.woff2?url";
 import appStylesUrl from "../styles.css?url";
 
 import { ErrorComponent } from "@/components/error";
@@ -65,7 +67,20 @@ export const Route = createRootRoute({
     ],
 
     links: [
-
+      {
+        rel: "preload",
+        href: fontRegularUrl,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "preload",
+        href: fontBoldUrl,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
       {
         rel: "stylesheet",
         href: globalStylesUrl,
