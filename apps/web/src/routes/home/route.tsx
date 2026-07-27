@@ -7,7 +7,7 @@ import {
   useLocation,
   useRouter,
 } from "@tanstack/react-router";
-import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
+import { LuBell, LuSettings } from "react-icons/lu";
 
 import { HomeSidebar } from "@workspace/app-ui/components/home-sidebar";
 import { NotificationSidebar } from "@workspace/app-ui/components/notification-sidebar";
@@ -22,6 +22,7 @@ import {
 } from "@workspace/app-ui/providers/theme-provider";
 
 import { WebTitlebar } from "@/components/navbar";
+import { ThemeToggleIcon } from "@/components/theme-visuals";
 import { AppI18nProvider, useAccountLanguageSync } from "@workspace/i18n/react";
 
 export const Route = createFileRoute("/home")({
@@ -55,7 +56,7 @@ function RouteComponent() {
 
 function HomeRouteContent() {
   const location = useLocation();
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
   const { setGlobalLoading, setMode, toggleNotification, notificationStatus } =
     useNekoShare();
   const { user } = Route.useRouteContext();
@@ -68,10 +69,14 @@ function HomeRouteContent() {
   const titlebarHelperActions = useMemo(
     () => [
       {
-        icon: theme === "dark" ? <LuMoon /> : <LuSun />,
-        label:
-          theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
-        onClick: () => setTheme(theme === "dark" ? "light" : "dark"),
+        icon: <ThemeToggleIcon />,
+        label: "Toggle theme",
+        onClick: () =>
+          setTheme(
+            document.documentElement.classList.contains("dark")
+              ? "light"
+              : "dark",
+          ),
       },
       {
         icon: <LuBell />,
@@ -89,7 +94,7 @@ function HomeRouteContent() {
         onClick: () => setMode("settings"),
       },
     ],
-    [notificationStatus, setMode, setTheme, theme, toggleNotification],
+    [notificationStatus, setMode, setTheme, toggleNotification],
   );
 
   useEffect(() => {

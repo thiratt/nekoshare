@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Blocks, Map, Route, ShieldCheck } from "lucide-react";
 
+import { ThemeLogo } from "@/components/theme-visuals";
+
 const projectLinks = [
   {
     name: "Capabilities",
@@ -28,7 +30,7 @@ const projectLinks = [
   },
 ];
 
-export function Footer({ theme }: { theme: "light" | "dark" | "system" }) {
+export function Footer() {
   return (
     <footer
       id="development"
@@ -38,16 +40,7 @@ export function Footer({ theme }: { theme: "light" | "dark" | "system" }) {
         <div className="grid lg:grid-cols-[1.15fr_0.85fr]">
           <div className="border-b border-border/70 p-6 sm:p-10 lg:border-b-0 lg:border-r lg:p-12">
             <Link to="/" className="inline-flex items-center gap-2.5">
-              <img
-                src={
-                  theme === "light"
-                    ? "/NekoShare-Light.svg"
-                    : "/NekoShare-Dark.svg"
-                }
-                alt="Neko Share logo"
-                width="24"
-                height="24"
-              />
+              <ThemeLogo alt="Neko Share logo" width="24" height="24" />
               <span className="font-semibold">Neko Share</span>
             </Link>
 

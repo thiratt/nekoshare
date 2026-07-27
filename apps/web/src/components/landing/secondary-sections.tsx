@@ -7,10 +7,8 @@ import { Security } from "./security";
 
 export function LandingSecondarySections({
   compact = false,
-  theme,
 }: {
   compact?: boolean;
-  theme: "light" | "dark" | "system";
 }) {
   return (
     <div className="[content-visibility:auto] [contain-intrinsic-size:1px_3200px]">
@@ -19,7 +17,7 @@ export function LandingSecondarySections({
       <Platforms compact={compact} />
       <Security compact={compact} />
       <CTA compact={compact} />
-      <Footer theme={theme} />
+      <Footer />
     </div>
   );
 }

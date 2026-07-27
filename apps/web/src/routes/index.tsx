@@ -106,17 +106,17 @@ export const Route = createFileRoute("/")({
 });
 
 function RouteComponent() {
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
 
   return (
     <div className="min-h-screen overflow-x-clip bg-background text-foreground">
-      <Header theme={theme} setTheme={setTheme} />
+      <Header setTheme={setTheme} />
 
       <main>
         <Hero />
 
         <Suspense fallback={null}>
-          <LandingSecondarySections theme={theme} />
+          <LandingSecondarySections />
         </Suspense>
       </main>
     </div>

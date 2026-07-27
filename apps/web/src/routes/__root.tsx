@@ -2,14 +2,47 @@ import type { ReactNode } from "react";
 
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 
+import globalStylesUrl from "@workspace/ui/globals.css?url";
+
 import { ThemeProvider } from "@workspace/app-ui/providers/theme-provider";
 
-import "@workspace/ui/globals.css";
-import "../styles.css";
+import appStylesUrl from "../styles.css?url";
+
 import { ErrorComponent } from "@/components/error";
 import { GoogleAnalytics } from "@/components/google-analytics";
 import { NotFoundComponent } from "@/components/not-found";
 import { ThemeHeadSync } from "@/components/theme-head-sync";
+
+const themeInitializationScript = `
+  (() => {
+    const root = document.documentElement;
+    let theme = "system";
+
+    try {
+      theme = localStorage.getItem("nekoshare-ui-theme") || "system";
+    } catch {}
+
+    const resolvedTheme =
+      theme === "light" || theme === "dark"
+        ? theme
+        : window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+
+    root.classList.remove("light", "dark");
+    root.classList.add(resolvedTheme);
+    root.style.colorScheme = resolvedTheme;
+
+    const themeColor = document.getElementById("theme-color-meta");
+
+    if (themeColor) {
+      themeColor.setAttribute(
+        "content",
+        resolvedTheme === "dark" ? "#09090b" : "#ffffff",
+      );
+    }
+  })();
+`;
 
 export const Route = createRootRoute({
   errorComponent: ErrorComponent,
@@ -17,20 +50,6 @@ export const Route = createRootRoute({
 
   head: () => ({
     meta: [
-      { charSet: "UTF-8" },
-      {
-        name: "viewport",
-        content: "width=device-width, initial-scale=1.0",
-      },
-      {
-        name: "theme-color",
-        content: "#ffffff",
-        id: "theme-color-meta",
-      },
-      {
-        name: "color-scheme",
-        content: "light dark",
-      },
       {
         name: "application-name",
         content: "Neko Share",
@@ -46,6 +65,15 @@ export const Route = createRootRoute({
     ],
 
     links: [
+
+      {
+        rel: "stylesheet",
+        href: globalStylesUrl,
+      },
+      {
+        rel: "stylesheet",
+        href: appStylesUrl,
+      },
       {
         rel: "icon",
         type: "image/svg+xml",
@@ -85,6 +113,19 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta charSet="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+          id="theme-color-meta"
+          name="theme-color"
+          content="#ffffff"
+          suppressHydrationWarning
+        />
+        <script
+          data-cfasync="false"
+          dangerouslySetInnerHTML={{ __html: themeInitializationScript }}
+          suppressHydrationWarning
+        />
         <HeadContent />
       </head>
 

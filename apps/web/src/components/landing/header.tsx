@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { Link } from "@tanstack/react-router";
-import { LuActivity, LuChevronDown, LuMoon, LuSun } from "react-icons/lu";
+import { LuActivity, LuChevronDown } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -14,6 +14,8 @@ import {
 } from "@workspace/ui/components/dropdown-menu";
 import { cn } from "@workspace/ui/lib/utils";
 
+import { ThemeLogo, ThemeToggleIcon } from "@/components/theme-visuals";
+
 const navigation = [
   { name: "Features", href: "#features" },
   { name: "Security", href: "#security" },
@@ -21,28 +23,21 @@ const navigation = [
   { name: "Docs", href: "#docs" },
 ];
 
-function Brand({ theme }: { theme: "light" | "dark" | "system" }) {
+function Brand() {
   return (
     <Link
       to="/"
       className="flex h-full items-center gap-2.5 px-4 transition-opacity hover:opacity-80 sm:px-5"
       aria-label="Neko Share home"
     >
-      <img
-        src={theme === "light" ? "/NekoShare-Light.svg" : "/NekoShare-Dark.svg"}
-        alt="Neko Share logo"
-        width="28"
-        height="28"
-      />
+      <ThemeLogo alt="Neko Share logo" width="28" height="28" />
     </Link>
   );
 }
 
 export function Header({
-  theme,
   setTheme,
 }: {
-  theme: "light" | "dark" | "system";
   setTheme: (theme: "light" | "dark" | "system") => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -95,7 +90,9 @@ export function Header({
   }, [isOpen]);
 
   const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
+    setTheme(
+      document.documentElement.classList.contains("dark") ? "light" : "dark",
+    );
   };
 
   return (
@@ -107,7 +104,7 @@ export function Header({
             "border-border bg-background/90 backdrop-blur-xl",
         )}
       >
-        <Brand theme={theme} />
+        <Brand />
 
         <nav className="hidden items-stretch md:flex">
           {navigation.map((item) => (
@@ -161,14 +158,10 @@ export function Header({
             variant="ghost"
             size="icon-sm"
             className="h-full w-12 rounded-none"
-            aria-label={
-              theme === "light"
-                ? "Switch to dark theme"
-                : "Switch to light theme"
-            }
+            aria-label="Toggle theme"
             onClick={toggleTheme}
           >
-            {theme === "light" ? <LuSun /> : <LuMoon />}
+            <ThemeToggleIcon />
           </Button>
         </div>
 
@@ -246,7 +239,7 @@ export function Header({
                   aria-label="Toggle theme"
                   onClick={toggleTheme}
                 >
-                  {theme === "light" ? <LuSun /> : <LuMoon />}
+                  <ThemeToggleIcon />
                 </Button>
                 <Button className="ml-auto" size="sm" asChild>
                   <a href="#roadmap" onClick={() => setIsOpen(false)}>

@@ -1,9 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 import type { Theme, ThemeProviderProps, ThemeProviderState } from "@workspace/app-ui/types/theme";
 
 const STORAGE_KEY = "nekoshare-ui-theme";
 const SYNC_STORAGE_KEY = "nekoshare-ui-theme-sync-account";
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const initialState: ThemeProviderState = {
 	theme: "system",
@@ -23,23 +24,34 @@ export function ThemeProvider({
 	disableTransitionOnChange = true,
 	...props
 }: ThemeProviderProps & { disableTransitionOnChange?: boolean }) {
-	const [theme, setThemeState] = useState<Theme>(() => {
-		if (typeof window !== "undefined") {
-			return (localStorage.getItem(storageKey) as Theme) || defaultTheme;
-		}
-		return defaultTheme;
-	});
-	const [syncThemeFromAccount, setSyncThemeFromAccountState] = useState<boolean>(() => {
-		if (typeof window === "undefined") {
-			return true;
-		}
-
-		const stored = localStorage.getItem(SYNC_STORAGE_KEY);
-		return stored === null ? true : stored !== "false";
-	});
+	const [theme, setThemeState] = useState<Theme>(defaultTheme);
+	const [themeHydrated, setThemeHydrated] = useState(false);
+	const [syncThemeFromAccount, setSyncThemeFromAccountState] = useState(true);
 	const [accountThemeSyncPaused, setAccountThemeSyncPausedState] = useState(false);
 
-	useEffect(() => {
+	useIsomorphicLayoutEffect(() => {
+		let storedTheme = defaultTheme;
+		let storedSyncThemeFromAccount = true;
+
+		try {
+			storedTheme = normalizeTheme(localStorage.getItem(storageKey)) ?? defaultTheme;
+
+			const storedSyncPreference = localStorage.getItem(SYNC_STORAGE_KEY);
+			storedSyncThemeFromAccount = storedSyncPreference === null ? true : storedSyncPreference !== "false";
+		} catch {
+			// Storage may be unavailable in restricted browser contexts.
+		}
+
+		setThemeState(storedTheme);
+		setSyncThemeFromAccountState(storedSyncThemeFromAccount);
+		setThemeHydrated(true);
+	}, [defaultTheme, storageKey]);
+
+	useIsomorphicLayoutEffect(() => {
+		if (!themeHydrated) {
+			return;
+		}
+
 		const root = window.document.documentElement;
 
 		const updateDOM = (targetTheme: string) => {
@@ -65,6 +77,7 @@ export function ThemeProvider({
 
 			root.classList.remove("light", "dark");
 			root.classList.add(targetTheme);
+			root.style.colorScheme = targetTheme;
 
 			if (disableTransitionOnChange && css) {
 				setTimeout(() => {
@@ -89,7 +102,7 @@ export function ThemeProvider({
 		} else {
 			updateDOM(theme);
 		}
-	}, [theme, disableTransitionOnChange]);
+	}, [theme, disableTransitionOnChange, themeHydrated]);
 
 	const setTheme = useCallback(
 		(newTheme: Theme, options: { persist?: boolean } = {}) => {
