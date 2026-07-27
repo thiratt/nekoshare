@@ -1,89 +1,80 @@
-import { ArrowRight } from "lucide-react";
+import { BookOpen, Server } from "lucide-react";
 
-import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 
-import { motion } from "@workspace/app-ui/components/provide-animate";
-
-export function CTA() {
+export function CTA({ compact = false }: { compact?: boolean }) {
   return (
-    <section className="bg-background py-24 md:py-32">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          viewport={{ once: true }}
-          className="overflow-hidden rounded-[2.5rem] border border-border/50 bg-muted/20"
-        >
-          <div className="grid gap-8 px-6 py-8 md:px-10 md:py-10 lg:grid-cols-[1.2fr,0.95fr] lg:gap-12">
-            <div className="flex flex-col justify-between">
-              <div id="pricing" className="scroll-mt-20">
-                <Badge>Next</Badge>
-                <h2 className="mt-4 max-w-2xl text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                  Free to use now. Pricing can wait until it is real.
-                </h2>
-                <p className="mt-4 max-w-xl text-pretty text-lg text-muted-foreground">
-                  NekoShare is still taking shape. You can keep the setup under
-                  your control today, while hosted plans and public pricing stay
-                  out of the way until they are ready.
-                </p>
-              </div>
-
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button
-                  size="lg"
-                  className="group h-12 rounded-full px-6 text-base"
-                  asChild
-                >
-                  <a href="https://github.com" target="_blank" rel="noreferrer">
-                    View on GitHub
-                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </a>
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-12 rounded-full px-6 text-base"
-                  asChild
-                >
-                  <a href="#features">Explore the product</a>
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid gap-4">
-              <div
-                id="docs"
-                className="scroll-mt-20 rounded-[1.75rem] border border-border/50 bg-background/80 p-6"
+    <section
+      className={
+        compact
+          ? "bg-background"
+          : "bg-background px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20"
+      }
+    >
+      <div
+        className={
+          compact
+            ? "mx-auto max-w-7xl border-x border-border/70"
+            : "mx-auto max-w-7xl overflow-hidden rounded-xl border border-border/70 bg-background shadow-sm"
+        }
+      >
+        <div className="grid lg:grid-cols-[1.18fr_0.82fr]">
+          <div
+            id="roadmap"
+            className="scroll-mt-14 border-b border-border/70 bg-foreground p-6 text-background sm:p-10 lg:border-b-0 lg:border-r lg:p-12 dark:bg-muted/40 dark:text-foreground"
+          >
+            <h2 className="mt-6 max-w-2xl text-balance text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              Building the transfer engine first.
+            </h2>
+            <p className="mt-5 max-w-xl text-pretty text-base leading-7 text-background/65 dark:text-muted-foreground">
+              Neko Share is still in development. Current work focuses on
+              encryption, transfer recovery, and bringing the desktop, Android,
+              and web clients closer together.
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Button
+                size="lg"
+                className="bg-background text-foreground hover:bg-background/90 dark:bg-foreground dark:text-background dark:hover:bg-foreground/90"
+                disabled
               >
-                <p className="text-sm font-medium text-muted-foreground">
-                  Docs
-                </p>
-                <h3 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
-                  The repo is the source of truth for now.
-                </h3>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                  Dedicated documentation is still coming together. Until then,
-                  the code and project notes say the most.
-                </p>
-              </div>
-
-              <div className="rounded-[1.75rem] border border-border/50 bg-background/80 p-6">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Self-hosting
-                </p>
-                <h3 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
-                  Run it yourself, keep it simple.
-                </h3>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                  Use it for free today and keep control over how it is deployed
-                  while the hosted story catches up later.
-                </p>
-              </div>
+                Coming soon
+              </Button>
             </div>
           </div>
-        </motion.div>
+
+          <div className="grid">
+            <article
+              id="docs"
+              className="scroll-mt-14 border-b border-border/70 p-6 sm:p-8"
+            >
+              <BookOpen className="text-muted-foreground" />
+              <p className="mt-4 text-sm font-medium text-muted-foreground">
+                Docs
+              </p>
+              <h3 className="mt-1 text-lg font-semibold tracking-tight">
+                Decisions before promises.
+              </h3>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Architecture notes separate what runs today from what still
+                belongs to the target design.
+              </p>
+            </article>
+
+            <article className="p-6 sm:p-8">
+              <Server className="size-5 text-muted-foreground" />
+              <p className="mt-4 text-sm font-medium text-muted-foreground">
+                Self-hosting
+              </p>
+              <h3 className="mt-1 text-lg font-semibold tracking-tight">
+                Keep deployment under your control.
+              </h3>
+              <p className="text-sm leading-6 text-muted-foreground">
+                The current Docker and edge configuration provide a practical
+                starting point for running the stack yourself.
+              </p>
+            </article>
+          </div>
+        </div>
       </div>
     </section>
   );

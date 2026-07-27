@@ -1,89 +1,106 @@
-import { FileText, Globe, Shield, Users, Wifi, Zap } from "lucide-react";
+import {
+  History,
+  ListChecks,
+  MonitorSmartphone,
+  Network,
+  RefreshCw,
+  UserCheck,
+} from "lucide-react";
 
 import { Badge } from "@workspace/ui/components/badge";
 
-import { motion } from "@workspace/app-ui/components/provide-animate";
-
 const features = [
   {
-    icon: Zap,
-    title: "Fast by default",
+    icon: MonitorSmartphone,
+    title: "Device presence",
     description:
-      "A quicker, cleaner way to move files without the usual friction.",
+      "Know which registered devices are available before choosing where a file should go.",
   },
   {
-    icon: Shield,
-    title: "End-to-end encrypted",
+    icon: UserCheck,
+    title: "Receiver approval",
     description:
-      "File sharing designed to keep your transfers private from start to finish.",
+      "Transfers to another person keep acceptance or rejection in the receiver's hands.",
   },
   {
-    icon: Globe,
-    title: "Across your devices",
-    description: "Move files where you need them, from one device to another.",
+    icon: ListChecks,
+    title: "Readable state",
+    description:
+      "Offers, active transfers, pauses, failures, and completion use states people can understand.",
   },
   {
-    icon: Users,
-    title: "Made for friends too",
+    icon: History,
+    title: "Transfer history",
     description:
-      "Not just for your own devices. Share with people you trust as well.",
+      "Recent activity gives each send or receive a place to inspect after the moment has passed.",
   },
   {
-    icon: Wifi,
-    title: "Direct and simple",
+    icon: Network,
+    title: "Built for large files",
     description:
-      "Less setup, less waiting, and a flow that feels easy to trust.",
+      "Files are streamed in smaller parts instead of being loaded into memory all at once.",
   },
   {
-    icon: FileText,
-    title: "Ready for real files",
+    icon: RefreshCw,
+    title: "Resume interrupted transfers",
     description:
-      "From quick documents to large media, built for everyday sharing.",
+      "Planned recovery support will let interrupted transfers continue without starting over.",
   },
 ];
 
-export function Features() {
+export function Features({ compact = false }: { compact?: boolean }) {
   return (
-    <section className="bg-background py-20 md:py-28">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <motion.div
-          id="features"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          viewport={{ once: true }}
-          className="scroll-mt-20 mx-auto max-w-2xl text-center"
-        >
-          <Badge>Features</Badge>
-          <h2 className="mt-2 text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Everything you need for seamless file transfers
-          </h2>
-          <p className="mt-4 text-pretty text-lg text-muted-foreground">
-            Built from the ground up for speed, security, and simplicity. No
-            complicated setup, no subscriptions required.
-          </p>
-        </motion.div>
+    <section
+      id="features"
+      className={
+        compact
+          ? "scroll-mt-14 bg-background"
+          : "scroll-mt-14 border-t bg-muted/15 px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20"
+      }
+    >
+      <div
+        className={
+          compact
+            ? "mx-auto max-w-7xl border-x border-border/70"
+            : "mx-auto max-w-7xl overflow-hidden rounded-xl border border-border/70 bg-background shadow-sm"
+        }
+      >
+        <div className="grid border-b border-border/70 lg:grid-cols-[0.75fr_1.25fr]">
+          <div className="border-b border-border/70 p-6 sm:p-10 lg:border-b-0 lg:border-r lg:p-12">
+            <Badge variant="outline">Features</Badge>
+            <h2 className="mt-5 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+              The product around the transfer
+            </h2>
+          </div>
+          <div className="flex items-end p-6 sm:p-10 lg:p-12">
+            <p className="max-w-2xl text-pretty text-base leading-7 text-muted-foreground sm:text-lg">
+              A useful transfer tool needs more than a fast data path. It needs
+              destinations you recognize, consent you can see, and history that
+              still makes sense afterward.
+            </p>
+          </div>
+        </div>
 
-        <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature, index) => (
-            <motion.div
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3">
+          {features.map((feature) => (
+            <article
               key={feature.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              viewport={{ once: true }}
-              className="group relative rounded-2xl border border-border/40 bg-card/45 p-6 transition-colors hover:border-border/60 hover:bg-card/60"
+              className="group relative min-h-64 border-b border-border/70 p-6 transition-colors hover:bg-muted/25 sm:p-8 lg:not-nth-[3n]:border-r lg:nth-last-[-n+3]:border-b-0"
             >
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-foreground text-background transition-colors">
-                <feature.icon className="h-6 w-6" />
+              <div className="flex items-start justify-between">
+                <div className="flex size-10 items-center justify-center rounded-md border border-border bg-background shadow-sm">
+                  <feature.icon className="size-5" />
+                </div>
               </div>
-              <h3 className="text-lg font-semibold text-foreground">
-                {feature.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {feature.description}
-              </p>
-            </motion.div>
+              <div className="mt-8">
+                <h3 className="mt-2 text-base font-semibold tracking-tight">
+                  {feature.title}
+                </h3>
+                <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+                  {feature.description}
+                </p>
+              </div>
+            </article>
           ))}
         </div>
       </div>

@@ -30,16 +30,14 @@ function RouteComponent() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="relative overflow-hidden bg-background">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-screen bg-[radial-gradient(circle_at_top,rgba(148,163,184,0.12),transparent_65%)]" />
-      <div className="pointer-events-none absolute inset-x-0 top-168 h-96 bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.08),transparent_70%)]" />
-      <div className="relative">
-        <Header theme={theme} setTheme={setTheme} />
+    <div className="min-h-screen overflow-x-clip bg-background text-foreground">
+      <Header theme={theme} setTheme={setTheme} />
+      <main>
         <Hero />
         <Suspense fallback={null}>
           <LandingSecondarySections theme={theme} />
         </Suspense>
-      </div>
+      </main>
     </div>
   );
 }

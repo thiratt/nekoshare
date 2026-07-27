@@ -4,21 +4,21 @@ import { Footer } from "./footer";
 import { HowItWorks } from "./how-it-works";
 import { Platforms } from "./platforms";
 import { Security } from "./security";
-import { Stats } from "./stats";
 
 export function LandingSecondarySections({
+  compact = false,
   theme,
 }: {
+  compact?: boolean;
   theme: "light" | "dark" | "system";
 }) {
   return (
     <div className="[content-visibility:auto] [contain-intrinsic-size:1px_3200px]">
-      <Stats />
-      <Features />
-      <HowItWorks />
-      <Platforms />
-      <Security />
-      <CTA />
+      <Features compact={compact} />
+      <HowItWorks compact={compact} />
+      <Platforms compact={compact} />
+      <Security compact={compact} />
+      <CTA compact={compact} />
       <Footer theme={theme} />
     </div>
   );
