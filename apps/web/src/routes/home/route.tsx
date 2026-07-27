@@ -25,6 +25,9 @@ import { WebTitlebar } from "@/components/navbar";
 import { AppI18nProvider, useAccountLanguageSync } from "@workspace/i18n/react";
 
 export const Route = createFileRoute("/home")({
+  head: () => ({
+    meta: [{ name: "robots", content: "noindex,nofollow" }],
+  }),
   async beforeLoad() {
     const { requireAuthenticatedSession } = await import("@/lib/route-auth");
 

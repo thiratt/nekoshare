@@ -1,6 +1,11 @@
 import { useEffect } from "react";
 
-import { createFileRoute, Link, Outlet, useRouter } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useRouter,
+} from "@tanstack/react-router";
 
 import {
   NekoShareProvider,
@@ -10,6 +15,9 @@ import {
 import { AppI18nProvider } from "@workspace/i18n/react";
 
 export const Route = createFileRoute("/(auth)")({
+  head: () => ({
+    meta: [{ name: "robots", content: "noindex,nofollow" }],
+  }),
   async beforeLoad() {
     const { redirectAuthenticatedUser } = await import("@/lib/route-auth");
 

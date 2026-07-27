@@ -22,72 +22,9 @@ export const Route = createRootRoute({
       { name: "color-scheme", content: "light dark" },
       { name: "application-name", content: "Neko Share" },
       { name: "apple-mobile-web-app-title", content: "Neko Share" },
-      {
-        name: "description",
-        content:
-          "Neko Share is an open-source, self-hostable file sharing app with secure transfers. Free to use.",
-      },
-      { name: "robots", content: "index,follow" },
       { name: "referrer", content: "strict-origin-when-cross-origin" },
-      { property: "og:locale", content: "en_US" },
-      { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "Neko Share" },
-      { property: "og:url", content: "https://nekoshare.app/" },
-      {
-        property: "og:title",
-        content: "Neko Share | Open-Source Self-Hostable File Sharing",
-      },
-      {
-        property: "og:description",
-        content:
-          "Neko Share is an open-source, self-hostable file sharing app with secure transfers. Free to use.",
-      },
-      {
-        property: "og:image",
-        content: "https://nekoshare.app/web-app-manifest-512x512.png",
-      },
-      { property: "og:image:alt", content: "Neko Share logo" },
-      { name: "twitter:card", content: "summary" },
-      {
-        name: "twitter:title",
-        content: "Neko Share | Open-Source Self-Hostable File Sharing",
-      },
-      {
-        name: "twitter:description",
-        content:
-          "Neko Share is an open-source, self-hostable file sharing app with secure transfers. Free to use.",
-      },
-      {
-        name: "twitter:image",
-        content: "https://nekoshare.app/web-app-manifest-512x512.png",
-      },
-      { title: "Neko Share | Open-Source Self-Hostable File Sharing" },
-      {
-        "script:ld+json": {
-          "@context": "https://schema.org",
-          "@graph": [
-            {
-              "@type": "WebSite",
-              name: "Neko Share",
-              alternateName: "NekoShare",
-              url: "https://nekoshare.app/",
-              description:
-                "Neko Share is an open-source, self-hostable file sharing app with secure transfers. Free to use.",
-              inLanguage: "en",
-            },
-            {
-              "@type": "Organization",
-              name: "Neko Share",
-              alternateName: "NekoShare",
-              url: "https://nekoshare.app/",
-              logo: "https://nekoshare.app/favicon.svg",
-            },
-          ],
-        },
-      },
     ],
     links: [
-      { rel: "canonical", href: "https://nekoshare.app/" },
       {
         rel: "icon",
         type: "image/svg+xml",
