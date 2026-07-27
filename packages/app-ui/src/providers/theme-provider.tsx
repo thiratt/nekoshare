@@ -55,8 +55,8 @@ export function ThemeProvider({
               -o-transition: none !important;
               -ms-transition: none !important;
               transition: none !important;
-            }`
-					)
+            }`,
+					),
 				);
 				document.head.appendChild(css);
 
@@ -111,21 +111,24 @@ export function ThemeProvider({
 		setAccountThemeSyncPausedState(paused);
 	}, []);
 
-	const value = useMemo<ThemeProviderState>(() => ({
-		theme,
-		setTheme,
-		setSyncThemeFromAccount,
-		setAccountThemeSyncPaused,
-		accountThemeSyncPaused,
-		syncThemeFromAccount,
-	}), [
-		accountThemeSyncPaused,
-		setAccountThemeSyncPaused,
-		setSyncThemeFromAccount,
-		setTheme,
-		syncThemeFromAccount,
-		theme,
-	]);
+	const value = useMemo<ThemeProviderState>(
+		() => ({
+			theme,
+			setTheme,
+			setSyncThemeFromAccount,
+			setAccountThemeSyncPaused,
+			accountThemeSyncPaused,
+			syncThemeFromAccount,
+		}),
+		[
+			accountThemeSyncPaused,
+			setAccountThemeSyncPaused,
+			setSyncThemeFromAccount,
+			setTheme,
+			syncThemeFromAccount,
+			theme,
+		],
+	);
 
 	return (
 		<ThemeProviderContext.Provider {...props} value={value}>
