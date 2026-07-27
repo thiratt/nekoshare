@@ -21,7 +21,7 @@ import { AnimatedContainer } from "@workspace/app-ui/components/provide-animate"
 
 import { useNSDesktop } from "@/context/NSDesktopContext";
 
-const FOLDER_NAME = "Nekoshare";
+const FOLDER_NAME = "Neko Share";
 const DIALOG_TITLE = "Select Save Location";
 
 function SetupApplicationUI() {

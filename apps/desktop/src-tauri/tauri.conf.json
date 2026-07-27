@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Nekoshare",
+  "productName": "Neko Share",
   "version": "0.1.0",
   "identifier": "com.thiratt.nekoshare",
   "build": {
@@ -9,17 +9,17 @@
     "beforeDevCommand": "pnpm dev:w",
     "beforeBuildCommand": "pnpm build:w"
   },
-  "mainBinaryName": "Nekoshare",
+  "mainBinaryName": "Neko Share",
   "app": {
     "windows": [
       {
-        "title": "Nekoshare Desktop",
+        "title": "Neko Share Desktop",
         "label": "main",
         "minWidth": 1200,
         "minHeight": 700,
         "center": true,
         "decorations": false,
-        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0 NekoshareDesktop/0.1.0"
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0 Neko Share Desktop/0.1.0"
       }
     ],
     "security": {
