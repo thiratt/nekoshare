@@ -41,15 +41,6 @@ export function Header({
   setTheme: (theme: "light" | "dark" | "system") => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setIsScrolled(window.scrollY > 8);
-
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) {
@@ -97,13 +88,7 @@ export function Header({
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
-      <div
-        className={cn(
-          "relative z-20 mx-auto flex h-14 items-stretch border-b bg-background/70 backdrop-blur-md shadow-xs",
-          (isScrolled || isOpen) &&
-            "border-border bg-background/90 backdrop-blur-xl",
-        )}
-      >
+      <div className="relative z-20 mx-auto flex h-14 items-stretch border-b bg-background/85 backdrop-blur-md shadow-xs">
         <Brand />
 
         <nav className="hidden items-stretch md:flex">
@@ -176,13 +161,13 @@ export function Header({
           <span aria-hidden="true" className="relative block size-5">
             <span
               className={cn(
-                "absolute left-1/2 top-1.5 h-0.5 w-4 -translate-x-1/2 rounded-full bg-current transition-transform duration-300 ease-out",
+                "absolute left-1/2 top-1.5 h-0.5 w-4 -translate-x-1/2 rounded-full bg-current transition-transform ease-out",
                 isOpen && "translate-y-[3px] -rotate-45",
               )}
             />
             <span
               className={cn(
-                "absolute left-1/2 top-3 h-0.5 w-4 -translate-x-1/2 rounded-full bg-current transition-transform duration-300 ease-out",
+                "absolute left-1/2 top-3 h-0.5 w-4 -translate-x-1/2 rounded-full bg-current transition-transform ease-out",
                 isOpen && "-translate-y-[3px] rotate-45",
               )}
             />

@@ -12,7 +12,7 @@ import { Button } from "@workspace/ui/components/button";
 
 export function Hero({ compact = false }: { compact?: boolean }) {
   return (
-    <section className="relative overflow-hidden pt-14 border-b">
+    <section className="relative overflow-hidden pt-14">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] opacity-35 bg-size-[64px_64px] mask-[linear-gradient(to_bottom,black,transparent_88%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-128 bg-[radial-gradient(circle_at_top,var(--muted),transparent_65%)] opacity-60" />
 
