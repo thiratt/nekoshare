@@ -14,16 +14,37 @@ import { ThemeHeadSync } from "@/components/theme-head-sync";
 export const Route = createRootRoute({
   errorComponent: ErrorComponent,
   notFoundComponent: NotFoundComponent,
+
   head: () => ({
     meta: [
       { charSet: "UTF-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1.0" },
-      { name: "theme-color", content: "#ffffff", id: "theme-color-meta" },
-      { name: "color-scheme", content: "light dark" },
-      { name: "application-name", content: "Neko Share" },
-      { name: "apple-mobile-web-app-title", content: "Neko Share" },
-      { name: "referrer", content: "strict-origin-when-cross-origin" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1.0",
+      },
+      {
+        name: "theme-color",
+        content: "#ffffff",
+        id: "theme-color-meta",
+      },
+      {
+        name: "color-scheme",
+        content: "light dark",
+      },
+      {
+        name: "application-name",
+        content: "Neko Share",
+      },
+      {
+        name: "apple-mobile-web-app-title",
+        content: "Neko Share",
+      },
+      {
+        name: "referrer",
+        content: "strict-origin-when-cross-origin",
+      },
     ],
+
     links: [
       {
         rel: "icon",
@@ -38,16 +59,25 @@ export const Route = createRootRoute({
         href: "/favicon-96x96.png",
         id: "app-favicon-png",
       },
-      { rel: "shortcut icon", href: "/favicon.ico", id: "app-favicon-ico" },
+      {
+        rel: "shortcut icon",
+        href: "/favicon.ico",
+        id: "app-favicon-ico",
+      },
       {
         rel: "apple-touch-icon",
         sizes: "180x180",
         href: "/apple-touch-icon.png",
         id: "app-apple-touch-icon",
       },
-      { rel: "manifest", href: "/site.webmanifest", id: "app-manifest" },
+      {
+        rel: "manifest",
+        href: "/site.webmanifest",
+        id: "app-manifest",
+      },
     ],
   }),
+
   shellComponent: RootDocument,
 });
 
@@ -57,12 +87,15 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
       <head>
         <HeadContent />
       </head>
+
       <body>
         <GoogleAnalytics />
+
         <ThemeProvider>
           <ThemeHeadSync />
           {children}
         </ThemeProvider>
+
         <Scripts />
       </body>
     </html>
