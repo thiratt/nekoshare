@@ -15,8 +15,8 @@ import { RevokeConfirmDialog } from "../dialogs/RevokeConfirmDialog";
 import { useFriendsController } from "../hooks/useFriendsController";
 import { canSendToFriend, matchesFriendFilter, toFriendViewItem } from "../utils/friend-utils";
 import { FriendDetailsPane } from "./FriendDetailsPane";
+import { FriendEmptyState } from "./FriendEmptyState";
 import { FriendListView } from "./FriendListView";
-import { FriendsEmptyState } from "./FriendsEmptyState";
 import type { FriendFilter } from "../types";
 
 const filters: Array<{
@@ -116,6 +116,7 @@ export function FriendsUI({ onDropFiles, onSendFiles }: FriendsUIProps = {}) {
 								className={cn("h-8", filter === item.value && "border")}
 								aria-pressed={filter === item.value}
 								onClick={() => setFilter(item.value)}
+								disabled={visibleFriends.length === 0 && item.value !== "all"}
 							>
 								{item.label}
 
@@ -136,6 +137,7 @@ export function FriendsUI({ onDropFiles, onSendFiles }: FriendsUIProps = {}) {
 						onClearSearch={() => setSearchQuery("")}
 						placeholder="Search friends..."
 						className="w-full shadow-none sm:w-72"
+						disabled={visibleFriends.length === 0}
 					/>
 
 					<Button type="button" size="sm" className="h-8 shrink-0 gap-1.5" onClick={controller.openAddDialog}>
@@ -158,8 +160,9 @@ export function FriendsUI({ onDropFiles, onSendFiles }: FriendsUIProps = {}) {
 							Loading friends...
 						</div>
 					) : visibleFriends.length === 0 ? (
-						<FriendsEmptyState
+						<FriendEmptyState
 							hasFilter={filter !== "all" || searchQuery.trim().length > 0}
+							onAddFriend={controller.openAddDialog}
 							onReset={() => {
 								setFilter("all");
 								setSearchQuery("");
