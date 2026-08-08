@@ -108,6 +108,7 @@ function HomeRouteContent() {
         <HomeSidebar
           pathname={location.pathname}
           mode="website"
+          onSettings={() => setMode("settings")}
           collapseWhenNotificationOpen={notificationStatus === "on"}
         />
         <div className="flex-1 bg-muted p-4 flex flex-col min-w-0 overflow-hidden">
