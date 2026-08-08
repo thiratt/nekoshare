@@ -8,6 +8,11 @@ import {
 import { TiTabsOutline } from "react-icons/ti";
 
 import { Button } from "@workspace/ui/components/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 
 import { useNSDesktop } from "@/context/NSDesktopContext";
@@ -36,11 +41,11 @@ function DesktopTitlebar({
   const { isMaximized, isSnapHover, minimize, close } = useNSDesktop();
 
   return (
-    <div className="flex items-center w-full h-11 bg-primary dark:bg-background border-b-2">
+    <div className="flex items-center w-full h-11 bg-background border-b">
       <div className="flex-1 h-full flex items-center min-w-0">
-        {sidebarToggle ? (
+        {sidebarToggle && (
           <Button
-            className="ms-2 size-6 hover:bg-muted/20 text-background hover:text-background dark:hover:bg-[#373737] dark:text-foreground"
+            className="ms-2 size-6 hover:bg-muted/20 dark:hover:bg-[#373737]"
             variant="ghost"
             size="icon-sm"
             title={sidebarToggle.isOpen ? "Collapse sidebar" : "Expand sidebar"}
@@ -50,36 +55,37 @@ function DesktopTitlebar({
           >
             {sidebarToggle.isOpen ? <LuPanelLeftClose /> : <LuPanelLeftOpen />}
           </Button>
-        ) : null}
-        <div
-          data-tauri-drag-region
-          className="flex h-full min-w-0 flex-1 items-center"
-        >
-          <h1 className="pointer-events-none select-none pl-3 font-semibold text-background dark:text-foreground text-sm lg:text-base">
+        )}
+        <div data-neko-titlebar className="flex h-full min-w-0 flex-1 items-center">
+          <h1 className="pointer-events-none select-none pl-2 font-semibold text-sm lg:text-base">
             Neko Share Desktop
           </h1>
         </div>
       </div>
-      <div className="flex items-center h-full text-background dark:text-foreground">
+      <div className="flex items-center h-full">
         {helperActions && (
           <div className="space-x-1 mr-1">
             {helperActions.map((action, index) => (
-              <Button
-                key={index}
-                className={cn(
-                  "relative size-6 hover:bg-muted/20 hover:text-background dark:hover:bg-[#373737] dark:hover:text-foreground",
-                  action.actived && "bg-muted/20 dark:bg-[#373737]",
-                )}
-                variant="ghost"
-                title={action.title}
-                onClick={action.onClick}
-                tabIndex={-1}
-              >
-                {action.icon}
-                {action.badge && (
-                  <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-destructive" />
-                )}
-              </Button>
+              <Tooltip key={index} delayDuration={350}>
+                <TooltipTrigger>
+                  <Button
+                    key={index}
+                    className={cn(
+                      "relative hover:bg-primary/15",
+                      action.actived && "bg-primary/15 ",
+                    )}
+                    variant="ghost"
+                    onClick={action.onClick}
+                    tabIndex={-1}
+                  >
+                    {action.icon}
+                    {action.badge && (
+                      <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{action.title}</TooltipContent>
+              </Tooltip>
             ))}
           </div>
         )}
@@ -110,7 +116,7 @@ function DesktopTitlebar({
         </Button>
 
         <Button
-          className="h-full w-12 rounded-none hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive dark:hover:text-white transition-colors"
+          className={`h-full w-12 rounded-none transition-colors hover:bg-[#C42B1C]! hover:text-white! active:bg-[#C42B1CE6]!`}
           variant="ghost"
           size="icon"
           title="Close"

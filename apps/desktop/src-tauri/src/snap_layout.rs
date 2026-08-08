@@ -19,11 +19,12 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows::Win32::UI::Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, GetClientRect, LoadCursorW, RegisterClassExW,
-    SetCursor, SetWindowPos, HCURSOR, HICON, HMENU, HTMAXBUTTON, HWND_TOP, IDC_HAND,
-    SWP_ASYNCWINDOWPOS, WINDOW_EX_STYLE, WM_DPICHANGED, WM_NCHITTEST, WM_NCLBUTTONDOWN,
-    WM_NCLBUTTONUP, WM_NCMOUSELEAVE, WM_NCMOUSEMOVE, WM_SETCURSOR, WM_SIZE, WNDCLASSEXW,
-    WNDCLASS_STYLES, WS_CHILD, WS_CLIPSIBLINGS, WS_OVERLAPPED, WS_VISIBLE,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, GetClientRect, IsZoomed, LoadCursorW,
+    RegisterClassExW, SendMessageW, SetCursor, SetWindowPos, HCURSOR, HICON, HMENU,
+    HTMAXBUTTON, HWND_TOP, IDC_HAND, SC_MAXIMIZE, SC_RESTORE, SWP_ASYNCWINDOWPOS,
+    WINDOW_EX_STYLE, WM_DPICHANGED, WM_NCHITTEST, WM_NCLBUTTONDOWN, WM_NCLBUTTONUP,
+    WM_NCMOUSELEAVE, WM_NCMOUSEMOVE, WM_SETCURSOR, WM_SIZE, WM_SYSCOMMAND,
+    WNDCLASSEXW, WNDCLASS_STYLES, WS_CHILD, WS_CLIPSIBLINGS, WS_VISIBLE,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -65,17 +66,17 @@ pub enum MaxButtonEvent {
 type EventCallback = Arc<Mutex<Box<dyn FnMut(MaxButtonEvent) + Send + 'static>>>;
 
 struct SnapLayoutState {
+    parent: usize,
     config: SnapLayoutConfig,
     enabled: bool,
     is_mouse_over: bool,
+    is_pressed: bool,
     callback: EventCallback,
 }
 
 static STATES: OnceLock<Mutex<HashMap<usize, SnapLayoutState>>> = OnceLock::new();
 
 static REGISTER_CLASS: Once = Once::new();
-
-const SUBCLASS_ID: usize = 0x534E_4150; // 'SNAP'
 
 const E_FAIL: HRESULT = HRESULT(0x8000_4005u32 as i32);
 
@@ -111,6 +112,7 @@ fn register_overlay_class() {
 pub struct SnapLayoutHandle {
     parent: usize,
     overlay: usize,
+    subclass_id: usize,
 }
 
 impl SnapLayoutHandle {
@@ -132,9 +134,16 @@ impl Drop for SnapLayoutHandle {
         unsafe {
             let parent = self.parent_hwnd();
             let overlay = self.overlay_hwnd();
-            let _ = RemoveWindowSubclass(parent, Some(subclass_proc), SUBCLASS_ID);
+
+            let _ = RemoveWindowSubclass(
+                parent,
+                Some(subclass_proc),
+                self.subclass_id,
+            );
+
             let _ = DestroyWindow(overlay);
         }
+
         states().lock().unwrap().remove(&self.overlay);
     }
 }
@@ -172,24 +181,42 @@ where
 
     let overlay = unsafe { create_overlay_window(parent)? };
 
+    let subclass_id = hwnd_key(overlay);
+
     states().lock().unwrap().insert(
         hwnd_key(overlay),
         SnapLayoutState {
+            parent: hwnd_key(parent),
             config,
             enabled: true,
             is_mouse_over: false,
+            is_pressed: false,
             callback: Arc::new(Mutex::new(Box::new(callback))),
         },
     );
 
     unsafe {
         update_overlay_position(parent, overlay);
-        SetWindowSubclass(parent, Some(subclass_proc), SUBCLASS_ID, hwnd_key(overlay)).ok()?;
+
+        if let Err(err) = SetWindowSubclass(
+            parent,
+            Some(subclass_proc),
+            subclass_id,
+            hwnd_key(overlay),
+        )
+        .ok()
+        {
+            states().lock().unwrap().remove(&hwnd_key(overlay));
+            let _ = DestroyWindow(overlay);
+
+            return Err(err);
+        }
     }
 
     Ok(SnapLayoutHandle {
         parent: hwnd_key(parent),
         overlay: hwnd_key(overlay),
+        subclass_id,
     })
 }
 
@@ -208,7 +235,7 @@ unsafe fn create_overlay_window(parent: HWND) -> Result<HWND> {
         WINDOW_EX_STYLE::default(),
         w!("TAURI_SNAP_LAYOUT_OVERLAY"),
         PCWSTR::null(),
-        WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_OVERLAPPED,
+        WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
         0,
         0,
         0,
@@ -287,9 +314,14 @@ fn is_enabled(overlay: HWND) -> bool {
         .unwrap_or(false)
 }
 
-unsafe fn set_overlay_enabled(parent: HWND, overlay: HWND, enabled: bool) -> Result<()> {
+unsafe fn set_overlay_enabled(
+    parent: HWND,
+    overlay: HWND,
+    enabled: bool,
+) -> Result<()> {
     let leave_callback = {
         let mut guard = states().lock().unwrap();
+
         let Some(state) = guard.get_mut(&hwnd_key(overlay)) else {
             return Ok(());
         };
@@ -300,9 +332,15 @@ unsafe fn set_overlay_enabled(parent: HWND, overlay: HWND, enabled: bool) -> Res
 
         state.enabled = enabled;
 
-        if !enabled && state.is_mouse_over {
-            state.is_mouse_over = false;
-            Some(Arc::clone(&state.callback))
+        if !enabled {
+            state.is_pressed = false;
+
+            if state.is_mouse_over {
+                state.is_mouse_over = false;
+                Some(Arc::clone(&state.callback))
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -310,6 +348,7 @@ unsafe fn set_overlay_enabled(parent: HWND, overlay: HWND, enabled: bool) -> Res
 
     update_overlay_position(parent, overlay);
     emit(leave_callback, MaxButtonEvent::MouseLeave);
+
     Ok(())
 }
 
@@ -323,6 +362,44 @@ fn set_mouse_over(overlay: HWND, mouse_over: bool) -> Option<EventCallback> {
 
     state.is_mouse_over = mouse_over;
     Some(Arc::clone(&state.callback))
+}
+
+fn set_pressed(overlay: HWND, pressed: bool) -> bool {
+    let mut guard = states().lock().unwrap();
+
+    let Some(state) = guard.get_mut(&hwnd_key(overlay)) else {
+        return false;
+    };
+
+    if !state.enabled || state.is_pressed == pressed {
+        return false;
+    }
+
+    state.is_pressed = pressed;
+    true
+}
+
+fn take_pressed(overlay: HWND) -> bool {
+    let mut guard = states().lock().unwrap();
+
+    let Some(state) = guard.get_mut(&hwnd_key(overlay)) else {
+        return false;
+    };
+
+    if !state.is_pressed {
+        return false;
+    }
+
+    state.is_pressed = false;
+    true
+}
+
+fn parent_for_overlay(overlay: HWND) -> Option<HWND> {
+    let guard = states().lock().unwrap();
+
+    guard
+        .get(&hwnd_key(overlay))
+        .map(|state| HWND(state.parent as *mut c_void))
 }
 
 fn emit(callback: Option<EventCallback>, event: MaxButtonEvent) {
@@ -351,6 +428,21 @@ unsafe extern "system" fn subclass_proc(
     DefSubclassProc(hwnd, msg, wparam, lparam)
 }
 
+unsafe fn toggle_parent_maximized(parent: HWND) {
+    let command = if IsZoomed(parent).as_bool() {
+        SC_RESTORE
+    } else {
+        SC_MAXIMIZE
+    };
+
+    let _ = SendMessageW(
+        parent,
+        WM_SYSCOMMAND,
+        Some(WPARAM(command as usize)),
+        Some(LPARAM(0)),
+    );
+}
+
 unsafe extern "system" fn overlay_window_proc(
     hwnd: HWND,
     msg: u32,
@@ -366,15 +458,35 @@ unsafe extern "system" fn overlay_window_proc(
             return LRESULT(HTMAXBUTTON as isize);
         }
         WM_NCLBUTTONDOWN => {
-            emit(callback_for_overlay(hwnd), MaxButtonEvent::LeftButtonDown);
+            if set_pressed(hwnd, true) {
+                emit(
+                    callback_for_overlay(hwnd),
+                    MaxButtonEvent::LeftButtonDown,
+                );
+            }
+
             return LRESULT(0);
         }
         WM_NCLBUTTONUP => {
-            emit(callback_for_overlay(hwnd), MaxButtonEvent::LeftButtonUp);
+            if take_pressed(hwnd) {
+                if let Some(parent) = parent_for_overlay(hwnd) {
+                    toggle_parent_maximized(parent);
+                }
+
+                emit(
+                    callback_for_overlay(hwnd),
+                    MaxButtonEvent::LeftButtonUp,
+                );
+            }
+
             return LRESULT(0);
         }
+
         WM_NCMOUSEMOVE => {
-            emit(set_mouse_over(hwnd, true), MaxButtonEvent::MouseEnter);
+            emit(
+                set_mouse_over(hwnd, true),
+                MaxButtonEvent::MouseEnter,
+            );
 
             let mut track = TRACKMOUSEEVENT {
                 cbSize: size_of::<TRACKMOUSEEVENT>() as u32,
@@ -382,19 +494,33 @@ unsafe extern "system" fn overlay_window_proc(
                 hwndTrack: hwnd,
                 dwHoverTime: 0,
             };
+
             let _ = TrackMouseEvent(&mut track);
+
             return LRESULT(0);
         }
+
         WM_NCMOUSELEAVE => {
-            emit(set_mouse_over(hwnd, false), MaxButtonEvent::MouseLeave);
+            let _ = take_pressed(hwnd);
+
+            emit(
+                set_mouse_over(hwnd, false),
+                MaxButtonEvent::MouseLeave,
+            );
+
             return LRESULT(0);
         }
+
         WM_SETCURSOR => {
             if use_hand_cursor(hwnd) {
-                let _ = SetCursor(Some(LoadCursorW(None, IDC_HAND).unwrap_or_default()));
+                let _ = SetCursor(Some(
+                    LoadCursorW(None, IDC_HAND).unwrap_or_default(),
+                ));
+
                 return LRESULT(1);
             }
         }
+
         _ => {}
     }
 

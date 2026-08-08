@@ -157,7 +157,10 @@ fn install_snap_overlay<R: tauri::Runtime>(
 
     window.run_on_main_thread(move || {
         use snap_layout::{
-            hwnd_from_tauri_window, install_snap_layout, MaxButtonEvent, SnapLayoutConfig,
+            hwnd_from_tauri_window,
+            install_snap_layout,
+            MaxButtonEvent,
+            SnapLayoutConfig,
             WindowCorner,
         };
 
@@ -168,6 +171,15 @@ fn install_snap_overlay<R: tauri::Runtime>(
                 return;
             }
         };
+
+        let old_handle = {
+            let layouts = app_handle.state::<SnapLayouts>();
+            let mut guard = layouts.0.lock().unwrap();
+
+            guard.remove(window_for_setup.label())
+        };
+
+        drop(old_handle);
 
         let handle = match install_snap_layout(
             hwnd,
@@ -187,18 +199,7 @@ fn install_snap_overlay<R: tauri::Runtime>(
                     let _ = window_for_callback.emit("snap-hover", false);
                 }
                 MaxButtonEvent::LeftButtonUp => {
-                    let is_maximized = window_for_callback.is_maximized().unwrap_or(false);
-                    let result = if is_maximized {
-                        window_for_callback.unmaximize()
-                    } else {
-                        window_for_callback.maximize()
-                    };
-
-                    if let Err(err) = result {
-                        eprintln!("failed to toggle maximize: {err}");
-                    }
-
-                    let maximized = window_for_callback.is_maximized().unwrap_or(!is_maximized);
+                    let maximized = window_for_callback.is_maximized().unwrap_or(false);
                     let _ = window_for_callback.emit("window-maximized", maximized);
                 }
                 MaxButtonEvent::LeftButtonDown => {}

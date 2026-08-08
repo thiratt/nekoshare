@@ -44,3 +44,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+*[data-neko-titlebar] {
+  app-region: drag;
+}
