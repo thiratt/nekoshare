@@ -306,7 +306,7 @@ export const ShareComposer = forwardRef<ShareComposerHandle, ShareComposerProps>
 	}, []);
 
 	return (
-		<div className="flex h-full min-h-0 flex-col gap-4">
+		<div className="flex h-full min-h-0 flex-col gap-4 p-2">
 			<input ref={inputRef} type="file" multiple className="hidden" onChange={handleInputChange} />
 
 			<div className="flex items-center justify-between gap-3">
@@ -316,12 +316,6 @@ export const ShareComposer = forwardRef<ShareComposerHandle, ShareComposerProps>
 							<LuArrowLeft />
 						</AppLink>
 					</Button>
-					<div className="min-w-0">
-						<h1 className="truncate text-xl font-semibold">อัปโหลดไฟล์</h1>
-						<p className="truncate text-sm text-muted-foreground">
-							เลือกไฟล์จากคอมพิวเตอร์หรืออุปกรณ์ของคุณแล้วแชร์กับเพื่อน ๆ ได้เลย
-						</p>
-					</div>
 				</div>
 				<Button type="button" disabled={!canSend} onClick={handleSendPending}>
 					<LuSend />
