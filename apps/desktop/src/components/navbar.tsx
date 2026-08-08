@@ -56,7 +56,10 @@ function DesktopTitlebar({
             {sidebarToggle.isOpen ? <LuPanelLeftClose /> : <LuPanelLeftOpen />}
           </Button>
         )}
-        <div data-neko-titlebar className="flex h-full min-w-0 flex-1 items-center">
+        <div
+          data-neko-titlebar
+          className="flex h-full min-w-0 flex-1 items-center"
+        >
           <h1 className="pointer-events-none select-none pl-2 font-semibold text-sm lg:text-base">
             Neko Share Desktop
           </h1>
@@ -67,9 +70,8 @@ function DesktopTitlebar({
           <div className="space-x-1 mr-1">
             {helperActions.map((action, index) => (
               <Tooltip key={index} delayDuration={350}>
-                <TooltipTrigger>
+                <TooltipTrigger asChild>
                   <Button
-                    key={index}
                     className={cn(
                       "relative hover:bg-primary/15",
                       action.actived && "bg-primary/15 ",
