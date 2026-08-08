@@ -1,10 +1,12 @@
+import React from "react";
+
 import { Search, X } from "lucide-react";
 
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { cn } from "@workspace/ui/lib/utils";
 
-interface SearchInputProps {
+interface SearchInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 	className?: string;
 	searchQuery: string;
 	placeholder?: string;
@@ -12,7 +14,14 @@ interface SearchInputProps {
 	onClearSearch: () => void;
 }
 
-function SearchInput({ className, searchQuery, placeholder, onSearchQuery, onClearSearch }: SearchInputProps) {
+function SearchInput({
+	className,
+	searchQuery,
+	placeholder,
+	onSearchQuery,
+	onClearSearch,
+	...props
+}: SearchInputProps) {
 	return (
 		<div className={cn("relative transition-all duration-300 w-full", className)}>
 			{!searchQuery && (
@@ -25,6 +34,7 @@ function SearchInput({ className, searchQuery, placeholder, onSearchQuery, onCle
 				onChange={(e) => onSearchQuery(e.target.value)}
 				className={cn("transition-all", !searchQuery ? "pl-9" : "pr-7")}
 				aria-label="Search input"
+				{...props}
 			/>
 
 			{searchQuery && (
