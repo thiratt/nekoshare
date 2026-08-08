@@ -1,4 +1,9 @@
-import { createRootRoute, Link, Outlet, useRouter } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  Link,
+  Outlet,
+  useRouter,
+} from "@tanstack/react-router";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { NekoShareProvider } from "@workspace/app-ui/context/nekoshare";
