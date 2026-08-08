@@ -1,11 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { DevicesUI } from "@workspace/app-ui/components/ui/devices/index";
 
 export const Route = createFileRoute("/(app)/home/devices")({
-  component: RouteComponent,
+  component: DevicesPage,
 });
 
-function RouteComponent() {
-  return <DevicesUI />;
+function DevicesPage() {
+  const navigate = useNavigate();
+
+  return (
+    <DevicesUI
+      onSendFiles={() => {
+        void navigate({ to: "/share/new" });
+      }}
+    />
+  );
 }

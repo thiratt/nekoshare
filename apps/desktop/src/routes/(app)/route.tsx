@@ -9,7 +9,7 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { stat } from "@tauri-apps/plugin-fs";
-import { LuBell, LuMoon, LuSettings, LuSun } from "react-icons/lu";
+import { LuBell } from "react-icons/lu";
 
 import { useToast } from "@workspace/ui/hooks/use-toast";
 
@@ -36,10 +36,7 @@ import { useNekoSocket } from "@workspace/app-ui/hooks/useNekoSocket";
 import { usePacketRouter } from "@workspace/app-ui/hooks/usePacketRouter";
 import { useSocketInterval } from "@workspace/app-ui/hooks/useSocketInterval";
 import { PacketType } from "@workspace/app-ui/lib/nk-socket";
-import {
-  useAccountThemeSync,
-  useTheme,
-} from "@workspace/app-ui/providers/theme-provider";
+import { useAccountThemeSync } from "@workspace/app-ui/providers/theme-provider";
 import type { Mode } from "@workspace/app-ui/types/context";
 
 import { DesktopTitlebar } from "@/components/navbar";
@@ -200,9 +197,10 @@ interface HomeContentProps {
     actived?: boolean;
   }[];
   sidebarToggle: {
-    isOpen: boolean;
-    onToggle: () => void;
     disabled?: boolean;
+    isOpen: boolean;
+    onSettings: () => void;
+    onToggle: () => void;
   };
   location: { pathname: string };
   mode: Mode;
@@ -257,8 +255,9 @@ function HomeContent({
               mode="desktop"
               collapseWhenNotificationOpen={notificationStatus === "on"}
               isOpen={sidebarToggle.isOpen}
+              onSettings={sidebarToggle.onSettings}
             />
-            <main className="flex-1 p-4 flex flex-col min-w-0 overflow-hidden">
+            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
               <HomeSendProvider onHomeSendToDevice={onHomeSendToDevice}>
                 <Outlet />
               </HomeSendProvider>
@@ -301,7 +300,6 @@ function RouteComponent() {
   const userDeviceId = user?.deviceId ?? null;
   useAccountLanguageSync(sessionUser?.language ?? user?.language);
   useAccountThemeSync(sessionUser?.theme ?? user?.theme);
-  const { theme, setTheme } = useTheme();
   const { isOpen: isSidebarOpen, toggleSidebar } = useSidebar();
   const { send, on } = useNekoSocket();
   const { devices } = useDevices();
@@ -322,21 +320,14 @@ function RouteComponent() {
   const titlebarHelperActions = useMemo(
     () => [
       {
-        icon: theme === "dark" ? <LuMoon /> : <LuSun />,
-        onClick: () => setTheme(theme === "dark" ? "light" : "dark"),
-      },
-      {
         icon: <LuBell />,
         onClick: () => toggleNotification(),
         badge: true,
         actived: notificationStatus === "on",
-      },
-      {
-        icon: <LuSettings />,
-        onClick: () => setMode("settings"),
+        title: "Notifications",
       },
     ],
-    [notificationStatus, setMode, setTheme, theme, toggleNotification],
+    [notificationStatus, toggleNotification],
   );
 
   usePacketRouter({
@@ -1004,9 +995,10 @@ function RouteComponent() {
         isReady={isReady}
         titlebarHelperActions={titlebarHelperActions}
         sidebarToggle={{
-          isOpen: isSidebarOpen,
-          onToggle: toggleSidebar,
           disabled: notificationStatus === "on",
+          isOpen: isSidebarOpen,
+          onSettings: () => setMode("settings"),
+          onToggle: toggleSidebar,
         }}
         location={location}
         mode={mode}
