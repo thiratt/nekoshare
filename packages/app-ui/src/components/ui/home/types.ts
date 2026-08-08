@@ -80,6 +80,38 @@ export type HomeRecentTransferItem = {
 };
 
 export type HomeUIProps = {
+	transfers: TransferItem[];
+	loading?: boolean;
+	onPause?: (transferId: string) => void;
+	onQuickSend?: () => void;
+	onRetry?: (transferId: string) => void;
+};
+
+export type TransferDirection = "incoming" | "outgoing";
+
+// TODO(runtime): Current desktop transfer events only expose processing/success/failed.
+// Keep the richer states for forward-compatible UI, but adapters must not invent them.
+export type TransferStatus = "connecting" | "transferring" | "paused" | "verifying" | "completed" | "failed";
+
+export type TransferFilter = "all" | "sending" | "receiving" | "completed" | "failed";
+
+export type TransferItem = {
+	id: string;
+	name: string;
+	peerName: string;
+	direction: TransferDirection;
+	status: TransferStatus;
+	progress: number;
+	transferredBytes: number;
+	totalBytes: number;
+	speedBytesPerSecond?: number;
+	updatedAt: number;
+	fileCount: number;
+};
+
+// --- Legacy home send UI types (keep for sub-components) ---
+
+export type LegacyHomeUIProps = {
 	activeTransfers?: HomeActiveTransferItem[];
 	dropState?: HomeDropState;
 	devices?: Device[];

@@ -10,5 +10,10 @@ export type {
 	HomeSendPayload,
 	HomeTarget,
 	HomeUIProps,
+	LegacyHomeUIProps,
 	PreviewKind,
+	TransferDirection,
+	TransferFilter,
+	TransferItem,
+	TransferStatus,
 } from "./types";

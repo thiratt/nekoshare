@@ -1,10 +1,18 @@
-import type { FriendItem } from "@workspace/app-ui/types/friends";
+import type { DragEvent } from "react";
 
-import type { FriendsFilterResult } from "../types";
+import type { FriendItem as ApiFriendItem } from "@workspace/app-ui/types/friends";
+
+import type { FriendFilter, FriendRelation, FriendsFilterResult, FriendViewItem } from "../types";
 
 export function getInitials(name: string): string {
-	const parts = name.trim().split(" ").filter(Boolean);
-	return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
+	const parts = name.trim().split(/\s+/).slice(0, 2);
+
+	return (
+		parts
+			.map((part) => part.charAt(0))
+			.join("")
+			.toUpperCase() || "?"
+	);
 }
 
 export function formatRelativeTime(dateString: string): string {
@@ -38,13 +46,13 @@ export function formatCreatedAt(createdAt: string): string {
 }
 
 export function filterFriendGroups(
-	friends: FriendItem[],
-	incoming: FriendItem[],
-	outgoing: FriendItem[],
+	friends: ApiFriendItem[],
+	incoming: ApiFriendItem[],
+	outgoing: ApiFriendItem[],
 	query: string,
 ): FriendsFilterResult {
 	const normalizedQuery = query.trim().toLowerCase();
-	const matchesQuery = (friend: FriendItem) =>
+	const matchesQuery = (friend: ApiFriendItem) =>
 		!normalizedQuery || `${friend.name} ${friend.email}`.toLowerCase().includes(normalizedQuery);
 
 	return {
@@ -52,4 +60,65 @@ export function filterFriendGroups(
 		filteredIncoming: incoming.filter(matchesQuery),
 		filteredOutgoing: outgoing.filter(matchesQuery),
 	};
+}
+
+export function matchesFriendFilter(friend: FriendViewItem, filter: FriendFilter) {
+	switch (filter) {
+		case "all":
+			return true;
+
+		case "online":
+			return friend.relation === "friend" && friend.online;
+
+		case "offline":
+			return friend.relation === "friend" && !friend.online;
+
+		case "requests":
+			return friend.relation !== "friend";
+	}
+}
+
+export function canSendToFriend(friend: FriendViewItem) {
+	return friend.relation === "friend" && friend.online;
+}
+
+export function canDropFiles(event: DragEvent, friend: FriendViewItem, dropEnabled: boolean) {
+	return dropEnabled && canSendToFriend(friend) && event.dataTransfer.types.includes("Files");
+}
+
+export function getRelationLabel(relation: FriendRelation) {
+	switch (relation) {
+		case "friend":
+			return "Friend";
+
+		case "incoming-request":
+			return "Incoming request";
+
+		case "outgoing-request":
+			return "Request pending";
+	}
+}
+
+export function toFriendViewItem(friend: ApiFriendItem, relation: FriendRelation): FriendViewItem {
+	return {
+		id: friend.friendId,
+		name: friend.name,
+		// TODO(api): The current friend contract exposes email, not a username.
+		// Use the real email value until a username field is added to the API.
+		username: friend.email,
+		relation,
+		// TODO(runtime): Presence is optional in the current contract. Missing
+		// presence is treated as offline until the realtime layer reports it.
+		online: friend.isOnline === true,
+		addedAt: formatFriendDate(friend.createdAt),
+	};
+}
+
+export function formatFriendDate(value: Date | string) {
+	const timestamp = value instanceof Date ? value.getTime() : Date.parse(value);
+	if (Number.isNaN(timestamp)) return "Unknown";
+
+	return new Intl.DateTimeFormat(undefined, {
+		dateStyle: "medium",
+	}).format(timestamp);
 }

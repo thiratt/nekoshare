@@ -10,10 +10,10 @@ import type {
 	HomePreviewTextItem,
 	HomePreviewVideoItem,
 } from "../preview/preview-types";
-import type { HomeDraftFile, HomeUIProps, PreviewKind } from "../types";
+import type { HomeDraftFile, LegacyHomeUIProps, PreviewKind } from "../types";
 
 type HomePreviewResolvers = Pick<
-	HomeUIProps,
+	LegacyHomeUIProps,
 	| "onResolveAudioPreview"
 	| "onResolveImagePreview"
 	| "onResolvePdfPreview"

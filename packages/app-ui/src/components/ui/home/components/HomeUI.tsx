@@ -1,170 +1,155 @@
-import { type ChangeEvent, forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import React from "react";
 
-import {
-	DetailPanel,
-	DetailPanelContent,
-	DetailPanelProvider,
-} from "@workspace/app-ui/components/detail-panel";
+import { LuSend } from "react-icons/lu";
 
-import { useHomeDraftFiles } from "../hooks/useHomeDraftFiles";
-import { useHomeDragDrop } from "../hooks/useHomeDragDrop";
-import { useHomePreview } from "../hooks/useHomePreview";
-import { useHomeTargets } from "../hooks/useHomeTargets";
-import { HomePreviewDialogs } from "../preview/HomePreviewDialogs";
-import { HomeActivityArea } from "./HomeActivityArea";
-import { HOME_FILE_STAGE_DROP_ID, HomeDropTarget } from "./HomeDropTarget";
-import { type HomeViewAllMode, HomeViewAllPanel } from "./HomeViewAllPanel";
-import type { HomeDropHandle, HomeUIProps } from "../types";
+import { Button } from "@workspace/ui/components/button";
+import { ButtonGroup } from "@workspace/ui/components/button-group";
+import { SearchInput } from "@workspace/ui/components/search-input";
+import { cn } from "@workspace/ui/lib/utils";
 
-export const HomeUI = forwardRef<HomeDropHandle, HomeUIProps>(function HomeUI(
-	{
-		activeTransfers,
-		devices,
-		dropState,
-		friends,
-		isLoadingRecentTransfers,
-		onResolveAudioPreview,
-		onResolveImagePreview,
-		onResolvePdfPreview,
-		onResolveTextPreview,
-		onResolveVideoPreview,
-		onSend,
-		onViewAllRecentTransfers,
-		recentTransfers,
-	},
-	ref,
-) {
-	const inputRef = useRef<HTMLInputElement | null>(null);
-	const [isSending, setIsSending] = useState(false);
-	const [viewAllMode, setViewAllMode] = useState<HomeViewAllMode | null>(null);
-	const preview = useHomePreview({
-		onResolveAudioPreview,
-		onResolveImagePreview,
-		onResolvePdfPreview,
-		onResolveTextPreview,
-		onResolveVideoPreview,
-	});
-	const { addFilesToStage, addPathEntriesToStage, clearFiles, files, removeFile, selectedFileCount, totalSelectedSize } =
-		useHomeDraftFiles({
-			onRemoveFile: preview.clearPreviewForFile,
+import { AnimatePresence, motion } from "@workspace/app-ui/components/provide-animate";
+
+import { isActiveTransfer, matchesTransferFilter } from "../utils/transfer-utils";
+import { HomeTransferDetailsPane } from "./HomeTransferDetailsPane";
+import { HomeTransferEmptyState } from "./HomeTransferEmptyState";
+import { HomeTransferList } from "./HomeTransferList";
+import type { HomeUIProps, TransferFilter } from "../types";
+
+const filters: Array<{
+	value: TransferFilter;
+	label: string;
+}> = [
+	{ value: "all", label: "All" },
+	{ value: "sending", label: "Sending" },
+	{ value: "receiving", label: "Receiving" },
+	{ value: "completed", label: "Completed" },
+	{ value: "failed", label: "Failed" },
+];
+
+export function HomeUI({ transfers, loading = false, onPause, onQuickSend, onRetry }: HomeUIProps) {
+	const [filter, setFilter] = React.useState<TransferFilter>("all");
+	const [searchQuery, setSearchQuery] = React.useState("");
+	const [selectedId, setSelectedId] = React.useState<string | null>(null);
+
+	const visibleTransfers = React.useMemo(() => {
+		const normalizedQuery = searchQuery.trim().toLowerCase();
+
+		return transfers.filter((transfer) => {
+			const matches = matchesTransferFilter(transfer, filter);
+
+			const matchesSearch =
+				normalizedQuery.length === 0 ||
+				transfer.name.toLowerCase().includes(normalizedQuery) ||
+				transfer.peerName.toLowerCase().includes(normalizedQuery);
+
+			return matches && matchesSearch;
 		});
-	const targets = useHomeTargets({ selectedFileCount });
-	const drag = useHomeDragDrop({ addFilesToStage });
+	}, [filter, searchQuery, transfers]);
 
-	useImperativeHandle(ref, () => ({ addDroppedPaths: addPathEntriesToStage }), [addPathEntriesToStage]);
+	const selectedTransfer = transfers.find((transfer) => transfer.id === selectedId) ?? null;
 
-	useEffect(() => {
-		if (files.length === 0 && viewAllMode === "files") {
-			setViewAllMode(null);
+	const activeCount = transfers.filter((transfer) => isActiveTransfer(transfer)).length;
+
+	React.useEffect(() => {
+		if (selectedId && !visibleTransfers.some((transfer) => transfer.id === selectedId)) {
+			setSelectedId(null);
 		}
-	}, [files.length, viewAllMode]);
-
-	function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
-		addFilesToStage(Array.from(event.target.files ?? []));
-		event.target.value = "";
-	}
-
-	function toggleViewAllMode(mode: HomeViewAllMode) {
-		setViewAllMode((current) => (current === mode ? null : mode));
-	}
-
-	async function handleSend() {
-		if (isSending || !onSend || !targets.sendReady || files.length === 0) return;
-
-		setIsSending(true);
-		try {
-			await onSend?.({
-				files,
-				selectedTargetIds: targets.selectedTargetIds,
-				encrypted: targets.encrypted,
-				publicShare: targets.publicShare,
-			});
-			clearFiles();
-		} finally {
-			setIsSending(false);
-		}
-	}
-
-	const isDraggingInApp = drag.isBrowserDraggingInApp || (dropState?.isDragging ?? false);
-	const isStageDropActive = drag.isBrowserDraggingOverStage || dropState?.activeDropId === HOME_FILE_STAGE_DROP_ID;
+	}, [selectedId, visibleTransfers]);
 
 	return (
-		<>
-			<DetailPanelProvider className="-m-4" open={viewAllMode !== null} width={360} gap={0}>
-				<DetailPanel
-					className="flex h-full min-w-0 flex-1 flex-col items-center justify-center"
-					onDragEnter={drag.handleAppDragEnter}
-					onDragLeave={drag.handleAppDragLeave}
-					onDragOver={drag.handleAppDragOver}
-					onDrop={drag.handleAppDrop}
-				>
-					<input ref={inputRef} type="file" multiple className="hidden" onChange={handleInputChange} />
+		<div className="flex min-h-0 flex-1 flex-col bg-background">
+			<div className="shrink-0 border-b">
+				<div className="flex flex-wrap items-center gap-2 p-2">
+					<ButtonGroup>
+						{filters.map((item) => (
+							<Button
+								key={item.value}
+								type="button"
+								variant={filter === item.value ? "secondary" : "outline"}
+								size="sm"
+								className={cn("h-8", filter === item.value && "border")}
+								aria-pressed={filter === item.value}
+								onClick={() => setFilter(item.value)}
+								disabled={visibleTransfers.length === 0 && item.value !== "all"}
+							>
+								{item.label}
+							</Button>
+						))}
+					</ButtonGroup>
 
-					<div className="flex w-full max-w-2xl flex-col items-center">
-						<div className="mb-4 flex flex-col items-center gap-1">
-							<h1 className="text-2xl font-semibold tracking-tight text-foreground">Neko Share</h1>
-						</div>
+					<div className="flex-1" />
 
-						<HomeDropTarget
-							files={files}
-							isViewingAllFiles={viewAllMode === "files"}
-							totalSelectedSize={totalSelectedSize}
-							isDraggingInApp={isDraggingInApp}
-							isStageDropActive={isStageDropActive}
-							encrypted={targets.encrypted}
-							publicShare={targets.publicShare}
-							sendReady={targets.sendReady && Boolean(onSend)}
-							isSending={isSending}
-							onEncryptedChange={targets.setEncrypted}
-							onPublicShareChange={targets.setPublicShareMode}
-							onBrowse={() => inputRef.current?.click()}
-							onSend={() => void handleSend()}
-							onPreviewImage={preview.openPreview}
-							onRemoveFile={removeFile}
-							onViewAllFiles={() => toggleViewAllMode("files")}
-							onDragEnter={drag.handleStageDragEnter}
-							onDragOver={drag.handleStageDragOver}
-							onDragLeave={drag.handleStageDragLeave}
-							onDrop={drag.handleStageDrop}
-						/>
-
-						<HomeActivityArea
-							activeTransfers={activeTransfers ?? []}
-							devices={devices ?? []}
-							friends={friends ?? []}
-							hasSelectedFiles={files.length > 0}
-							isLoadingRecentTransfers={isLoadingRecentTransfers ?? false}
-							publicShare={targets.publicShare}
-							recentTransfers={recentTransfers ?? []}
-							selectedTargetIds={targets.selectedTargetIds}
-							onToggleTarget={targets.toggleTarget}
-							onViewAllRecentTransfers={onViewAllRecentTransfers}
-						/>
-					</div>
-				</DetailPanel>
-
-				<DetailPanelContent className="h-full">
-					<HomeViewAllPanel
-						files={files}
-						onClose={() => setViewAllMode(null)}
-						onPreviewImage={preview.openPreview}
-						onRemoveFile={removeFile}
+					<SearchInput
+						searchQuery={searchQuery}
+						onSearchQuery={setSearchQuery}
+						onClearSearch={() => setSearchQuery("")}
+						placeholder="Search transfers..."
+						className="w-full shadow-none sm:w-72"
+						disabled={visibleTransfers.length === 0}
 					/>
-				</DetailPanelContent>
-			</DetailPanelProvider>
 
-			<HomePreviewDialogs
-				audio={preview.previewAudio}
-				image={preview.previewImage}
-				pdf={preview.previewPdf}
-				text={preview.previewText}
-				video={preview.previewVideo}
-				onCloseAudio={preview.closeAudioPreview}
-				onCloseImage={preview.closeImagePreview}
-				onClosePdf={preview.closePdfPreview}
-				onCloseText={preview.closeTextPreview}
-				onCloseVideo={preview.closeVideoPreview}
-			/>
-		</>
+					<Button type="button" size="sm" className="h-8 gap-2" disabled={!onQuickSend} onClick={onQuickSend}>
+						<LuSend />
+						Send files
+					</Button>
+				</div>
+			</div>
+
+			<div className="flex min-h-0 flex-1">
+				<div className="min-w-0 flex-1 overflow-auto">
+					{visibleTransfers.length > 0 ? (
+						<HomeTransferList
+							transfers={visibleTransfers}
+							selectedId={selectedId}
+							onSelect={setSelectedId}
+						/>
+					) : (
+						<HomeTransferEmptyState
+							searchQuery={searchQuery}
+							filter={filter}
+							loading={loading}
+							onReset={() => {
+								setSearchQuery("");
+								setFilter("all");
+							}}
+						/>
+					)}
+				</div>
+
+				<AnimatePresence initial={false}>
+					{selectedTransfer && (
+						<motion.aside
+							key="transfer-details"
+							initial={{ width: 0, opacity: 0 }}
+							animate={{ width: 320, opacity: 1 }}
+							exit={{ width: 0, opacity: 0 }}
+							transition={{
+								width: {
+									duration: 0.22,
+									ease: [0.22, 1, 0.36, 1],
+								},
+								opacity: {
+									duration: 0.14,
+								},
+							}}
+							className="shrink-0 overflow-hidden border-l"
+						>
+							<div className="h-full w-80">
+								<HomeTransferDetailsPane
+									transfer={selectedTransfer}
+									onClose={() => setSelectedId(null)}
+									onPause={onPause ? () => onPause(selectedTransfer.id) : undefined}
+									onRetry={onRetry ? () => onRetry(selectedTransfer.id) : undefined}
+								/>
+							</div>
+						</motion.aside>
+					)}
+				</AnimatePresence>
+			</div>
+
+			<div className="flex h-8 shrink-0 items-center border-t bg-muted/15 px-3 text-xs text-muted-foreground">
+				{visibleTransfers.length} transfers | {activeCount} active
+			</div>
+		</div>
 	);
-});
+}

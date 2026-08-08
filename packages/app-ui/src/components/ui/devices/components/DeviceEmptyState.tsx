@@ -1,27 +1,25 @@
-import { memo } from "react";
-
 import { LuMonitor } from "react-icons/lu";
 
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@workspace/ui/components/empty";
+import { Button } from "@workspace/ui/components/button";
 
-type DeviceEmptyStateProps = {
-	description?: string;
-	icon?: React.ReactNode;
-	title?: string;
-};
-
-export const DeviceEmptyState = memo(function DeviceEmptyState({
-	description = "ลงชื่อเข้าใช้จากอุปกรณ์อื่นเพื่อเพิ่มเข้ามาในรายการนี้",
-	icon,
-	title = "ยังไม่มีอุปกรณ์",
-}: DeviceEmptyStateProps) {
+export function DeviceEmptyState({ hasFilter, onReset }: { hasFilter: boolean; onReset: () => void }) {
 	return (
-		<Empty className="h-full">
-			<EmptyHeader>
-				<EmptyMedia variant="icon">{icon ?? <LuMonitor />}</EmptyMedia>
-				<EmptyTitle>{title}</EmptyTitle>
-				<EmptyDescription>{description}</EmptyDescription>
-			</EmptyHeader>
-		</Empty>
+		<div className="flex h-full min-h-80 flex-col items-center justify-center p-8 text-center">
+			<LuMonitor className="size-8 text-muted-foreground/50" />
+
+			<p className="mt-3 text-sm font-medium">{hasFilter ? "No matching devices" : "No linked devices"}</p>
+
+			<p className="mt-1 max-w-sm text-xs leading-5 text-muted-foreground">
+				{hasFilter
+					? "Try another search or reset the active filter."
+					: "Link another device to send files securely between your devices."}
+			</p>
+
+			{hasFilter && (
+				<Button type="button" variant="outline" size="sm" className="mt-4" onClick={onReset}>
+					Reset filters
+				</Button>
+			)}
+		</div>
 	);
-});
+}

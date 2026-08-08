@@ -24,3 +24,26 @@ export type UserSearchStatusInfo = {
 };
 
 export type AvailableUserSearchStatus = Exclude<UserSearchResult["friendStatus"], "none">;
+
+export type FriendFilter = "all" | "online" | "offline" | "requests";
+
+export type FriendRelation = "friend" | "incoming-request" | "outgoing-request";
+
+export type FriendViewItem = {
+	id: string;
+	name: string;
+	username: string;
+	relation: FriendRelation;
+	online: boolean;
+	addedAt: string;
+};
+
+export type FriendCollectionProps = {
+	friends: FriendViewItem[];
+	selectedId: string | null;
+	dropTargetId: string | null;
+	onSelect: (id: string) => void;
+	onDropTargetChange: (id: string | null) => void;
+	onFiles: (friend: FriendViewItem, files: File[]) => void;
+	dropEnabled: boolean;
+};

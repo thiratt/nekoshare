@@ -2,12 +2,12 @@ import { AnimatePresence, motion } from "motion/react";
 
 import { HomeRecentItems, HomeTransfers } from "./HomeActivityList";
 import { HomeTargetTray } from "./HomeTargetTray";
-import type { HomeActiveTransferItem, HomeRecentTransferItem, HomeUIProps } from "../types";
+import type { HomeActiveTransferItem, HomeRecentTransferItem, LegacyHomeUIProps } from "../types";
 
 type HomeActivityAreaProps = {
 	activeTransfers: HomeActiveTransferItem[];
-	devices: NonNullable<HomeUIProps["devices"]>;
-	friends: NonNullable<HomeUIProps["friends"]>;
+	devices: NonNullable<LegacyHomeUIProps["devices"]>;
+	friends: NonNullable<LegacyHomeUIProps["friends"]>;
 	hasSelectedFiles: boolean;
 	isLoadingRecentTransfers: boolean;
 	publicShare: boolean;

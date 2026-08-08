@@ -1,6 +1,6 @@
 import { memo } from "react";
 
-import { LuUserPlus } from "react-icons/lu";
+import { LuUserPlus, LuUserRound } from "react-icons/lu";
 
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -11,6 +11,28 @@ import {
 	EmptyMedia,
 	EmptyTitle,
 } from "@workspace/ui/components/empty";
+
+export function FriendsEmptyState({ hasFilter, onReset }: { hasFilter: boolean; onReset: () => void }) {
+	return (
+		<div className="flex h-full min-h-80 flex-col items-center justify-center p-8 text-center">
+			<LuUserRound className="size-8 text-muted-foreground/50" />
+
+			<p className="mt-3 text-sm font-medium">{hasFilter ? "No matching friends" : "No friends yet"}</p>
+
+			<p className="mt-1 max-w-sm text-xs leading-5 text-muted-foreground">
+				{hasFilter
+					? "Try another search or reset the active filter."
+					: "Add a friend to send files securely between accounts."}
+			</p>
+
+			{hasFilter && (
+				<Button type="button" variant="outline" size="sm" className="mt-4" onClick={onReset}>
+					Reset filters
+				</Button>
+			)}
+		</div>
+	);
+}
 
 type EmptyStateProps = {
 	title?: string;

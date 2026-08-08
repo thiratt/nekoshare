@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import { useToast } from "@workspace/ui/hooks/use-toast";
 
@@ -46,7 +46,7 @@ export function useFriendsController() {
 		if (incoming.length > prevIncomingCountRef.current) {
 			const newest = incoming[0];
 			if (newest) {
-				toast.info(`คำขอเป็นเพื่อนจาก ${newest.name}`);
+				toast.info(`à¸„à¸³à¸‚à¸­à¹€à¸›à¹‡à¸™à¹€à¸žà¸·à¹ˆà¸­à¸™à¸ˆà¸²à¸ ${newest.name}`);
 			}
 		}
 
@@ -69,7 +69,10 @@ export function useFriendsController() {
 			try {
 				await action(friendId);
 			} catch (actionError) {
-				const message = actionError instanceof Error ? actionError.message : "ไม่สามารถทำรายการได้";
+				const message =
+					actionError instanceof Error
+						? actionError.message
+						: "à¹„à¸¡à¹ˆà¸ªà¸²à¸¡à¸²à¸£à¸–à¸—à¸³à¸£à¸²à¸¢à¸à¸²à¸£à¹„à¸”à¹‰";
 				toast.error(message);
 			} finally {
 				setActionLoading(null);
@@ -82,7 +85,7 @@ export function useFriendsController() {
 		async (userId: string) => {
 			await sendRequest(userId);
 			setIsAddDialogOpen(false);
-			toast.success("ส่งคำขอเป็นเพื่อนแล้ว");
+			toast.success("à¸ªà¹ˆà¸‡à¸„à¸³à¸‚à¸­à¹€à¸›à¹‡à¸™à¹€à¸žà¸·à¹ˆà¸­à¸™à¹à¸¥à¹‰à¸§");
 		},
 		[sendRequest, toast],
 	);
@@ -148,6 +151,11 @@ export function useFriendsController() {
 		deferredQuery,
 		error,
 		filteredFriends,
+		// Expose raw API groups for presentation layers that implement their own
+		// filtering while preserving the existing filtered fields for current callers.
+		friends,
+		incoming,
+		outgoing,
 		filteredIncoming,
 		filteredOutgoing,
 		handleAccept,
